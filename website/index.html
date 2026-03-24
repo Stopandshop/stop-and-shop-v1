@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ميني ماركت Stop&Shop | مؤسسة نصور التجارية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="index.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div id="welcome-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="welcome-icon">🏪</div>
+        <h2>أهلاً بك في Stop & Shop</h2>
+        <p>استمتع بتجربة تسوق ذكية وسريعة. اطلب الآن وتصلك طلباتك حتى باب المنزل!</p>
+        <button onclick="closeWelcome()" class="close-welcome-btn">ابدأ التسوق الآن</button>
+    </div>
+</div>
+    <div class="top-bar">توصيل مجاني للطلبات فوق 50 دولار! 🔥</div>
+
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-shopping-basket"></i> Stop&Shop
+            </div>
+
+            <div class="search-wrapper">
+                <input type="text" id="search-input" placeholder="ابحث عن منتج..." oninput="searchProducts()">
+                <button onclick="searchProducts()"><i class="fas fa-search"></i></button>
+            </div>
+
+            <div class="header-icons">
+                <div id="login-btn" class="user-account" onclick="toggleAdmin()">
+                    <i class="fas fa-user"></i> دخول
+                </div>
+                <div class="cart-info" onclick="toggleCartPopup()">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cart-count">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="welcome-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-icon">🛒</div>
+            <h2>أهلاً بك في Stop & Shop</h2>
+            <p>تسوق أفضل المنتجات بأسعار منافسة.</p>
+            <div class="rate-info">سعر الصرف المعتمد: <strong>89,000 ل.ل</strong></div>
+            <button onclick="closeWelcome()">ابدأ التسوق</button>
+        </div>
+    </div>
+    <div id="progress-container" style="display:none;">
+    <span id="progress-hint"></span>
+
+    <div class="progress-track">
+        <div id="id-bar-fill" style="width: 0%;"></div> </div>
+
+    <div id="progress-text" style="text-align: center; font-weight: bold; color: #c0392b; margin-top: 5px;">0%</div>
+</div>
+    
+</div>
+    
+</div>
+    <main>
+    <div id="admin-dashboard" style="display: none; background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: var(--shadow-soft);">
+        <h2 style="text-align: center; margin-bottom: 20px; border-bottom: 1px solid #34495e; padding-bottom: 10px;">
+            <i class="fas fa-chart-line"></i> لوحة تحكم Stop & Shop
+        </h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px;">
+            <div style="background: #34495e; padding: 15px; border-radius: 10px; text-align: center;">
+                <span style="display: block; font-size: 0.8rem; opacity: 0.8;">إجمالي الأصناف</span>
+                <strong id="stat-total-products" style="font-size: 1.3rem;">0</strong>
+            </div>
+            
+            <div style="background: #34495e; padding: 15px; border-radius: 10px; text-align: center;">
+                <span style="display: block; font-size: 0.8rem; opacity: 0.8;">الأقسام</span>
+                <strong id="stat-total-categories" style="font-size: 1.3rem;">0</strong>
+            </div>
+
+            <div id="sales-card" style="background: #27ae60; padding: 15px; border-radius: 10px; text-align: center; transition: 0.3s;">
+                <span style="display: block; font-size: 0.8rem; opacity: 0.9;">مبيعات اليوم</span>
+                <strong id="stat-total-sales" style="font-size: 1.3rem;">0.00 $</strong>
+            </div>
+
+            <div style="background: #c0392b; padding: 15px; border-radius: 10px; text-align: center;">
+                <span style="display: block; font-size: 0.8rem; opacity: 0.8;">Firebase</span>
+                <strong id="stat-sync-status" style="font-size: 0.8rem;">متصل ✅</strong>
+            </div>
+        </div>
+        <div style="margin-top: 30px; background: #34495e; padding: 20px; border-radius: 10px;">
+    <h3 style="text-align: center; color: #ecf0f1; border-bottom: 2px solid #27ae60; padding-bottom: 10px;">
+        <i class="fas fa-file-invoice-dollar"></i> سجل الفواتير المباعة
+    </h3>
+    <div style="margin-top: 25px; border-top: 1px solid #455a64; padding-top: 20px;">
+    <h3 style="text-align: center; color: #27ae60; margin-bottom: 15px;">
+        <i class="fas fa-history"></i> سجل الفواتير الأخيرة
+    </h3>
+    <div style="max-height: 300px; overflow-y: auto; background: #34495e; border-radius: 10px; padding: 10px;">
+        <table style="width: 100%; border-collapse: collapse; color: white; font-size: 0.85rem; text-align: center;">
+            <thead>
+                <tr style="border-bottom: 2px solid #27ae60; background: #2c3e50;">
+                    <th style="padding: 10px;">رقم الطلب</th>
+                    <th style="padding: 10px;">المبلغ</th>
+                    <th style="padding: 10px;">التحكم</th>
+                </tr>
+            </thead>
+            <tbody id="admin-orders-list">
+                </tbody>
+        </table>
+    </div>
+</div>
+</div>
+        
+    </div>
+    
+
+        <section class="controls">
+            <div class="section-title">الأقسام</div>
+            <div class="categories">
+                <button class="active" onclick="filterByCategory('الكل', this)">الكل</button>
+                <button onclick="filterByCategory('أجبان وألبان', this)"><i class="fas fa-cheese"></i> أجبان وألبان</button>
+                <button onclick="filterByCategory('مكسرات', this)"><i class="fas fa-seedling"></i> مكسرات</button>
+                <button onclick="filterByCategory('مخبوزات', this)"><i class="fas fa-bread-slice"></i> مخبوزات</button>
+                <button onclick="filterByCategory('سكاكر', this)"><i class="fas fa-candy-cane"></i> سكاكر</button>
+                <button onclick="filterByCategory('معلبات', this)"><i class="fas fa-box"></i> معلبات</button>
+                <button onclick="filterByCategory('حبوب', this)"><i class="fas fa-wheat-awn"></i> حبوب</button>
+                <button onclick="filterByCategory('ادوات تنظيف', this)"><i class="fas fa-soap"></i> تنظيف</button>
+                <button onclick="filterByCategory('خرضوات', this)"><i class="fas fa-tools"></i> خرضوات</button>
+                <button onclick="filterByCategory('خاص للحلويات', this)"><i class="fas fa-birthday-cake"></i> حلويات</button>
+                <button onclick="filterByCategory('مشروبات', this)"><i class="fas fa-wine-glass-alt"></i> مشروبات</button>
+            </div>
+
+            <div id="add-product-form" class="admin-controls-panel" style="display: none;">
+                <h3 id="form-title">إدارة المنتج</h3>
+                <input type="hidden" id="edit-product-id">
+                <input type="text" id="new-name" placeholder="اسم المنتج">
+                <input type="number" id="new-price" step="0.01" placeholder="السعر بالدولار $">
+                
+                <label>اختر القسم:</label>
+                <select id="new-category">
+                    <option value="أجبان وألبان">أجبان وألبان</option>
+                    <option value="مكسرات">مكسرات</option>
+                    <option value="مخبوزات">مخبوزات</option>
+                    <option value="سكاكر">سكاكر</option>
+                    <option value="معلبات">معلبات</option>
+                    <option value="حبوب">حبوب</option>
+                    <option value="ادوات تنظيف">ادوات تنظيف</option>
+                    <option value="خرضوات">خرضوات</option>
+                    <option value="خاص للحلويات">خاص للحلويات</option>
+                    <option value="مشروبات">مشروبات</option>
+                </select>
+                
+                <input type="text" id="new-image" placeholder="رابط الصورة">
+                <div class="admin-btns">
+                    <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
+                    <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="products-container" class="products-grid">
+            </section>
+    </main>
+
+    <div id="cart-popup" class="cart-popup" style="display: none;">
+        <div class="cart-content">
+            <div class="cart-header">
+                <h2>🛒 سلة مشترياتك</h2>
+                <button class="close-btn" onclick="toggleCartPopup()">×</button>
+            </div>
+            <div id="cart-items-list" class="cart-scroll-area"></div>
+            <div class="cart-summary">
+                <div class="total-row"><span>المجموع (USD):</span> <strong id="total-usd">0</strong> $</div>
+                <div class="total-row"><span>المجموع (LBP):</span> <strong id="total-lbp">0</strong> ل.ل</div>
+            </div>
+            <div class="payment-methods">
+                <label>طريقة الدفع:</label>
+                <select id="payment-choice">
+                    <option value="كاش عند الاستلام">كاش عند الاستلام</option>
+                    <option value="عن طريق Whish Money">Whish Money</option>
+                    <option value="دليفري">عن طريق الدليفري</option>
+                </select>
+            </div>
+            <div class="cart-actions">
+                <button class="btn-checkout" onclick="checkout()">طلب عبر واتساب</button>
+                <button class="btn-print" onclick="printInvoice()">طباعة 🖨️</button>
+                <button class="btn-clear" onclick="clearCart()">تفريغ 🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="floating-social">
+        <button id="backToTop" class="float-icon back-to-top" onclick="scrollToTop()">
+            <i class="fas fa-chevron-up"></i>
+        </button>
+        <a href="https://chat.whatsapp.com/FJ2LcaGbE8iGD3S7jlV2pn?mode=gi_t" target="_blank" class="float-icon float-whatsapp"><i class="fab fa-whatsapp"></i></a>
+        <a href="https://www.instagram.com/stop_andshop75?igsh=YnkwNG1pd3RkOWF5" target="_blank" class="float-icon float-instagram"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.facebook.com/share/1AoFeUHsCF/" target="_blank" class="float-icon float-facebook"><i class="fab fa-facebook-f"></i></a>
+    </div>
+
+    <footer class="social-footer">
+        <p>© 2026 Stop & Shop - مؤسسة نصور التجارية</p>
+    </footer>
+
+    <script src="index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</body>
+</html>

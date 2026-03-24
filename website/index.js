@@ -259,7 +259,17 @@ msg += `💰 *الإجمالي:* $${totalUsd}\n`;
 msg += `💳 *الدفع:* ${payment}\n`;
 msg += `✨ *نقاطك:* ${pointsEarned} نقطة\n\n`;
 msg += `📍 *لتتبع حالة طلبك اضغط هنا:*\n${trackingLink}`; // إضافة رابط التتبع
-window.open(`https://wa.me/96181479786?text=${encodeURIComponent(msg)}`, '_blank');
+
+// الحل النهائي: التحقق إذا كان المستخدم على هاتف أم كمبيوتر
+const finalUrl = `https://wa.me/96181479786?text=${encodeURIComponent(msg)}`;
+
+if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    // للهاتف: الانتقال المباشر لضمان فتح التطبيق وتجنب الحظر
+    window.location.assign(finalUrl);
+} else {
+    // للكمبيوتر: فتح نافذة جديدة كما كنت تفعل سابقاً
+    window.open(finalUrl, '_blank');
+}
         // تفريغ السلة بعد نجاح الحفظ
         cart = [];
         updateCartCount();

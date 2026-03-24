@@ -664,3 +664,83 @@ toggleAdmin = function() {
         loadSalesHistory(); // تحديث القائمة فور فتح اللوحة
     }
 };
+function searchOrders() {
+    let input = document.getElementById("orderSearch").value.toUpperCase();
+    let table = document.getElementById("ordersTable"); // تأكد أن هذا هو ID الجدول عندك
+    let tr = table.getElementsByTagName("tr");
+
+    for (let i = 1; i < tr.length; i++) { // نبدأ من 1 لتخطي رأس الجدول
+        let td = tr[i].getElementsByTagName("td")[0]; // يفترض أن رقم الطلب في أول عمود
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(input) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+    }
+}
+// دالة البحث المتقدمة في الفواتير
+function filterOrders() {
+    let searchText = document.getElementById("orderSearch").value.toUpperCase();
+    let selectedDate = document.getElementById("dateFilter").value;
+    let table = document.getElementById("ordersTable");
+    let tr = table.getElementsByTagName("tr");
+
+    for (let i = 1; i < tr.length; i++) {
+        let rowVisible = false;
+        let tds = tr[i].getElementsByTagName("td");
+        
+        // البحث عن النص في أي عمود (رقم الطلب أو السعر)
+        let idText = tds[0].textContent || tds[0].innerText;
+        let matchesSearch = idText.toUpperCase().indexOf(searchText) > -1;
+
+        // الفلترة حسب التاريخ (نفترض أن التاريخ في العمود الثالث index 2)
+        let matchesDate = true;
+        if (selectedDate !== "" && tds[2]) {
+            let rowDate = tds[2].getAttribute("data-date") || tds[2].innerText;
+            matchesDate = rowDate.includes(selectedDate);
+        }
+
+        if (matchesSearch && matchesDate) {
+            tr[i].style.display = "";
+        } else {
+            tr[i].style.display = "none";
+        }
+    }
+    updateReports();
+}
+
+// إعادة ضبط الفلاتر لإظهار كل الطلبات
+function resetFilters() {
+    document.getElementById("orderSearch").value = "";
+    document.getElementById("dateFilter").value = "";
+    filterOrders();
+}
+function updateReports() {
+    let table = document.getElementById("ordersTable");
+    let tr = table.getElementsByTagName("tr");
+    
+    let totalUSD = 0;
+    let orderCount = 0;
+    const rate = 89000; // سعر الصرف في متجرك
+
+    for (let i = 1; i < tr.length; i++) {
+        // نحسب فقط الصفوف الظاهرة (التي اجتازت الفلتر)
+        if (tr[i].style.display !== "none") {
+            let priceText = tr[i].getElementsByTagName("td")[1].innerText; // عمود المبلغ
+            let price = parseFloat(priceText.replace('$', '').trim());
+            
+            if (!isNaN(price)) {
+                totalUSD += price;
+                orderCount++;
+            }
+        }
+    }
+
+    // تحديث الأرقام في الواجهة
+    document.getElementById("report-order-count").innerText = orderCount;
+    document.getElementById("report-total-usd").innerText = totalUSD.toFixed(2) + " $";
+    document.getElementById("report-total-lbp").innerText = (totalUSD * rate).toLocaleString() + " ل.ل";
+}

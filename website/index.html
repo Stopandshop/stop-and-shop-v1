@@ -10,19 +10,19 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#e74c3c">
-<link rel="apple-touch-icon" href="logo.jpg">
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('PWA Ready!'))
-        .catch(err => console.log('PWA Error', err));
-    });
-  }
-</script>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#e74c3c">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('PWA Ready!'))
+            .catch(err => console.log('PWA Error', err));
+        });
+      }
+    </script>
 </head>
 <body>
     <div id="welcome-modal" class="modal-overlay">
@@ -226,41 +226,27 @@
         <p>© 2026 Stop & Shop - مؤسسة نصور التجارية</p>
     </footer>
 
+    <div id="whish-payment-modal" class="modal-overlay" style="display: none; z-index: 10000; background: rgba(0,0,0,0.85); position: fixed; top: 0; left: 0; width: 100%; height: 100%; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: white; text-align: center; padding: 25px; border-radius: 20px; border-top: 5px solid #27ae60; width: 90%; max-width: 400px;">
+            <img src="logo.jpg" alt="Stop & Shop" style="width: 80px; border-radius: 10px; margin-bottom: 10px;">
+            <h2 style="color: #2c3e50; margin-top: 10px;">الدفع عبر Whish Money</h2>
+            <p style="color: #555; line-height: 1.6; font-size: 0.9rem;">تم نسخ الرقم تلقائياً! يرجى تحويل المبلغ وتصوير الشاشة (Screenshot).</p>
+            
+            <div id="copy-status" style="color: #27ae60; font-weight: bold; margin-bottom: 10px; font-size: 0.8rem;">✅ تم نسخ الرقم للمحافظة</div>
+
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 12px; margin: 10px 0; border: 1px solid #ddd; position: relative;">
+                <span style="display: block; font-size: 0.7rem; color: #888;">رقم الحساب الخاص بنا:</span>
+                <strong id="whish-num-display" style="font-size: 1.4rem; color: #2c3e50;">81479786</strong> 
+            </div>
+
+            <button onclick="processWhishAndOpen()" style="background: #27ae60; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 10px;">
+                فتح تطبيق Whish الآن
+            </button>
+            <button onclick="closeWhishModal()" style="background: none; border: none; color: #e74c3c; margin-top: 15px; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">إلغاء</button>
+        </div>
+    </div>
+
     <script src="index.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <div id="whish-payment-modal" class="modal-overlay" style="display: none; z-index: 10000; background: rgba(0,0,0,0.85);">
-    <div class="modal-content" style="text-align: center; padding: 25px; border-radius: 20px; border-top: 5px solid #27ae60;">
-        <div style="font-size: 50px;">💳</div>
-        <h2 style="color: #2c3e50; margin-top: 10px;">الدفع عبر Whish Money</h2>
-        <p style="color: #555; line-height: 1.6;">يرجى تحويل المبلغ وتصوير الشاشة (Screenshot) لإرسالها لنا كإثبات دفع.</p>
-        
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 12px; margin: 20px 0; border: 1px solid #ddd;">
-            <span style="display: block; font-size: 0.8rem; color: #888;">رقم الحساب الخاص بنا:</span>
-            <strong id="whish-num-display" style="font-size: 1.4rem; color: #27ae60;">81479786</strong> </div>
-
-        <button onclick="processWhishAndOpen()" style="background: #27ae60; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; font-size: 1rem;">
-            ✅ تم التصوير، افتح التطبيق الآن
-        </button>
-        <button onclick="closeWhishModal()" style="background: none; border: none; color: #e74c3c; margin-top: 15px; cursor: pointer; text-decoration: underline;">إلغاء</button>
-    </div>
-    <div id="whish-payment-modal" class="modal-overlay" style="display: none; z-index: 10000; background: rgba(0,0,0,0.85); position: fixed; top: 0; left: 0; width: 100%; height: 100%; align-items: center; justify-content: center;">
-    <div class="modal-content" style="background: white; text-align: center; padding: 25px; border-radius: 20px; border-top: 5px solid #27ae60; width: 90%; max-width: 400px;">
-        <div style="font-size: 50px;">📲</div>
-        <h2 style="color: #2c3e50; margin-top: 10px;">الدفع عبر Whish Money</h2>
-        <p style="color: #555; line-height: 1.6;">تم نسخ رقم الحساب تلقائياً! يرجى تحويل المبلغ وتصوير الشاشة (Screenshot).</p>
-        
-        <div id="copy-status" style="color: #27ae60; font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;">✅ تم نسخ الرقم للمحافظة</div>
-
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 12px; margin: 10px 0; border: 1px solid #ddd; position: relative;">
-            <span style="display: block; font-size: 0.8rem; color: #888;">رقم الحساب:</span>
-            <strong id="whish-num-display" style="font-size: 1.4rem; color: #2c3e50;">81479786</strong> </div>
-
-        <button onclick="processWhishAndOpen()" style="background: #27ae60; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 10px;">
-            فتح تطبيق Whish الآن
-        </button>
-        <button onclick="closeWhishModal()" style="background: none; border: none; color: #e74c3c; margin-top: 15px; cursor: pointer; text-decoration: underline;">إلغاء</button>
-    </div>
-</div>
-</div>
 </body>
 </html>

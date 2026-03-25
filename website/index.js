@@ -655,28 +655,31 @@ function loadSalesHistory() {
     const list = document.getElementById('admin-orders-list');
     if (!list) return;
 
-    // جلب آخر 15 طلب من Firebase
-    db.collection("orders").orderBy("timestamp", "desc").limit(15).get().then((querySnapshot) => {
+    db.collection("orders").orderBy("timestamp", "desc").limit(20).get().then((querySnapshot) => {
         list.innerHTML = ""; 
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            
-            // إنشاء صف لكل فاتورة مع زر طباعة
+            // تحويل Timestamp إلى تاريخ مقروء للفلترة
+            const dateObj = data.date ? data.date.toDate() : new Date();
+            const dateStr = dateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD
+
             const row = document.createElement('tr');
             row.style.borderBottom = "1px solid #455a64";
             row.innerHTML = `
                 <td style="padding: 10px;">#${data.orderId || '---'}</td>
-                <td style="padding: 10px; font-weight: bold; color: #2ecc71;">$${data.totalPrice || 0}</td>
+                <td style="padding: 10px; font-weight: bold; color: #2ecc71;">$${(data.totalPrice || 0).toFixed(2)}</td>
+                <td style="padding: 10px;" data-date="${dateStr}">${dateStr}</td>
                 <td style="padding: 10px;">
                     <button onclick='printArchiveOrder(${JSON.stringify(data)})' 
                             style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                        <i class="fas fa-print"></i> طباعة
+                        <i class="fas fa-print"></i>
                     </button>
                 </td>
             `;
             list.appendChild(row);
         });
-    }).catch(err => console.error("Error loading orders:", err));
+        updateReports(); // تحديث المجموع بعد التحميل
+    });
 }
 
 // 2. دالة وسيطة للطباعة (تستخدم دالتك الأصلية printInvoice)
@@ -785,15 +788,20 @@ function updateReports() {
     document.getElementById("report-total-lbp").innerText = (totalUSD * rate).toLocaleString() + " ل.ل";
     window.addEventListener('load', () => {
     // تنبيه لمستخدمي الأندرويد و Chrome
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        let deferredPrompt = e;
-        setTimeout(() => {
-            if(confirm("هل تريد إضافة Stop & Shop إلى شاشتك الرئيسية للوصول السريع؟")) {
-                deferredPrompt.prompt();
-            }
-        }, 5000);
-    });
+   window.addEventListener('load', () => {
+    // --- تسجيل الـ Service Worker ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('Service Worker: Registered ✅'))
+        .catch(err => console.log('Service Worker: Error ❌', err));
+    }
+
+    // --- الدوال الأصلية الخاصة بك ---
+    loadProducts();      // جلب المنتجات
+    loadSavedCart();     // استرجاع السلة
+    checkFirstVisit();   // فحص الترحيب
+    loadSalesStats();    // تحميل إحصائيات المبيعات
+});
 
     // تنبيه مخصص لمستخدمي الأيفون (لأن Safari لا يدعم التثبيت التلقائي)
     const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.navigator.standalone;

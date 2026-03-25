@@ -222,6 +222,9 @@ function clearCart() {
         localStorage.removeItem('stop_shop_cart');
     }
 }
+// متغير عالمي لحفظ رابط الواتساب واستخدامه لاحقاً
+window.currentWhatsAppUrl = "";
+
 async function checkout() {
     if (cart.length === 0) return;
 
@@ -230,58 +233,85 @@ async function checkout() {
     
     // تعريف المتغيرات المطلوبة للرسالة وقاعدة البيانات
     const orderId = "SS" + Date.now().toString().slice(-6);
-    const pointsEarned = Math.floor(totalUsd / 5); // حساب النقاط منفصل
+    const pointsEarned = Math.floor(totalUsd / 5); 
 
     try {
-        // حفظ الطلب في Firebase - المال في حقل والنقاط في حقل آخر
+        // حفظ الطلب في Firebase - نفس أسطرك الأصلية
         await db.collection("orders").add({
             orderId: orderId,
-            total: totalUsd,      // مبيعات مالية (تظهر في لوحة التحكم)
-            totalPrice: totalUsd, // حقل إضافي ليتوافق مع كود جدول المسؤول السابق
-            items: cart,          // سطر إضافي: حفظ المنتجات لكي تظهر عند الطباعة
-            points: pointsEarned, // نقاط (منفصلة تماماً)
+            total: totalUsd,
+            totalPrice: totalUsd,
+            items: cart,
+            points: pointsEarned,
             date: firebase.firestore.FieldValue.serverTimestamp(),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(), // سطر إضافي: للترتيب الزمني في الجدول
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             payment: payment
         });
 
-       // داخل دالة checkout المستبدلة سابقاً
-const trackingLink = `https://wa.me/96181479786?text=${encodeURIComponent("مرحباً، أود تتبع حالة طلبي رقم: #" + orderId)}`;
+        const trackingLink = `https://wa.me/96181479786?text=${encodeURIComponent("مرحباً، أود تتبع حالة طلبي رقم: #" + orderId)}`;
 
-let msg = `🛒 *طلب جديد من Stop & Shop*\n`;
-msg += `🔖 *رقم الطلب:* #${orderId}\n`;
-msg += `--------------------------\n`;
-cart.forEach((item, i) => {
-    msg += `${i + 1}- ${item.name} (الكمية: ${item.quantity})\n`;
-});
-msg += `--------------------------\n`;
-msg += `💰 *الإجمالي:* $${totalUsd}\n`;
-msg += `💳 *الدفع:* ${payment}\n`;
-msg += `✨ *نقاطك:* ${pointsEarned} نقطة\n\n`;
-msg += `📍 *لتتبع حالة طلبك اضغط هنا:*\n${trackingLink}`; // إضافة رابط التتبع
+        let msg = `🛒 *طلب جديد من Stop & Shop*\n`;
+        msg += `🔖 *رقم الطلب:* #${orderId}\n`;
+        msg += `--------------------------\n`;
+        cart.forEach((item, i) => {
+            msg += `${i + 1}- ${item.name} (الكمية: ${item.quantity})\n`;
+        });
+        msg += `--------------------------\n`;
+        msg += `💰 *الإجمالي:* $${totalUsd}\n`;
+        msg += `💳 *الدفع:* ${payment}\n`;
+        msg += `✨ *نقاطك:* ${pointsEarned} نقطة\n\n`;
+        msg += `📍 *لتتبع حالة طلبك اضغط هنا:*\n${trackingLink}`;
 
-// الحل النهائي: التحقق إذا كان المستخدم على هاتف أم كمبيوتر
-const finalUrl = `https://wa.me/96181479786?text=${encodeURIComponent(msg)}`;
+        const finalUrl = `https://wa.me/96181479786?text=${encodeURIComponent(msg)}`;
+        window.currentWhatsAppUrl = finalUrl; 
 
-if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-    // للهاتف: الانتقال المباشر لضمان فتح التطبيق وتجنب الحظر
-    window.location.assign(finalUrl);
-} else {
-    // للكمبيوتر: فتح نافذة جديدة كما كنت تفعل سابقاً
-    window.open(finalUrl, '_blank');
-}
+        // --- التعديل الاحترافي للنسخ التلقائي وواجهة Whish ---
+        if (payment === "عن طريق Whish Money") {
+            const modal = document.getElementById('whish-payment-modal');
+            modal.style.display = 'flex';
+            
+            // تنفيذ النسخ التلقائي للرقم
+            const numberToCopy = document.getElementById('whish-num-display').innerText;
+            navigator.clipboard.writeText(numberToCopy).catch(err => {
+                console.error("فشل النسخ التلقائي: ", err);
+            });
+        } else {
+            // كودك الأصلي كما هو دون تغيير
+            if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                window.location.assign(finalUrl);
+            } else {
+                window.open(finalUrl, '_blank');
+            }
+        }
+        // --- نهاية التعديل ---
+
         // تفريغ السلة بعد نجاح الحفظ
         cart = [];
         updateCartCount();
         renderCartItems();
         localStorage.removeItem('stop_shop_cart');
-        alert("تم إرسال طلبك بنجاح!");
 
     } catch (e) {
         console.error("Firebase Error:", e);
-        // ستظهر لك الرسالة هنا إذا كانت القواعد (Rules) لا تزال مغلقة
         alert("فشل في حفظ الطلب: " + e.message);
     }
+}
+
+// الدوال المساعدة للواجهة
+function processWhishAndOpen() {
+    document.getElementById('whish-payment-modal').style.display = 'none';
+    if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        window.location.assign("whish://"); 
+        setTimeout(() => {
+            window.location.assign(window.currentWhatsAppUrl);
+        }, 3000);
+    } else {
+        window.open(window.currentWhatsAppUrl, '_blank');
+    }
+}
+
+function closeWhishModal() {
+    document.getElementById('whish-payment-modal').style.display = 'none';
 }
 
 // --- 2. عداد مبيعات اليوم (لوحة التحكم) - يقرأ 'total' المالي فقط ---

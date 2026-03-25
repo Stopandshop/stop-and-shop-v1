@@ -812,3 +812,54 @@ function updateReports() {
     }
 });
 }
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // منع المتصفح من إظهار التنبيه الافتراضي فوراً
+    e.preventDefault();
+    deferredPrompt = e;
+
+    // إظهار رسالة مخصصة للزبون بعد 3 ثوانٍ من دخول الموقع
+    setTimeout(() => {
+        showInstallBanner();
+    }, 3000);
+});
+
+function showInstallBanner() {
+    const banner = document.createElement('div');
+    banner.style = "position:fixed; bottom:20px; left:20px; right:20px; background:#e74c3c; color:white; padding:15px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; z-index:9999; box-shadow:0 5px 15px rgba(0,0,0,0.3); animation: slideUp 0.5s ease;";
+    banner.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+            <img src="logo.jpg" style="width:40px; border-radius:8px;">
+            <span style="font-weight:bold; font-size:14px;">ثبّت تطبيق Stop & Shop للطلب أسرع!</span>
+        </div>
+        <button id="install-btn" style="background:white; color:#e74c3c; border:none; padding:8px 15px; border-radius:8px; font-weight:bold; cursor:pointer;">تثبيت</button>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('install-btn').addEventListener('click', () => {
+        banner.remove();
+        if (deferredPrompt) {
+            deferredPrompt.prompt(); // إظهار نافذة التثبيت الرسمية
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                deferredPrompt = null;
+            });
+        }
+    });
+}
+const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.navigator.standalone;
+
+if (isIos) {
+    setTimeout(() => {
+        const iosBanner = document.createElement('div');
+        iosBanner.style = "position:fixed; bottom:20px; left:20px; right:20px; background:#333; color:white; padding:15px; border-radius:12px; z-index:9999; text-align:center; box-shadow:0 5px 15px rgba(0,0,0,0.3);";
+        iosBanner.innerHTML = `
+            <p style="margin:0 0 10px 0; font-size:14px;">للحصول على التطبيق: اضغط على زر <img src="https://img.icons8.com/ios/50/ffffff/share.png" style="width:18px; vertical-align:middle;"> ثم <b>"Add to Home Screen"</b> 📲</p>
+            <button onclick="this.parentElement.remove()" style="background:none; border:none; color:#aaa; text-decoration:underline; cursor:pointer;">إغلاق</button>
+        `;
+        document.body.appendChild(iosBanner);
+    }, 5000); // يظهر بعد 5 ثوانٍ
+}

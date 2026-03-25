@@ -297,14 +297,24 @@ async function checkout() {
     }
 }
 
-// الدوال المساعدة للواجهة
 function processWhishAndOpen() {
+    // إخفاء الواجهة
     document.getElementById('whish-payment-modal').style.display = 'none';
+
     if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        window.location.assign("whish://"); 
-        setTimeout(() => {
-            window.location.assign(window.currentWhatsAppUrl);
-        }, 3000);
+        // محاولة فتح التطبيق
+        window.location.href = "whish://";
+
+        // إذا لم يفتح التطبيق خلال ثانية واحدة، فهذا يعني أنه غير موجود
+        // سنقوم بتحويله فوراً للواتساب لتجنب رسالة الخطأ في Safari
+        let checkApp = setTimeout(function() {
+            window.location.href = window.currentWhatsAppUrl;
+        }, 1500);
+
+        // إذا نجح فتح التطبيق، المتصفح سيتوقف عن تشغيل الـ Script في الخلفية غالباً
+        window.onblur = function() {
+            clearTimeout(checkApp); // إلغاء التحويل التلقائي إذا خرج المستخدم من المتصفح للتطبيق
+        };
     } else {
         window.open(window.currentWhatsAppUrl, '_blank');
     }

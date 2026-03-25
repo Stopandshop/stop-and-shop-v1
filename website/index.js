@@ -783,4 +783,24 @@ function updateReports() {
     document.getElementById("report-order-count").innerText = orderCount;
     document.getElementById("report-total-usd").innerText = totalUSD.toFixed(2) + " $";
     document.getElementById("report-total-lbp").innerText = (totalUSD * rate).toLocaleString() + " ل.ل";
+    window.addEventListener('load', () => {
+    // تنبيه لمستخدمي الأندرويد و Chrome
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        let deferredPrompt = e;
+        setTimeout(() => {
+            if(confirm("هل تريد إضافة Stop & Shop إلى شاشتك الرئيسية للوصول السريع؟")) {
+                deferredPrompt.prompt();
+            }
+        }, 5000);
+    });
+
+    // تنبيه مخصص لمستخدمي الأيفون (لأن Safari لا يدعم التثبيت التلقائي)
+    const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.navigator.standalone;
+    if (isIos) {
+        setTimeout(() => {
+            alert("للوصول السريع: اضغط على زر 'مشاركة' (Share) أسفل المتصفح ثم اختر 'إضافة إلى الشاشة الرئيسية' (Add to Home Screen) 📲");
+        }, 6000);
+    }
+});
 }

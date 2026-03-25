@@ -10,6 +10,19 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+   <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e74c3c">
+<link rel="apple-touch-icon" href="logo.jpg">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('PWA Ready!'))
+        .catch(err => console.log('PWA Error', err));
+    });
+  }
+</script>
 </head>
 <body>
     <div id="welcome-modal" class="modal-overlay">

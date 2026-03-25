@@ -1,4 +1,5 @@
 {
+  
   "short_name": "Stop&Shop",
   "name": "Stop & Shop Mini Market",
   "description": "تجربة تسوق ذكية من مؤسسة نصور التجارية",
@@ -15,10 +16,11 @@
       "type": "image/jpeg"
     }
   ],
-  "start_url": "index.html",
+  "start_url": "./index.html",
   "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "portrait",
-  "scope": "/",
+"scope": "./",
   "theme_color": "#e74c3c"
+  
 }

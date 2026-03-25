@@ -863,3 +863,33 @@ if (isIos) {
         document.body.appendChild(iosBanner);
     }, 5000); // يظهر بعد 5 ثوانٍ
 }
+window.addEventListener('load', () => {
+    // تسجيل السيرفس وركر بالمسار الصحيح لـ GitHub Pages
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log("SW Registered"))
+        .catch(err => console.log("SW Failed", err));
+    }
+
+    // إظهار رسالة ترحيبية وتنبيه بالتثبيت بعد 3 ثوانٍ
+    setTimeout(() => {
+        // فحص إذا كان المستخدم قد ثبت التطبيق فعلاً
+        const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        
+        if (!isInstalled) {
+            const installMsg = document.createElement('div');
+            installMsg.style = "position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:12px 20px; border-radius:30px; z-index:10000; font-size:13px; white-space:nowrap; border:1px solid #e74c3c;";
+            installMsg.innerHTML = "✨ ثبّت التطبيق الآن لتجربة تسوق أسرع! <button id='btn-ok' style='background:#e74c3c; border:none; color:white; padding:4px 10px; border-radius:15px; margin-right:10px; cursor:pointer;'>كيف؟</button>";
+            document.body.appendChild(installMsg);
+
+            document.getElementById('btn-ok').onclick = () => {
+                const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+                alert(isIos ? "اضغط على زر المشاركة (Share) ثم 'Add to Home Screen' 📲" : "اضغط على الثلاث نقاط أعلى المتصفح ثم 'Install App' 📲");
+                installMsg.remove();
+            };
+            
+            // تختفي الرسالة تلقائياً بعد 10 ثوانٍ
+            setTimeout(() => installMsg.remove(), 10000);
+        }
+    }, 3000);
+});

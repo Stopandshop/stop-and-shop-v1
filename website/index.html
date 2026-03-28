@@ -143,7 +143,18 @@
     </div>
 </div>
         </div>
-
+    <div id="reward-section" style="padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 10px; margin: 10px 0; text-align: center;">
+    <p id="reward-message" style="font-weight: bold; color: #333;">أضف منتجات بقيمة <span id="remaining-amount" style="color: #e74c3c;">$50</span> للحصول على توصيل مجاني! 🚚</p>
+    <div style="width: 100%; background: #eee; height: 12px; border-radius: 6px; margin-top: 8px; overflow: hidden;">
+        <div id="reward-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #e74c3c, #f1c40f); transition: width 0.5s ease;"></div>
+    </div>
+</div>
+    <div id="loading-area" style="text-align: center; margin: 10px 0; display: none;">
+    <p id="loading-text" style="color: #e74c3c; font-weight: bold; margin-bottom: 5px;">جارٍ تحميل المنتجات...</p>
+    <div id="progress-container" style="width: 100%; background: #eee; border-radius: 10px; overflow: hidden;">
+        <div id="progress-bar" style="width: 0%; height: 8px; background: #e74c3c; transition: width 0.3s;"></div>
+    </div>
+</div>
         <section class="controls">
             <div class="section-title">الأقسام</div>
             <div class="categories">
@@ -161,29 +172,37 @@
                 <button onclick="filterByCategory('مشروبات', this)"><i class="fas fa-wine-glass-alt"></i> مشروبات</button>
             </div>
             <div id="add-product-form" class="admin-controls-panel" style="display: none;">
-                <h3 id="form-title">إدارة المنتج</h3>
-                <input type="hidden" id="edit-product-id">
-                <input type="text" id="new-name" placeholder="اسم المنتج">
-                <input type="number" id="new-price" step="0.01" placeholder="السعر بالدولار $">
-                <select id="new-category">
-                    <option value="أجبان وألبان">أجبان وألبان</option>
-                    <option value="مواد غذائية">مواد غذائية</option>
-                    <option value="مكسرات">مكسرات</option>
-                    <option value="مخبوزات">مخبوزات</option>
-                    <option value="سكاكر">سكاكر</option>
-                    <option value="معلبات">معلبات</option>
-                    <option value="حبوب">حبوب</option>
-                    <option value="ادوات تنظيف">ادوات تنظيف</option>
-                    <option value="خرضوات">خرضوات</option>
-                    <option value="خاص للحلويات">خاص للحلويات</option>
-                    <option value="مشروبات">مشروبات</option>
-                </select>
-                <input type="text" id="new-image" placeholder="رابط الصورة">
-                <div class="admin-btns">
-                    <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
-                    <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
-                </div>
-            </div>
+    <h3 id="form-title">إدارة المنتج</h3>
+    <input type="hidden" id="edit-product-id">
+    <input type="text" id="new-name" placeholder="اسم المنتج">
+    <input type="number" id="new-price" step="0.01" placeholder="السعر بالدولار $">
+    <select id="new-category">
+        <option value="أجبان وألبان">أجبان وألبان</option>
+        <option value="مواد غذائية">مواد غذائية</option>
+        <option value="مكسرات">مكسرات</option>
+        <option value="مخبوزات">مخبوزات</option>
+        <option value="سكاكر">سكاكر</option>
+        <option value="معلبات">معلبات</option>
+        <option value="حبوب">حبوب</option>
+        <option value="ادوات تنظيف">ادوات تنظيف</option>
+        <option value="خرضوات">خرضوات</option>
+        <option value="خاص للحلويات">خاص للحلويات</option>
+        <option value="مشروبات">مشروبات</option>
+    </select>
+    <input type="text" id="new-image" placeholder="رابط الصورة">
+    
+    <div style="margin: 15px 0; display: flex; align-items: center; gap: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+    <input type="checkbox" id="out-of-stock-check" style="width: 20px; height: 20px; cursor: pointer;">
+    <label for="out-of-stock-check" style="cursor: pointer; font-weight: bold; color: #333;">
+        ⚠️ تحديد كـ "نفذ من المخزن" (Out of Stock)
+    </label>
+</div>
+
+    <div class="admin-btns">
+        <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
+        <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
+    </div>
+</div>
         </section>
 
         <section id="products-container" class="products-grid"></section>

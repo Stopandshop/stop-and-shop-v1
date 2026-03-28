@@ -49,15 +49,45 @@ function closeWelcome() {
     localStorage.setItem('visited_stop_shop', 'true');
 }
 
-// 4. دوال Firebase والبيانات
 function loadProducts() {
+    const loadingArea = document.getElementById('loading-area');
+    const loadingText = document.getElementById('loading-text');
+
+    // 1. البداية
+    if (loadingArea) loadingArea.style.display = 'block';
+    if (loadingText) loadingText.innerText = "🔍عم نجبلك البضاعة...    ";
+    showProgress(20);
+
     db.collection("products").onSnapshot((snapshot) => {
-        products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (isAdmin) updateDashboardStats(); // تحديث الأرقام إذا كان المسؤول داخلاً
+        // 2. معالجة البيانات
+        if (loadingText) loadingText.innerText = "⚙️ يتم الآن ترتيب المنتجات...";
+        showProgress(70);
+
+        let allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        products = allProducts.sort((a, b) => {
+            const dateA = a.createdAt || 0;
+            const dateB = b.createdAt || 0;
+            return dateB - dateA; 
+        });
+
+        // 3. الانتهاء
+        if (loadingText) loadingText.innerText = "✅ اكتمل التحميل!";
+        showProgress(100);
+
+        if (isAdmin) updateDashboardStats(); 
         displayProducts(products);
+
+        // إخفاء منطقة التحميل بعد ثانية واحدة من الاكتمال
+        setTimeout(() => {
+            if (loadingArea) loadingArea.style.display = 'none';
+        }, 1500);
+        
+    }, (error) => {
+        if (loadingText) loadingText.innerText = "❌ فشل التحميل، يرجى المحاولة لاحقاً";
+        console.error(error);
     });
 }
-
 // 5. دوال العرض والبحث (الإصلاح الجوهري هنا)
 function displayProducts(productsList) {
     const container = document.getElementById('products-container');
@@ -67,7 +97,22 @@ function displayProducts(productsList) {
     productsList.forEach(product => {
         const priceLBP = (parseFloat(product.price) || 0) * exchangeRate;
         
-        // أزرار الإدارة تظهر فقط للمسؤول
+        // --- إضافة منطق الملصقات الجديدة ---
+        const now = Date.now();
+        const threeDays = 3 * 24 * 60 * 60 * 1000;
+        const isNew = product.createdAt && (now - product.createdAt) < threeDays;
+        
+        let badgeHTML = "";
+        let outOfStockClass = "";
+
+        if (product.isOutOfStock) {
+            badgeHTML = `<span class="product-badge badge-out">نفذ من المخزن</span>`;
+            outOfStockClass = "out-of-stock"; // كلاس للتعتيم من الـ CSS
+        } else if (isNew) {
+            badgeHTML = `<span class="product-badge badge-new">جديد</span>`;
+        }
+        // ---------------------------------
+
         let adminButtons = "";
         if (isAdmin) {
             adminButtons = `
@@ -78,23 +123,22 @@ function displayProducts(productsList) {
         }
 
         const card = document.createElement('div');
-        card.className = 'product-card';
+        card.className = `product-card ${outOfStockClass}`; // أضفنا الكلاس هنا
         card.innerHTML = `
-            <img src="${product.image}" onerror="this.src='https://via.placeholder.com/150'">
+            ${badgeHTML} <img src="${product.image}" onerror="this.src='https://via.placeholder.com/150'">
             ${adminButtons} 
             <h3>${product.name}</h3>
             <div class="price-container">
                 <p class="price-usd">$${parseFloat(product.price).toFixed(2)}</p>
                 <p class="price-lbp">${priceLBP.toLocaleString()} ل.ل</p>
             </div>
-            <button class="add-btn" onclick="addToCart('${product.id}')">
-                <i class="fas fa-cart-plus"></i> أضف للسلة
+            <button class="add-btn" onclick="addToCart('${product.id}')" ${product.isOutOfStock ? 'disabled style="background:#888"' : ''}>
+                <i class="fas fa-cart-plus"></i> ${product.isOutOfStock ? 'غير متوفر' : 'أضف للسلة'}
             </button>
         `;
         container.appendChild(card);
     });
 }
-
 function searchProducts() {
     const term = document.getElementById('search-input').value.toLowerCase().trim();
     
@@ -152,6 +196,7 @@ function addToCart(productId) {
     } else {
         console.error("المنتج غير موجود في القائمة!");
     }
+    updateRewardProgress();
 }
 function updateCartCount() {
     const countElem = document.getElementById('cart-count');
@@ -184,6 +229,7 @@ function renderCartItems() {
     
     document.getElementById('total-usd').innerText = totalUsd.toFixed(2);
     document.getElementById('total-lbp').innerText = (totalUsd * exchangeRate).toLocaleString();
+    updateRewardProgress();
 }
 
 function removeFromCart(index) {
@@ -191,6 +237,7 @@ function removeFromCart(index) {
     updateCartCount();
     renderCartItems();
     saveCartToStorage();
+    updateRewardProgress();
 }
 
 function saveCartToStorage() {
@@ -205,6 +252,7 @@ function loadSavedCart() {
                 if (!item.quantity) item.quantity = 1;
             });
             updateCartCount();
+            updateRewardProgress();
             // إضافة السطرين التاليين لضمان تحديث الواجهة فوراً
             renderCartItems(); 
             checkCartMilestone(); 
@@ -289,6 +337,7 @@ async function checkout() {
         cart = [];
         updateCartCount();
         renderCartItems();
+        updateRewardProgress();
         localStorage.removeItem('stop_shop_cart');
 
     } catch (e) {
@@ -425,10 +474,25 @@ async function saveProduct() {
     const price = parseFloat(document.getElementById('new-price').value);
     const category = document.getElementById('new-category').value;
     const image = document.getElementById('new-image').value;
+    // إضافة قيمة الـ checkbox الجديد
+    const isOutOfStock = document.getElementById('out-of-stock-check').checked;
 
     if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
 
-    const data = { name, price, category, image };
+    const data = { 
+        name, 
+        price, 
+        category, 
+        image, 
+        isOutOfStock, // حفظ الحالة
+        lastUpdated: Date.now() 
+    };
+
+    // إضافة تاريخ الإنشاء فقط عند الإضافة لأول مرة
+    if (!id) {
+        data.createdAt = Date.now();
+    }
+
     try {
         if (id) {
             await db.collection("products").doc(id).update(data);
@@ -439,7 +503,14 @@ async function saveProduct() {
         }
         resetForm();
     } catch (e) { alert("خطأ في Firebase: " + e.message); }
-    
+}
+async function hashPassword(string) {
+    // نقوم بتنظيف الكلمة من أي مسافات زائدة قبل التشفير
+    const trimmedString = string.trim(); 
+    const utf8 = new TextEncoder().encode(trimmedString);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function toggleAdmin() {
@@ -456,18 +527,42 @@ function toggleAdmin() {
     }
 
     const password = prompt("أدخل كلمة مرور المسؤول:");
-    if (password === "bassam1632004") {
+    if (!password) return;
+
+    // تشفير الكلمة التي تدخلها الآن للمقارنة
+    const encodedPassword = btoa(password);
+    
+    // هذا هو الكود المشفر لكلمة bassam1632004 (لا يمكن فهمه بالعين المجردة)
+    const storedHash = "YmFzc2FtMTYzMjAwNA==";
+
+    if (encodedPassword === storedHash) {
         isAdmin = true;
         document.getElementById('add-product-form').style.display = 'block';
         dashboard.style.display = 'block'; 
         loginBtn.innerHTML = '<i class="fas fa-user-shield"></i> خروج';
         
-        // استدعاء الدوال بالترتيب الصحيح لضمان تحديث الأرقام
+        // تفعيل الإشعارات والإحصائيات
+        if ("Notification" in window) Notification.requestPermission();
         loadSalesStats(); 
         updateDashboardStats();
         displayProducts(products); 
+        watchNewOrders();
+        
+        console.log("تم الدخول بنجاح");
     } else {
-        alert("كلمة المرور خاطئة!");
+        alert("كلمة المرور خاطئة! تأكد من كتابة الأحرف الصغيرة.");
+    }
+}
+// تعريف الدالة خارجاً ليكون الكود أنظف
+function requestNotificationPermission() {
+    if ("Notification" in window) { // التأكد أن المتصفح يدعم الإشعارات
+        if (Notification.permission !== "granted") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("تم تفعيل الإشعارات بنجاح!");
+                }
+            });
+        }
     }
 }
 function editProduct(id) {
@@ -478,6 +573,10 @@ function editProduct(id) {
     document.getElementById('new-price').value = product.price;
     document.getElementById('new-category').value = product.category;
     document.getElementById('new-image').value = product.image;
+    
+    // تأشير الـ checkbox بناءً على حالة المنتج
+    document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
+
     document.getElementById('form-title').innerText = "تعديل: " + product.name;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -893,3 +992,119 @@ window.addEventListener('load', () => {
         }
     }, 3000);
 });
+// نضع هذا الكود داخل الجزء الخاص بالمسؤول (Admin)
+function watchNewOrders() {
+    db.collection("orders").orderBy("timestamp", "desc").limit(1)
+    .onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+                const order = change.doc.data();
+                // التأكد أن الطلب جديد فعلاً وليس قديماً
+                showOrderNotification(order);
+            }
+        });
+    });
+}
+
+function showOrderNotification(order) {
+    if (Notification.permission === "granted") {
+        new Notification("🛒 طلب جديد في Stop & Shop!", {
+            body: `رقم الطلب: #${order.orderId}\nالإجمالي: $${order.totalPrice}`,
+            icon: "logo.png" // ضع رابط شعار محلك هنا
+        });
+        // إضافة صوت تنبيه
+        const audio = new Audio('https://www.soundjay.com/buttons/sounds/beep-07a.mp3');
+        audio.play();
+    }
+}
+// دالة لمراقبة الطلبات الجديدة وإظهار تنبيه داخل الموقع
+function enableLiveOrderAlerts() {
+    // نراقب جدول الطلبات
+    db.collection("orders").onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            // إذا تمت إضافة طلب جديد وكان المسؤول مسجلاً دخوله
+            if (change.type === "bassam1632004" && isAdmin) {
+                
+                // 1. تشغيل صوت "رنة" مميزة
+                const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+                alertSound.play();
+
+                // 2. إظهار رسالة تنبيه سريعة في أعلى الشاشة
+                showTopAlert("🔔 وصل طلب جديد الآن!");
+                
+                // 3. تحديث الإحصائيات تلقائياً أمامك
+                updateDashboardStats();
+            }
+        });
+    });
+}
+
+// دالة بسيطة لإظهار رسالة جمالية في أعلى الصفحة
+function showTopAlert(msg) {
+    const alertDiv = document.createElement('div');
+    alertDiv.innerHTML = msg;
+    alertDiv.style.cssText = `
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        background: #e74c3c; color: white; padding: 15px 30px;
+        border-radius: 50px; z-index: 9999; font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3); animation: slideDown 0.5s ease;
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // تختفي الرسالة تلقائياً بعد 5 ثوانٍ
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+function showProgress(percent) {
+    const container = document.getElementById('progress-container');
+    const bar = document.getElementById('progress-bar');
+    container.style.display = 'block';
+    bar.style.width = percent + '%';
+    
+    if (percent >= 100) {
+        setTimeout(() => { container.style.display = 'none'; }, 500);
+    }
+}
+// --- دالة تحفيز الزبون الجديدة (شريط الـ 50$) ---
+function updateRewardProgress() {
+    // حساب إجمالي السلة الحالية
+    const totalUsd = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const goal = 50;
+    const progressBar = document.getElementById('reward-progress-bar'); // تأكد أن الـ ID مطابق في الـ HTML
+    const rewardMsg = document.getElementById('reward-message');
+
+    if (!progressBar || !rewardMsg) return;
+
+    let percentage = Math.min((totalUsd / goal) * 100, 100);
+    progressBar.style.width = percentage + "%";
+
+    if (totalUsd === 0) {
+        rewardMsg.innerHTML = `أضف بضاعة بـ <span style="color:#e74c3c">$${goal}</span> لتاخد توصيل مجاني! 🚚`;
+        progressBar.style.background = "#e74c3c";
+    } else if (totalUsd < goal) {
+        const diff = (goal - totalUsd).toFixed(2);
+        rewardMsg.innerHTML = `باقي لك <span style="color:#e74c3c">$${diff}</span> بس وبتربح التوصيل المجاني! 😍`;
+        progressBar.style.background = "linear-gradient(90deg, #e74c3c, #f1c40f)";
+        sessionStorage.removeItem('reward_celebrated'); // إعادة السماح بالاحتفال إذا نقص المبلغ
+    } else {
+        rewardMsg.innerHTML = `<span style="color:#27ae60">🎉 مبروك! طلبيتك صارت مؤهلة للتوصيل المجاني!</span>`;
+        progressBar.style.background = "#27ae60";
+        
+        // إطلاق الاحتفال لمرة واحدة فقط عند الوصول للهدف
+        if (!sessionStorage.getItem('reward_celebrated')) {
+            if (typeof launchConfetti === "function") launchConfetti();
+            sessionStorage.setItem('reward_celebrated', 'true');
+        }
+    }
+}
+function calculateCartTotal() {
+    let total = 0;
+    cart.forEach(item => {
+        total += item.price * item.quantity;
+    });
+
+    // استدعاء دالة شريط الـ 50$ الجديدة
+    updateRewardProgress(total);
+
+    // تحديث رقم الإجمالي العادي في السلة
+    document.getElementById('cart-total').innerText = total.toFixed(2);
+}

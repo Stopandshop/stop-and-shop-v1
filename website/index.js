@@ -350,30 +350,24 @@ async function checkout() {
         alert("فشل في حفظ الطلب: " + e.message);
     }
 }
-
 function processWhishAndOpen() {
-    // 1. نسخ رقم الحساب
+    // 1. نسخ رقم الحساب (موجود في كودك الأصلي)
     const whishNumber = "81479786";
     navigator.clipboard.writeText(whishNumber);
 
-    // 2. محاولة فتح التطبيق عبر "المسار العميق" المباشر
-    // هذا الرابط يحاول مخاطبة التطبيق في نظام التشغيل مباشرة
-    const whishAppUrl = "whishmoney://"; 
-    
-    // روابط المتاجر في حال لم يكن التطبيق مثبتاً
-    const appStoreUrl = "https://apps.apple.com/lb/app/whish-money/id1535218541";
-    const playStoreUrl = "https://play.google.com/store/apps/details?id=com.whishmoney.app";
+    // 2. الرابط العالمي (Universal Link) - هذا هو الرابط الذي تستخدمه Whish في "الرسائل"
+    // وهو الرابط الوحيد الذي يتخطى حماية الأيفون ويفتح التطبيق مباشرة
+    const secureWhishLink = "https://whish.app.link/open";
 
-    // محاولة فتح التطبيق
-    window.location.href = whishAppUrl;
+    // 3. تنفيذ الفتح
+    window.location.href = secureWhishLink;
 
-    // 3. إذا لم يفتح خلال 1.5 ثانية (معناه التطبيق ليس على الهاتف)
+    // 4. في حال لم يفتح (احتياط)
     setTimeout(function() {
         if (document.hasFocus()) {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            window.location.href = isIOS ? appStoreUrl : playStoreUrl;
+            window.location.href = "https://apps.apple.com/lb/app/whish-money/id1535218541";
         }
-    }, 1500);
+    }, 2000);
 }
 
 function closeWhishModal() {

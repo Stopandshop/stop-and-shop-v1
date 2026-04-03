@@ -464,4 +464,10 @@ main { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
 .badge-new {
     animation: pulse-green 2s infinite;
 }
+#reader video {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+    border-radius: 10px;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

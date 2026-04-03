@@ -352,26 +352,29 @@ async function checkout() {
 }
 
 function processWhishAndOpen() {
-    // إخفاء الواجهة
-    document.getElementById('whish-payment-modal').style.display = 'none';
+    // 1. نسخ رقم الحساب (الذي قمت ببرمجته سابقاً)
+    const whishNumber = "81479786";
+    navigator.clipboard.writeText(whishNumber).then(() => {
+        console.log("Whish number copied!");
+    });
 
-    if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        // محاولة فتح التطبيق
-        window.location.href = "whish://";
+    // 2. محاولة فتح تطبيق Whish مباشرة
+    // هذا الرابط (Scheme) يحاول استدعاء التطبيق في الأندرويد والأيفون
+    const whishAppUrl = "whish://"; 
+    const playStoreUrl = "https://play.google.com/store/apps/details?id=com.whishmoney.app";
+    const appStoreUrl = "https://apps.apple.com/lb/app/whish-money/id1535218541";
 
-        // إذا لم يفتح التطبيق خلال ثانية واحدة، فهذا يعني أنه غير موجود
-        // سنقوم بتحويله فوراً للواتساب لتجنب رسالة الخطأ في Safari
-        let checkApp = setTimeout(function() {
-            window.location.href = window.currentWhatsAppUrl;
-        }, 1500);
+    // محاولة فتح التطبيق
+    window.location.href = whishAppUrl;
 
-        // إذا نجح فتح التطبيق، المتصفح سيتوقف عن تشغيل الـ Script في الخلفية غالباً
-        window.onblur = function() {
-            clearTimeout(checkApp); // إلغاء التحويل التلقائي إذا خرج المستخدم من المتصفح للتطبيق
-        };
-    } else {
-        window.open(window.currentWhatsAppUrl, '_blank');
-    }
+    // 3. إذا لم يفتح التطبيق خلال ثانيتين (لأنه غير مثبت مثلاً)، نحوله لصفحة التحميل
+    setTimeout(function() {
+        if (document.hasFocus()) {
+            // تحديد المتجر حسب نوع الجهاز
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            window.location.href = isIOS ? appStoreUrl : playStoreUrl;
+        }
+    }, 2000);
 }
 
 function closeWhishModal() {

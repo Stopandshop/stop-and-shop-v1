@@ -351,23 +351,24 @@ async function checkout() {
     }
 }
 function processWhishAndOpen() {
-    // 1. نسخ رقم الحساب (موجود في كودك الأصلي)
+    // العودة للكود القديم المضمون: نسخ الرقم وفتح الرابط اليدوي
     const whishNumber = "81479786";
-    navigator.clipboard.writeText(whishNumber);
-
-    // 2. الرابط العالمي (Universal Link) - هذا هو الرابط الذي تستخدمه Whish في "الرسائل"
-    // وهو الرابط الوحيد الذي يتخطى حماية الأيفون ويفتح التطبيق مباشرة
-    const secureWhishLink = "https://whish.app.link/open";
-
-    // 3. تنفيذ الفتح
-    window.location.href = secureWhishLink;
-
-    // 4. في حال لم يفتح (احتياط)
-    setTimeout(function() {
-        if (document.hasFocus()) {
+    
+    // عملية النسخ
+    navigator.clipboard.writeText(whishNumber).then(() => {
+        alert("تم نسخ رقم Whish: " + whishNumber);
+        
+        // فتح رابط المتجر اليدوي الذي لا يعطي أخطاء "Dynamic Link"
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS) {
             window.location.href = "https://apps.apple.com/lb/app/whish-money/id1535218541";
+        } else {
+            window.location.href = "https://play.google.com/store/apps/details?id=com.whishmoney.app";
         }
-    }, 2000);
+    }).catch(err => {
+        // في حال فشل النسخ التلقائي، نظهر الرقم للمستخدم
+        alert("رقم الحساب للتحويل: " + whishNumber);
+    });
 }
 
 function closeWhishModal() {

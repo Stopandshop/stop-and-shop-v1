@@ -350,25 +350,28 @@ async function checkout() {
         alert("فشل في حفظ الطلب: " + e.message);
     }
 }
+
 function processWhishAndOpen() {
-    // العودة للكود القديم المضمون: نسخ الرقم وفتح الرابط اليدوي
-    const whishNumber = "81479786";
-    
-    // عملية النسخ
-    navigator.clipboard.writeText(whishNumber).then(() => {
-        alert("تم نسخ رقم Whish: " + whishNumber);
-        
-        // فتح رابط المتجر اليدوي الذي لا يعطي أخطاء "Dynamic Link"
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        if (isIOS) {
-            window.location.href = "https://apps.apple.com/lb/app/whish-money/id1535218541";
-        } else {
-            window.location.href = "https://play.google.com/store/apps/details?id=com.whishmoney.app";
-        }
-    }).catch(err => {
-        // في حال فشل النسخ التلقائي، نظهر الرقم للمستخدم
-        alert("رقم الحساب للتحويل: " + whishNumber);
-    });
+    // إخفاء الواجهة
+    document.getElementById('whish-payment-modal').style.display = 'none';
+
+    if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        // محاولة فتح التطبيق
+        window.location.href = "whish://";
+
+        // إذا لم يفتح التطبيق خلال ثانية واحدة، فهذا يعني أنه غير موجود
+        // سنقوم بتحويله فوراً للواتساب لتجنب رسالة الخطأ في Safari
+        let checkApp = setTimeout(function() {
+            window.location.href = window.currentWhatsAppUrl;
+        }, 1500);
+
+        // إذا نجح فتح التطبيق، المتصفح سيتوقف عن تشغيل الـ Script في الخلفية غالباً
+        window.onblur = function() {
+            clearTimeout(checkApp); // إلغاء التحويل التلقائي إذا خرج المستخدم من المتصفح للتطبيق
+        };
+    } else {
+        window.open(window.currentWhatsAppUrl, '_blank');
+    }
 }
 
 function closeWhishModal() {
@@ -1121,24 +1124,20 @@ function startScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
     wrapper.style.display = 'flex';
 
-    // تعريف القارئ مع إعدادات الدقة العالية
-    html5QrCode = new Html5Qrcode("reader", { verbose: false });
+    html5QrCode = new Html5Qrcode("reader");
     
+    // إعدادات التسريع القصوى
     const config = { 
-        fps: 25, // سرعة معالجة الصور
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-            // جعل مربع المسح مستطيلاً ليتناسب مع باركود المنتجات الطويل
-            return { width: viewfinderWidth * 0.8, height: 150 };
-        },
-        aspectRatio: 1.0
+        fps: 20,       // زيادة عدد الإطارات في الثانية للسرعة
+        qrbox: { width: 280, height: 180 }, // تكبير منطقة المسح لتناسب باركود المنتجات الطويل
+        aspectRatio: 1.0 
     };
 
-    // إجبار المتصفح على التركيز على باركود المنتجات (EAN/UPC)
+    // تحديد نوع الباركود (EAN_13 و EAN_8) وهي المنتشرة في لبنان للسوبرماركت
+    // هذا يمنع الكاميرا من تضييع الوقت في البحث عن أنواع أخرى
     const formatsToSupport = [ 
         Html5QrcodeSupportedFormats.EAN_13, 
         Html5QrcodeSupportedFormats.EAN_8, 
-        Html5QrcodeSupportedFormats.UPC_A, 
-        Html5QrcodeSupportedFormats.UPC_E,
         Html5QrcodeSupportedFormats.CODE_128 
     ];
 
@@ -1146,14 +1145,13 @@ function startScanner() {
         { facingMode: "environment" }, 
         { ...config, formatsToSupport: formatsToSupport }, 
         (decodedText) => {
-            // عندما ينجح المسح
             document.getElementById('search-input').value = decodedText;
             stopScanner();
-            searchProducts(); 
+            searchProducts(); // تشغيل البحث فوراً
             if (navigator.vibrate) navigator.vibrate(100);
         }
     ).catch((err) => {
-        alert("تأكد من إعطاء إذن الكاميرا للموقع");
+        console.error("خطأ:", err);
     });
 }
 

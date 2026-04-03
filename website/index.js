@@ -1125,23 +1125,33 @@ function startScanner() {
     wrapper.style.display = 'flex';
 
     html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+    
+    // إعدادات التسريع القصوى
+    const config = { 
+        fps: 20,       // زيادة عدد الإطارات في الثانية للسرعة
+        qrbox: { width: 280, height: 180 }, // تكبير منطقة المسح لتناسب باركود المنتجات الطويل
+        aspectRatio: 1.0 
+    };
 
-    html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-        // 1. وضع النص الممسوح في خانة البحث
-        document.getElementById('search-input').value = decodedText;
-        
-        // 2. إيقاف الكاميرا
-        stopScanner();
+    // تحديد نوع الباركود (EAN_13 و EAN_8) وهي المنتشرة في لبنان للسوبرماركت
+    // هذا يمنع الكاميرا من تضييع الوقت في البحث عن أنواع أخرى
+    const formatsToSupport = [ 
+        Html5QrcodeSupportedFormats.EAN_13, 
+        Html5QrcodeSupportedFormats.EAN_8, 
+        Html5QrcodeSupportedFormats.CODE_128 
+    ];
 
-        // 3. تشغيل البحث تلقائياً
-        searchProducts();
-        
-        // 4. اهتزاز بسيط للهاتف للتنبيه بالنجاح
-        if (navigator.vibrate) navigator.vibrate(100);
-
-    }).catch((err) => {
-        console.error("خطأ في تشغيل الكاميرا:", err);
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        { ...config, formatsToSupport: formatsToSupport }, 
+        (decodedText) => {
+            document.getElementById('search-input').value = decodedText;
+            stopScanner();
+            searchProducts(); // تشغيل البحث فوراً
+            if (navigator.vibrate) navigator.vibrate(100);
+        }
+    ).catch((err) => {
+        console.error("خطأ:", err);
     });
 }
 

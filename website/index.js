@@ -352,29 +352,28 @@ async function checkout() {
 }
 
 function processWhishAndOpen() {
-    // 1. نسخ رقم الحساب (الذي قمت ببرمجته سابقاً)
+    // 1. نسخ رقم الحساب أولاً
     const whishNumber = "81479786";
-    navigator.clipboard.writeText(whishNumber).then(() => {
-        console.log("Whish number copied!");
-    });
+    navigator.clipboard.writeText(whishNumber);
 
-    // 2. محاولة فتح تطبيق Whish مباشرة
-    // هذا الرابط (Scheme) يحاول استدعاء التطبيق في الأندرويد والأيفون
-    const whishAppUrl = "whish://"; 
-    const playStoreUrl = "https://play.google.com/store/apps/details?id=com.whishmoney.app";
-    const appStoreUrl = "https://apps.apple.com/lb/app/whish-money/id1535218541";
+    // 2. الرابط المباشر لتطبيق Whish على الأيفون والأندرويد
+    // هذا الرابط يفتح التطبيق فوراً إذا كان مثبتاً
+    const appLink = "https://whishmoney.page.link/open"; 
 
     // محاولة فتح التطبيق
-    window.location.href = whishAppUrl;
+    window.location.href = appLink;
 
-    // 3. إذا لم يفتح التطبيق خلال ثانيتين (لأنه غير مثبت مثلاً)، نحوله لصفحة التحميل
+    // 3. احتياطاً: إذا لم يفتح بعد 3 ثوانٍ، نوجهه لصفحة التحميل المناسبة
     setTimeout(function() {
         if (document.hasFocus()) {
-            // تحديد المتجر حسب نوع الجهاز
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            window.location.href = isIOS ? appStoreUrl : playStoreUrl;
+            if (isIOS) {
+                window.location.href = "https://apps.apple.com/lb/app/whish-money/id1535218541";
+            } else {
+                window.location.href = "https://play.google.com/store/apps/details?id=com.whishmoney.app";
+            }
         }
-    }, 2000);
+    }, 3000);
 }
 
 function closeWhishModal() {

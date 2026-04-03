@@ -146,7 +146,12 @@ function searchProducts() {
     const filtered = products.filter(p => {
         const name = (p.name || "").toLowerCase();
         const cat = (p.category || "").toLowerCase();
-        return name.includes(term) || cat.includes(term);
+        
+        // --- الإضافة الجديدة للباركود دون حذف القديم ---
+        const barcode = (p.barcode || "").toLowerCase(); 
+        
+        // تعديل سطر الـ return ليشمل مطابقة الباركود أيضاً
+        return name.includes(term) || cat.includes(term) || barcode === term;
     });
 
     displayProducts(filtered);
@@ -476,6 +481,9 @@ async function saveProduct() {
     const image = document.getElementById('new-image').value;
     // إضافة قيمة الـ checkbox الجديد
     const isOutOfStock = document.getElementById('out-of-stock-check').checked;
+    
+    // --- الإضافة الجديدة لجلب الباركود دون حذف أي سطر ---
+    const barcode = document.getElementById('new-barcode').value.trim();
 
     if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
 
@@ -484,6 +492,7 @@ async function saveProduct() {
         price, 
         category, 
         image, 
+        barcode, // حفظ الباركود الجديد في Firebase
         isOutOfStock, // حفظ الحالة
         lastUpdated: Date.now() 
     };
@@ -592,6 +601,7 @@ function resetForm() {
     document.getElementById('new-name').value = "";
     document.getElementById('new-price').value = "";
     document.getElementById('new-image').value = "";
+    document.getElementById('new-barcode').value = "";
     document.getElementById('form-title').innerText = "إضافة منتج جديد";
 }
 
@@ -1107,4 +1117,40 @@ function calculateCartTotal() {
 
     // تحديث رقم الإجمالي العادي في السلة
     document.getElementById('cart-total').innerText = total.toFixed(2);
+}
+let html5QrCode;
+
+function startScanner() {
+    const wrapper = document.getElementById('scanner-wrapper');
+    wrapper.style.display = 'flex';
+
+    html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+
+    html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+        // 1. وضع النص الممسوح في خانة البحث
+        document.getElementById('search-input').value = decodedText;
+        
+        // 2. إيقاف الكاميرا
+        stopScanner();
+
+        // 3. تشغيل البحث تلقائياً
+        searchProducts();
+        
+        // 4. اهتزاز بسيط للهاتف للتنبيه بالنجاح
+        if (navigator.vibrate) navigator.vibrate(100);
+
+    }).catch((err) => {
+        console.error("خطأ في تشغيل الكاميرا:", err);
+    });
+}
+
+function stopScanner() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('scanner-wrapper').style.display = 'none';
+        });
+    } else {
+        document.getElementById('scanner-wrapper').style.display = 'none';
+    }
 }

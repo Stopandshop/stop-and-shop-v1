@@ -464,10 +464,72 @@ main { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
 .badge-new {
     animation: pulse-green 2s infinite;
 }
-#reader video {
-    width: 100% !important;
-    height: auto !important;
-    object-fit: cover !important;
-    border-radius: 10px;
+
+#reader {
+    width: 100%;
+    height: 300px;
+    position: relative;
+}
+#reader canvas, #reader video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+/* تصميم ملصق المنتج المكتشف */
+.scanned-product-result {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    margin: 20px auto;
+    max-width: 350px;
+    border: 3px solid #27ae60;
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    animation: slideDown 0.4s ease-out;
+}
+
+.sticker-header {
+    color: #27ae60;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.sticker-price {
+    font-size: 2rem;
+    color: #e74c3c;
+    font-weight: 900;
+    margin: 10px 0;
+}
+
+.add-btn-large {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 10px;
+    transition: transform 0.2s;
+}
+
+.add-btn-large:active {
+    transform: scale(0.95);
+}
+
+.close-sticker {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

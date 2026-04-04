@@ -1124,43 +1124,90 @@ function startScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
     wrapper.style.display = 'flex';
 
-    html5QrCode = new Html5Qrcode("reader");
-    
-    // إعدادات التسريع القصوى
-    const config = { 
-        fps: 20,       // زيادة عدد الإطارات في الثانية للسرعة
-        qrbox: { width: 280, height: 180 }, // تكبير منطقة المسح لتناسب باركود المنتجات الطويل
-        aspectRatio: 1.0 
-    };
-
-    // تحديد نوع الباركود (EAN_13 و EAN_8) وهي المنتشرة في لبنان للسوبرماركت
-    // هذا يمنع الكاميرا من تضييع الوقت في البحث عن أنواع أخرى
-    const formatsToSupport = [ 
-        Html5QrcodeSupportedFormats.EAN_13, 
-        Html5QrcodeSupportedFormats.EAN_8, 
-        Html5QrcodeSupportedFormats.CODE_128 
-    ];
-
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        { ...config, formatsToSupport: formatsToSupport }, 
-        (decodedText) => {
-            document.getElementById('search-input').value = decodedText;
-            stopScanner();
-            searchProducts(); // تشغيل البحث فوراً
-            if (navigator.vibrate) navigator.vibrate(100);
+    Quagga.init({
+        inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: document.querySelector('#reader'), // مكان ظهور الكاميرا
+            constraints: {
+                facingMode: "environment", // الكاميرا الخلفية
+                aspectRatio: { min: 1, max: 2 }
+            },
+        },
+        decoder: {
+            // تحديد الأنواع المستخدمة في لبنان (EAN هي الأهم للمواد الغذائية)
+            readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader"]
+        },
+        locate: true // ميزة تحديد مكان الباركود في الصورة لتسريع القراءة
+    }, function (err) {
+        if (err) {
+            console.error(err);
+            alert("خطأ في تشغيل الكاميرا");
+            return;
         }
-    ).catch((err) => {
-        console.error("خطأ:", err);
+        Quagga.start();
     });
+
+    // ماذا يفعل الكود عند قراءة الباركود بنجاح
+    Quagga.onDetected(function (result) {
+    const code = result.codeResult.code;
+    if (code) {
+        // 1. وضع الرقم في خانة البحث
+        document.getElementById('search-input').value = code;
+        
+        // 2. البحث عن المنتج في القائمة لديك
+        const foundProduct = products.find(p => p.barcode === code);
+
+        if (foundProduct) {
+            // إيقاف الماسح فور إيجاد المنتج
+            stopScanner();
+            
+            // 3. عرض المنتج "كملصق مرتب" في أعلى الصفحة أو في مودال
+            showProductSticker(foundProduct);
+            
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        }
+    }
+});
+
+// دالة رسم الملصق المرتب
+function showProductSticker(product) {
+    const container = document.getElementById('products-container');
+    
+    // مسح المحتوى الحالي لإظهار المنتج الممسوح فقط بشكل بارز
+    container.innerHTML = `
+        <div class="scanned-product-result">
+            <div class="sticker-header">
+                <i class="fas fa-check-circle"></i> تم التعرف على المنتج
+            </div>
+            
+            <img src="${product.image}" alt="${product.name}">
+            
+            <div class="sticker-info">
+                <h3>${product.name}</h3>
+                <span class="sticker-category">${product.category}</span>
+                <div class="sticker-price">$${product.price.toFixed(2)}</div>
+            </div>
+
+            <div class="sticker-actions">
+                <button class="add-btn-large" onclick="addToCart('${product.id}'); alert('تمت الإضافة للسلة!')">
+                    <i class="fas fa-cart-plus"></i> إضافة للسلة
+                </button>
+                
+                <button class="close-sticker" onclick="location.reload()">
+                    <i class="fas fa-times"></i> إغلاق
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // تمرير الشاشة للأعلى لرؤية الملصق فوراً
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 }
 
+// تعديل دالة الإيقاف لتناسب المكتبة الجديدة
 function stopScanner() {
-    if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-            document.getElementById('scanner-wrapper').style.display = 'none';
-        });
-    } else {
-        document.getElementById('scanner-wrapper').style.display = 'none';
-    }
+    Quagga.stop();
+    document.getElementById('scanner-wrapper').style.display = 'none';
 }

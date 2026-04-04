@@ -478,58 +478,58 @@ main { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
 /* تصميم ملصق المنتج المكتشف */
 .scanned-product-result {
     background: white;
-    border-radius: 20px;
-    padding: 25px;
-    margin: 20px auto;
-    max-width: 350px;
-    border: 3px solid #27ae60;
+    border-radius: 12px; /* زوايا أنعم */
+    padding: 12px;       /* تقليل الحشو الداخلي */
+    margin: 10px auto;
+    max-width: 280px;    /* تصغير العرض الإجمالي */
+    border: 2px solid #27ae60;
     text-align: center;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-    animation: slideDown 0.4s ease-out;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
 .sticker-header {
     color: #27ae60;
     font-weight: bold;
-    font-size: 1.1rem;
-    margin-bottom: 15px;
+    font-size: 0.9rem;   /* خط أصغر للهيدر */
+    margin-bottom: 8px;
+}
+
+.scanned-product-result img {
+    width: 80px;         /* تصغير حجم الصورة */
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+
+.sticker-info h3 {
+    font-size: 1rem;     /* تصغير اسم المنتج */
+    margin: 4px 0;
 }
 
 .sticker-price {
-    font-size: 2rem;
+    font-size: 1.4rem;   /* تصغير السعر قليلاً */
     color: #e74c3c;
-    font-weight: 900;
-    margin: 10px 0;
+    font-weight: 800;
+    margin: 5px 0;
 }
 
 .add-btn-large {
     background: #27ae60;
     color: white;
     border: none;
-    padding: 12px 25px;
-    border-radius: 50px;
-    font-size: 1.1rem;
+    padding: 8px 15px;   /* تصغير الزر */
+    border-radius: 25px;
+    font-size: 0.95rem;
     font-weight: bold;
-    cursor: pointer;
     width: 100%;
-    margin-bottom: 10px;
-    transition: transform 0.2s;
-}
-
-.add-btn-large:active {
-    transform: scale(0.95);
+    margin-top: 5px;
 }
 
 .close-sticker {
-    background: none;
-    border: none;
-    color: #888;
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-@keyframes slideDown {
-    from { transform: translateY(-50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    font-size: 0.8rem;   /* تصغير زر الإغلاق */
+    margin-top: 8px;
+    display: block;
+    width: 100%;
+    color: #999;
 }
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

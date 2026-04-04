@@ -1174,27 +1174,27 @@ function startScanner() {
 function showProductSticker(product) {
     const container = document.getElementById('products-container');
     
-    // مسح المحتوى الحالي لإظهار المنتج الممسوح فقط بشكل بارز
+    // مسح المحتوى الحالي لإظهار المنتج الممسوح فقط بشكل بارز (مع تصغير الحجم)
     container.innerHTML = `
-        <div class="scanned-product-result">
-            <div class="sticker-header">
-                <i class="fas fa-check-circle"></i> تم التعرف على المنتج
+        <div class="scanned-product-result" style="max-width: 260px; padding: 10px; margin: 10px auto;">
+            <div class="sticker-header" style="font-size: 0.85rem; margin-bottom: 5px;">
+                <i class="fas fa-check-circle"></i> تم التعرف
             </div>
             
-            <img src="${product.image}" alt="${product.name}">
+            <img src="${product.image}" alt="${product.name}" style="width: 70px; height: 70px; object-fit: contain;">
             
             <div class="sticker-info">
-                <h3>${product.name}</h3>
-                <span class="sticker-category">${product.category}</span>
-                <div class="sticker-price">$${product.price.toFixed(2)}</div>
+                <h3 style="font-size: 0.95rem; margin: 5px 0;">${product.name}</h3>
+                <span class="sticker-category" style="font-size: 0.75rem; color: #777;">${product.category}</span>
+                <div class="sticker-price" style="font-size: 1.3rem; font-weight: bold; color: #e74c3c;">$${product.price.toFixed(2)}</div>
             </div>
 
-            <div class="sticker-actions">
-                <button class="add-btn-large" onclick="addToCart('${product.id}'); alert('تمت الإضافة للسلة!')">
+            <div class="sticker-actions" style="margin-top: 8px;">
+                <button class="add-btn-large" onclick="addToCart('${product.id}'); alert('تمت الإضافة للسلة!')" style="padding: 8px; font-size: 0.9rem; width: 100%; border-radius: 20px;">
                     <i class="fas fa-cart-plus"></i> إضافة للسلة
                 </button>
                 
-                <button class="close-sticker" onclick="location.reload()">
+                <button class="close-sticker" onclick="location.reload()" style="font-size: 0.75rem; margin-top: 5px; background: none; border: none; color: #999; cursor: pointer; display: block; width: 100%;">
                     <i class="fas fa-times"></i> إغلاق
                 </button>
             </div>

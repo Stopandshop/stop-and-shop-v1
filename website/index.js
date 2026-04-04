@@ -1172,12 +1172,17 @@ function startScanner() {
 
 // دالة رسم الملصق المرتب
 function showProductSticker(product) {
+    // --- إضافة سطر الصوت هنا ---
+    const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
+    audio.play().catch(e => console.log("الصوت يحتاج تفاعل أولاً"));
+    // -------------------------
+
     const container = document.getElementById('products-container');
     
-    // مسح المحتوى الحالي لإظهار المنتج الممسوح فقط بشكل بارز (مع تصغير الحجم)
+    // مسح المحتوى الحالي لإظهار المنتج الممسوح فقط بشكل بارز
     container.innerHTML = `
-        <div class="scanned-product-result" style="max-width: 260px; padding: 10px; margin: 10px auto;">
-            <div class="sticker-header" style="font-size: 0.85rem; margin-bottom: 5px;">
+        <div class="scanned-product-result" style="max-width: 260px; padding: 10px; margin: 10px auto; border: 2px solid #27ae60; border-radius: 12px; text-align: center; background: white;">
+            <div class="sticker-header" style="font-size: 0.85rem; color: #27ae60; font-weight: bold; margin-bottom: 5px;">
                 <i class="fas fa-check-circle"></i> تم التعرف
             </div>
             
@@ -1190,11 +1195,11 @@ function showProductSticker(product) {
             </div>
 
             <div class="sticker-actions" style="margin-top: 8px;">
-                <button class="add-btn-large" onclick="addToCart('${product.id}'); alert('تمت الإضافة للسلة!')" style="padding: 8px; font-size: 0.9rem; width: 100%; border-radius: 20px;">
+                <button class="add-btn-large" onclick="addToCart('${product.id}'); alert('تمت الإضافة للسلة!')" style="background: #27ae60; color: white; border: none; padding: 8px; font-size: 0.9rem; width: 100%; border-radius: 20px; cursor: pointer;">
                     <i class="fas fa-cart-plus"></i> إضافة للسلة
                 </button>
                 
-                <button class="close-sticker" onclick="location.reload()" style="font-size: 0.75rem; margin-top: 5px; background: none; border: none; color: #999; cursor: pointer; display: block; width: 100%;">
+                <button class="close-sticker" onclick="location.reload()" style="font-size: 0.75rem; margin-top: 8px; background: none; border: none; color: #999; cursor: pointer; display: block; width: 100%;">
                     <i class="fas fa-times"></i> إغلاق
                 </button>
             </div>

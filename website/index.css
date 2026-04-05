@@ -532,4 +532,199 @@ main { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
     width: 100%;
     color: #999;
 }
+/* تصميم حاوية النقاط الرئيسية */
+.points-checker {
+    background: linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%);
+    padding: 25px;
+    border-radius: 20px;
+    margin: 20px auto;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    border: 1px solid #e0e0e0;
+    direction: rtl;
+}
+
+.points-checker h4 {
+    color: #c0392b; /* لون شعار المحل */
+    margin-bottom: 15px;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* تحسين حقل الإدخال */
+.points-checker input {
+    width: 80%;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    font-size: 1rem;
+    margin-bottom: 15px;
+    outline: none;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.points-checker input:focus {
+    border-color: #27ae60; /* أخضر عند التركيز */
+    box-shadow: 0 0 8px rgba(39, 174, 96, 0.2);
+}
+
+/* تحسين زر الفحص */
+.points-checker button {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.3s;
+    width: 85%;
+}
+
+.points-checker button:hover {
+    background: #219150;
+    transform: translateY(-2px);
+}
+
+/* تصميم عرض النتيجة (البطاقة الرقمية) */
+#points-display {
+    margin-top: 20px;
+    min-height: 50px;
+    transition: all 0.5s ease;
+}
+
+.loyalty-card {
+    background: #2d3436;
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInScale 0.4s ease-out;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+}
+
+.loyalty-card::before {
+    content: "Stop & Shop";
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 4rem;
+    opacity: 0.05;
+    transform: rotate(-20deg);
+}
+
+.loyalty-card .points-val {
+    font-size: 2.5rem;
+    display: block;
+    color: #f1c40f; /* لون ذهبي للنقاط */
+    font-weight: 900;
+    margin: 5px 0;
+}
+
+.loyalty-card .label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* أنيميشن الظهور */
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+/* تحديثات إضافية للبطاقة */
+.loyalty-card {
+    background: linear-gradient(145deg, #1e1e1e, #2d3436);
+    padding: 20px;
+    border-radius: 18px;
+    color: white;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px opacity 0.2 solid #fff;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.store-name { font-weight: 900; letter-spacing: 1px; color: #f1c40f; }
+.card-type { font-size: 0.7rem; opacity: 0.6; }
+
+.barcode-container {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+}
+
+#barcode {
+    max-width: 100%;
+    height: auto;
+}
+
+.card-footer {
+    font-size: 0.8rem;
+    margin-top: 15px;
+    opacity: 0.7;
+    font-style: italic;
+}
+.modal-overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:9999;
+}
+.modal-content {
+    background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 400px;
+    text-align: center; position: relative; direction: rtl;
+}
+.primary-btn { background: #27ae60; color: white; width: 100%; padding: 12px; border: none; border-radius: 10px; margin-top: 10px; font-weight: bold; }
+.ghost-btn { background: transparent; color: #888; border: none; font-size: 12px; margin-top: 15px; cursor: pointer; }
+.admin-btn { background: #c0392b; color: white; width: 100%; padding: 10px; border: none; border-radius: 10px; margin-top: 10px; }
+.close-btn { position: absolute; top: 10px; right: 15px; font-size: 25px; cursor: pointer; }
+.admin-section { background: white; padding: 20px; border-radius: 15px; margin: 20px; direction: rtl; }
+.header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; text-align: right; }
+th, td { padding: 12px; border-bottom: 1px solid #eee; }
+th { background: #f8f9fa; color: #333; }
+.points-badge { color: #27ae60; font-weight: bold; }
+.quick-add { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+.add-new-btn { background: #c0392b; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+
+/* Modal Style */
+.admin-modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 30px; border-radius: 15px; width: 350px; text-align: center; }
+.modal-content input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
+.confirm-btn { background: #27ae60; color: white; border: none; width: 100%; padding: 12px; border-radius: 8px; margin-top: 10px; font-weight: bold; }
+.quick-add {
+    background: #e8f5e9; 
+    color: #2e7d32; 
+    border: 1px solid #2e7d32; 
+    padding: 6px 12px; 
+    border-radius: 6px; 
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.quick-add:hover {
+    background: #2e7d32;
+    color: white;
+}
+.delete-btn {
+    transition: 0.3s;
+}
+
+.delete-btn:hover {
+    background: #c0392b !important;
+    color: white !important;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

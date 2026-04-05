@@ -275,11 +275,45 @@ function clearCart() {
         localStorage.removeItem('stop_shop_cart');
     }
 }
+// دالة لجلب نقاط الزبون بناءً على رقم الهاتف
+async function getCustomerPoints(phone) {
+    const userDoc = await db.collection("users").doc(phone).get();
+    if (userDoc.exists) {
+        return userDoc.data().points || 0;
+    }
+    return 0;
+}
+
+// دالة لتحديث أو إنشاء نقاط الزبون
+async function updateCustomerPoints(phone, newPoints) {
+    const userRef = db.collection("users").doc(phone);
+    const doc = await userRef.get();
+
+    if (doc.exists) {
+        // إضافة النقاط الجديدة للموجود سابقاً
+        await userRef.update({
+            points: firebase.firestore.FieldValue.increment(newPoints),
+            lastOrder: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } else {
+        // إنشاء سجل جديد للزبون لأول مرة
+        await userRef.set({
+            phone: phone,
+            points: newPoints,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+}
 // متغير عالمي لحفظ رابط الواتساب واستخدامه لاحقاً
 window.currentWhatsAppUrl = "";
 
 async function checkout() {
     if (cart.length === 0) return;
+
+    // --- إضافة: طلب رقم الهاتف لحفظ النقاط دون حذف أسطرك ---
+    const customerPhone = prompt("يرجى إدخال رقم هاتفك لحفظ نقاط الولاء:");
+    if (!customerPhone) return alert("الرقم ضروري لحفظ نقاطك وتأكيد الطلب!");
+    // -------------------------------------------------------
 
     const totalUsd = parseFloat(document.getElementById('total-usd').innerText);
     const payment = document.getElementById('payment-choice').value;
@@ -289,9 +323,10 @@ async function checkout() {
     const pointsEarned = Math.floor(totalUsd / 5); 
 
     try {
-        // حفظ الطلب في Firebase - نفس أسطرك الأصلية
+        // حفظ الطلب في Firebase - نفس أسطرك الأصلية (أضفنا customerPhone فقط)
         await db.collection("orders").add({
             orderId: orderId,
+            customerPhone: customerPhone, // حفظ الرقم مع الطلب
             total: totalUsd,
             totalPrice: totalUsd,
             items: cart,
@@ -301,10 +336,16 @@ async function checkout() {
             payment: payment
         });
 
+        // --- إضافة: تحديث رصيد نقاط الزبون الإجمالي في Firebase ---
+        await updateCustomerPoints(customerPhone, pointsEarned);
+        const totalPointsNow = await getCustomerPoints(customerPhone);
+        // -------------------------------------------------------
+
         const trackingLink = `https://wa.me/96181479786?text=${encodeURIComponent("مرحباً، أود تتبع حالة طلبي رقم: #" + orderId)}`;
 
         let msg = `🛒 *طلب جديد من Stop & Shop*\n`;
         msg += `🔖 *رقم الطلب:* #${orderId}\n`;
+        msg += `📞 *رقم الزبون:* ${customerPhone}\n`; // إضافة الرقم للرسالة
         msg += `--------------------------\n`;
         cart.forEach((item, i) => {
             msg += `${i + 1}- ${item.name} (الكمية: ${item.quantity})\n`;
@@ -312,29 +353,36 @@ async function checkout() {
         msg += `--------------------------\n`;
         msg += `💰 *الإجمالي:* $${totalUsd}\n`;
         msg += `💳 *الدفع:* ${payment}\n`;
-        msg += `✨ *نقاطك:* ${pointsEarned} نقطة\n\n`;
+        msg += `✨ *نقاط هذا الطلب:* ${pointsEarned} نقطة\n`;
+        msg += `🏆 *إجمالي نقاطك الآن:* ${totalPointsNow} نقطة\n\n`; // إظهار الرصيد الكلي
         msg += `📍 *لتتبع حالة طلبك اضغط هنا:*\n${trackingLink}`;
+
+        // ... الكود السابق الخاص بالرسالة والمتغيرات ...
 
         const finalUrl = `https://wa.me/96181479786?text=${encodeURIComponent(msg)}`;
         window.currentWhatsAppUrl = finalUrl; 
 
-        // --- التعديل الاحترافي للنسخ التلقائي وواجهة Whish ---
         if (payment === "عن طريق Whish Money") {
             const modal = document.getElementById('whish-payment-modal');
             modal.style.display = 'flex';
             
-            // تنفيذ النسخ التلقائي للرقم
             const numberToCopy = document.getElementById('whish-num-display').innerText;
             navigator.clipboard.writeText(numberToCopy).catch(err => {
                 console.error("فشل النسخ التلقائي: ", err);
             });
         } else {
-            // كودك الأصلي كما هو دون تغيير
-            if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                window.location.assign(finalUrl);
-            } else {
-                window.open(finalUrl, '_blank');
-            }
+            // التعديل هنا لضمان التوافق مع جميع المتصفحات
+            setTimeout(() => {
+                if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                    window.location.href = finalUrl; // استخدام href بدلاً من assign أحياناً يكون أضمن
+                } else {
+                    const newWindow = window.open(finalUrl, '_blank');
+                    if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                        // في حال حظر المتصفح للنافذة، نستخدم الرابط المباشر في نفس الصفحة
+                        window.location.href = finalUrl;
+                    }
+                }
+            }, 500); // تأخير بسيط لنصف ثانية لضمان انتهاء عمليات Firebase
         }
         // --- نهاية التعديل ---
 
@@ -350,7 +398,6 @@ async function checkout() {
         alert("فشل في حفظ الطلب: " + e.message);
     }
 }
-
 function processWhishAndOpen() {
     // إخفاء الواجهة
     document.getElementById('whish-payment-modal').style.display = 'none';
@@ -1215,4 +1262,157 @@ function showProductSticker(product) {
 function stopScanner() {
     Quagga.stop();
     document.getElementById('scanner-wrapper').style.display = 'none';
+}
+function openLoginModal() {
+    document.getElementById('unified-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('unified-modal').style.display = 'none';
+    // إعادة تعيين الواجهة عند الإغلاق
+    document.getElementById('admin-action-section').style.display = 'none';
+    document.getElementById('points-result').innerHTML = '';
+}
+
+// دالة فك قفل الإدارة داخل النافذة
+function unlockAdmin() {
+    const pass = prompt("أدخل كلمة مرور المسؤول:");
+    if (pass === "1234") {
+        document.getElementById('admin-action-section').style.display = 'block';
+        document.getElementById('admin-trigger').style.display = 'none';
+    } else {
+        alert("خطأ!");
+    }
+}
+
+async function addPointsViaAdmin() {
+    const phone = document.getElementById('manual-customer-phone').value;
+    const amount = parseFloat(document.getElementById('manual-purchase-amount').value);
+    const statusLabel = document.getElementById('admin-action-status');
+
+    // التحقق من البيانات
+    if (!phone || isNaN(amount) || amount <= 0) {
+        alert("يرجى إدخال رقم هاتف صحيح ومبلغ أكبر من صفر.");
+        return;
+    }
+
+    // حساب النقاط بناءً على قاعدتك (5$ = 1 نقطة)
+    const earnedPoints = Math.floor(amount / 5);
+
+    try {
+        statusLabel.innerText = "⏳ جاري تحديث بيانات الزبون...";
+        statusLabel.style.color = "#f39c12";
+
+        // تحديث رصيد الزبون في Firestore
+        const userRef = db.collection("users").doc(phone);
+        
+        await userRef.set({
+            phone: phone,
+            points: firebase.firestore.FieldValue.increment(earnedPoints),
+            lastManualUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+            lastPurchaseAmount: amount
+        }, { merge: true });
+
+        // نجاح العملية
+        statusLabel.style.color = "#27ae60";
+        statusLabel.innerText = `✅ نجح الأمر! تمت إضافة ${earnedPoints} نقطة للرقم ${phone}`;
+        
+        // تفريغ الخانات للاستخدام التالي
+        document.getElementById('manual-customer-phone').value = "";
+        document.getElementById('manual-purchase-amount').value = "";
+
+    } catch (error) {
+        console.error("Error updating points:", error);
+        statusLabel.style.color = "#c0392b";
+        statusLabel.innerText = "❌ فشل التحديث، تأكد من اتصال الإنترنت.";
+    }
+}
+// 1. جلب قائمة الزبائن من Firebase وعرضها في الجدول
+function loadCustomers() {
+    db.collection("users").orderBy("points", "desc").onSnapshot((snapshot) => {
+        const list = document.getElementById('customers-list');
+        list.innerHTML = ""; // مسح الجدول القديم
+
+        snapshot.forEach((doc) => {
+            const user = doc.data();
+            const date = user.lastUpdate ? user.lastUpdate.toDate().toLocaleDateString('ar-EG') : 'لا يوجد';
+            list.innerHTML += `
+    <tr>
+        <td><b>${doc.id}</b></td>
+        <td class="points-badge">${user.points || 0} نقطة</td>
+        <td>${date}</td>
+        <td>
+            <button class="quick-add" onclick="quickAdd('${doc.id}')">إضافة $5</button>
+            <button class="delete-btn" onclick="deleteCustomer('${doc.id}')" style="background: #ebedef; color: #c0392b; border: 1px solid #c0392b; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-right: 5px;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+`;
+        });
+    });
+}
+async function deleteCustomer(phone) {
+    if (confirm(`هل أنت متأكد من حذف الزبون صاحب الرقم (${phone}) نهائياً من نظام الولاء؟`)) {
+        try {
+            const db = firebase.firestore();
+            await db.collection("users").doc(phone).delete();
+            alert("✅ تم حذف الزبون بنجاح");
+        } catch (error) {
+            console.error("خطأ في الحذف: ", error);
+            alert("❌ فشل الحذف، حاول مرة أخرى");
+        }
+    }
+}
+
+// 2. دالة الإضافة اليدوية (المبلغ المخصص)
+async function confirmManualPoints() {
+    const phone = document.getElementById('admin-phone').value;
+    const amount = parseFloat(document.getElementById('admin-amount').value);
+    
+    if (!phone || !amount) return alert("يرجى ملء الخانات");
+
+    const pointsEarned = Math.floor(amount / 5);
+
+    await db.collection("users").doc(phone).set({
+        points: firebase.firestore.FieldValue.increment(pointsEarned),
+        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    alert(`تمت إضافة ${pointsEarned} نقطة بنجاح!`);
+    hideManualAddForm();
+}
+
+// 3. وظيفة سريعة لإضافة نقاط (مثلاً عند شراء قطعة بـ 5$)
+async function quickAdd(phone) {
+    await db.collection("users").doc(phone).update({
+        points: firebase.firestore.FieldValue.increment(1),
+        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+    });
+}
+
+// تشغيل جلب البيانات عند فتح الصفحة
+loadCustomers();
+
+// دالات إظهار وإخفاء النافذة
+function showManualAddForm() { document.getElementById('manual-points-modal').style.display = 'flex'; }
+function hideManualAddForm() { document.getElementById('manual-points-modal').style.display = 'none'; }
+function filterCustomers() {
+    let input = document.getElementById("searchCustomer");
+    let filter = input.value.toLowerCase();
+    let table = document.getElementById("customers-table");
+    let tr = table.getElementsByTagName("tr");
+
+    // نمر على كل صفوف الجدول (باستثناء الرأس)
+    for (let i = 1; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0]; // العمود الأول (رقم الهاتف)
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                tr[i].style.display = ""; // إظهار الصف
+            } else {
+                tr[i].style.display = "none"; // إخفاء الصف
+            }
+        }
+    }
 }

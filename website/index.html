@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
     
     <link rel="manifest" href="./manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <script src="./index.js"></script>
     <meta name="theme-color" content="#e74c3c">
@@ -28,6 +29,22 @@
       }
     </script>
     
+    <style>
+        .admin-section { background: #fff; padding: 20px; border-radius: 15px; margin: 20px 0; color: #333; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .add-new-btn { background: #c0392b; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .table-responsive { overflow-x: auto; background: white; border-radius: 10px; }
+        #customers-table { width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; }
+        #customers-table th, #customers-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        #customers-table th { background: #f8f9fa; color: #555; }
+        .quick-add { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+        .admin-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10001; }
+        .admin-modal .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; color: #333; }
+        .admin-modal input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .confirm-btn { background: #27ae60; color: white; border: none; flex: 1; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .cancel-btn { background: #95a5a6; color: white; border: none; flex: 1; padding: 12px; border-radius: 8px; cursor: pointer; }
+    </style>
 </head>
 <body>
     <div id="welcome-modal" class="modal-overlay">
@@ -117,7 +134,7 @@
 
                     <button onclick="resetFilters()" style="margin-top: 25px; padding: 10px 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">إعادة ضبط</button>
                 </div>
-
+            
                 <div style="max-height: 400px; overflow-y: auto; background: #34495e; border-radius: 10px; padding: 10px;">
                     <table id="ordersTable" style="width: 100%; border-collapse: collapse; color: white; font-size: 0.85rem; text-align: center;">
                         <thead>
@@ -131,27 +148,66 @@
                             </tbody>
                     </table>
                 </div>
+
+                <div class="admin-section">
+                    <div class="header-flex">
+                        <h2>👥 إدارة زبائن الولاء</h2>
+                        <button class="add-new-btn" onclick="showManualAddForm()">+ إضافة يدوي لشراء محلي</button>
+                    </div>
+                    <div class="search-container" style="margin: 15px 0; position: relative;">
+                        <input type="text" id="searchCustomer" onkeyup="filterCustomers()" placeholder="🔍 ابحث عن رقم هاتف الزبون..." 
+                               style="width: 100%; padding: 12px 40px 12px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; direction: rtl;">
+                    </div>
+                    <div class="table-responsive">
+                        <table id="customers-table">
+                            <thead>
+                                <tr>
+                                    <th>رقم الهاتف</th>
+                                    <th>إجمالي النقاط</th>
+                                    <th>آخر نشاط</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customers-list">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="manual-points-modal" class="admin-modal" style="display:none;">
+                    <div class="modal-content">
+                        <h3>💰 إضافة نقاط شراء من المحل</h3>
+                        <input type="text" id="admin-phone" placeholder="رقم هاتف الزبون">
+                        <input type="number" id="admin-amount" placeholder="المبلغ بالدولار $">
+                        <div class="modal-buttons">
+                            <button onclick="confirmManualPoints()" class="confirm-btn">تأكيد الإضافة</button>
+                            <button onclick="hideManualAddForm()" class="cancel-btn">إلغاء</button>
+                        </div>
+                    </div>
+                </div>
+                <p id="admin-action-status" style="text-align: center; margin-top: 10px; font-weight: bold;"></p>
             </div>
             <div id="reports-section" style="margin-top: 20px; background: #27ae60; color: white; padding: 20px; border-radius: 10px;">
-    <h3 style="text-align: center; border-bottom: 1px solid #fff; padding-bottom: 10px;">
-        <i class="fas fa-file-invoice"></i> ملخص الأرباح للفترة المحددة
-    </h3>
-    <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center;">
-        <div>
-            <span style="display: block; font-size: 0.9rem;">عدد الطلبات</span>
-            <strong id="report-order-count" style="font-size: 1.5rem;">0</strong>
+                <h3 style="text-align: center; border-bottom: 1px solid #fff; padding-bottom: 10px;">
+                    <i class="fas fa-file-invoice"></i> ملخص الأرباح للفترة المحددة
+                </h3>
+                <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center;">
+                    <div>
+                        <span style="display: block; font-size: 0.9rem;">عدد الطلبات</span>
+                        <strong id="report-order-count" style="font-size: 1.5rem;">0</strong>
+                    </div>
+                    <div>
+                        <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (USD)</span>
+                        <strong id="report-total-usd" style="font-size: 1.5rem;">0.00 $</strong>
+                    </div>
+                    <div>
+                        <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (LBP)</span>
+                        <strong id="report-total-lbp" style="font-size: 1.5rem;">0</strong>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div>
-            <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (USD)</span>
-            <strong id="report-total-usd" style="font-size: 1.5rem;">0.00 $</strong>
-        </div>
-        <div>
-            <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (LBP)</span>
-            <strong id="report-total-lbp" style="font-size: 1.5rem;">0</strong>
-        </div>
-    </div>
-</div>
-        </div>
+        
     <div id="reward-section" style="padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 10px; margin: 10px 0; text-align: center;">
     <p id="reward-message" style="font-weight: bold; color: #333;">أضف منتجات بقيمة <span id="remaining-amount" style="color: #e74c3c;">$50</span> للحصول على توصيل مجاني! 🚚</p>
     <div style="width: 100%; background: #eee; height: 12px; border-radius: 6px; margin-top: 8px; overflow: hidden;">
@@ -164,6 +220,97 @@
         <div id="progress-bar" style="width: 0%; height: 8px; background: #e74c3c; transition: width 0.3s;"></div>
     </div>
 </div>
+<div class="points-checker" style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin: 10px;">
+    <h4>🎁 افحص رصيد نقاطك</h4>
+    <input type="text" id="check-phone" placeholder="أدخل رقم هاتفك">
+    <button onclick="showMyPoints()">فحص</button>
+    <div id="points-display"></div>
+</div>
+
+<script>
+// دوال إدارة زبائن الولاء والبحث
+function filterCustomers() {
+    let input = document.getElementById("searchCustomer");
+    let filter = input.value.toLowerCase();
+    let table = document.getElementById("customers-table");
+    let tr = table.getElementsByTagName("tr");
+    for (let i = 1; i < tr.length; i++) {
+        let td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+            let txtValue = td.textContent || td.innerText;
+            tr[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+        }
+    }
+}
+
+function showManualAddForm() { document.getElementById('manual-points-modal').style.display = 'flex'; }
+function hideManualAddForm() { document.getElementById('manual-points-modal').style.display = 'none'; }
+
+async function confirmManualPoints() {
+    const phone = document.getElementById('admin-phone').value;
+    const amount = parseFloat(document.getElementById('admin-amount').value);
+    if (!phone || isNaN(amount)) return alert("يرجى إدخال بيانات صحيحة");
+    const points = Math.floor(amount / 5);
+    try {
+        const db = firebase.firestore();
+        await db.collection("users").doc(phone).set({
+            phone: phone,
+            points: firebase.firestore.FieldValue.increment(points),
+            lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        alert("✅ تمت إضافة النقاط!");
+        hideManualAddForm();
+    } catch (e) { alert("خطأ في الاتصال"); }
+}
+
+async function showMyPoints() {
+    const phoneInput = document.getElementById('check-phone').value;
+    const display = document.getElementById('points-display');
+    
+    if(!phoneInput) {
+        display.innerHTML = '<p style="color:#e74c3c; font-weight:bold;">⚠️ يرجى إدخال رقم الهاتف</p>';
+        return;
+    }
+
+    display.innerHTML = '<div class="loader">جاري البحث...</div>';
+    
+    try {
+        const points = await getCustomerPoints(phoneInput);
+        
+        display.innerHTML = `
+            <div class="loyalty-card">
+                <div class="card-header">
+                    <span class="store-name">STOP & SHOP</span>
+                    <span class="card-type">LOYALTY CARD</span>
+                </div>
+                
+                <div class="points-section">
+                    <span class="label">رصيد نقاطك</span>
+                    <span class="points-val">${points}</span>
+                </div>
+
+                <div class="barcode-container">
+                    <svg id="barcode"></svg> 
+                </div>
+                
+                <p class="card-footer">شكراً لثقتك بنا ✨</p>
+            </div>
+        `;
+
+        JsBarcode("#barcode", phoneInput, {
+            format: "CODE128",
+            lineColor: "#fff",
+            width: 2,
+            height: 40,
+            displayValue: true,
+            background: "transparent"
+        });
+
+    } catch (error) {
+        display.innerHTML = '<p>عذراً، حدث خطأ أثناء جلب البيانات</p>';
+    }
+}
+</script>
         <section class="controls">
             <div class="section-title">الأقسام</div>
             <div class="categories">
@@ -211,6 +358,7 @@
     <label for="out-of-stock-check" style="cursor: pointer; font-weight: bold; color: #333;">
         ⚠️ تحديد كـ "نفذ من المخزن" (Out of Stock)
     </label>
+    
 </div>
 
     <div class="admin-btns">
@@ -282,6 +430,7 @@
             <button onclick="closeWhishModal()" style="background: none; border: none; color: #e74c3c; margin-top: 15px; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">إلغاء</button>
         </div>
     </div>
+    
 
     <script src="index.js?v=1.7"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>

@@ -120,6 +120,7 @@
                 </h3>
 
                 <div class="admin-controls" style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; color: #333;">
+                    
                     <div class="search-box">
                         <label style="display: block; font-weight: bold; margin-bottom: 5px;">🔍 بحث برقم الطلب:</label>
                         <input type="text" id="orderSearch" onkeyup="filterOrders()" placeholder="مثلاً: SS1234..." 
@@ -335,7 +336,7 @@ async function showMyPoints() {
     <input type="text" id="new-name" placeholder="اسم المنتج">
     <input type="number" id="new-price" step="0.01" placeholder="السعر بالدولار $">
     <input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
-    
+    <input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن (مثلاً: 50)">
     <select id="new-category">
         <option value="أجبان وألبان">أجبان وألبان</option>
         <option value="مواد غذائية">مواد غذائية</option>

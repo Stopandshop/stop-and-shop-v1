@@ -727,4 +727,44 @@ th { background: #f8f9fa; color: #333; }
     background: #c0392b !important;
     color: white !important;
 }
+/* تنسيق أزرار الكمية الجديدة */
+.qty-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0;
+    background: #f1f2f6;
+    padding: 5px;
+    border-radius: 8px;
+}
+.qty-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    color: #e74c3c;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+.qty-btn:hover { background: #e74c3c; color: #fff; }
+.qty-input {
+    width: 35px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #333;
+}
+/* إخفاء أسهم الإدخال الافتراضية */
+.qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

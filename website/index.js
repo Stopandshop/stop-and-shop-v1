@@ -1,4 +1,5 @@
 
+
 // 1. إعدادات Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",
@@ -97,7 +98,7 @@ function displayProducts(productsList) {
     productsList.forEach(product => {
         const priceLBP = (parseFloat(product.price) || 0) * exchangeRate;
         
-        // --- إضافة منطق الملصقات الجديدة ---
+        // --- منطق الملصقات والمخزن ---
         const now = Date.now();
         const threeDays = 3 * 24 * 60 * 60 * 1000;
         const isNew = product.createdAt && (now - product.createdAt) < threeDays;
@@ -105,13 +106,13 @@ function displayProducts(productsList) {
         let badgeHTML = "";
         let outOfStockClass = "";
 
+        // ملاحظة لـ Stop & Shop: نعتمد هنا على "isOutOfStock" التي يتم تحديثها تلقائياً
         if (product.isOutOfStock) {
             badgeHTML = `<span class="product-badge badge-out">نفذ من المخزن</span>`;
-            outOfStockClass = "out-of-stock"; // كلاس للتعتيم من الـ CSS
+            outOfStockClass = "out-of-stock";
         } else if (isNew) {
             badgeHTML = `<span class="product-badge badge-new">جديد</span>`;
         }
-        // ---------------------------------
 
         let adminButtons = "";
         if (isAdmin) {
@@ -122,8 +123,27 @@ function displayProducts(productsList) {
                 </div>`;
         }
 
+        // --- تعديل: إظهار نص الكمية فقط للمسؤول (Admin) ---
+        let stockInfoHTML = "";
+        if (isAdmin) {
+            stockInfoHTML = `<p style="font-size: 0.7rem; color: ${product.stock < 10 ? 'red' : '#27ae60'}; margin: 5px 0;">
+                المتوفر: ${product.stock} قطعة (Admin view)
+            </p>`;
+        }
+        // ---------------------------------------------------
+
+        let quantityHTML = "";
+        if (!product.isOutOfStock) {
+            quantityHTML = `
+            <div class="quantity-control" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+                <button onclick="updateQty('${product.id}', -1)" style="width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd; background: #f8f9fa; cursor:pointer;">-</button>
+                <input type="number" id="qty-${product.id}" value="1" min="1" readonly style="width: 40px; text-align: center; border: 1px solid #ddd; border-radius: 5px; font-weight: bold; background: transparent;">
+                <button onclick="updateQty('${product.id}', 1)" style="width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd; background: #f8f9fa; cursor:pointer;">+</button>
+            </div>`;
+        }
+
         const card = document.createElement('div');
-        card.className = `product-card ${outOfStockClass}`; // أضفنا الكلاس هنا
+        card.className = `product-card ${outOfStockClass}`;
         card.innerHTML = `
             ${badgeHTML} <img src="${product.image}" onerror="this.src='https://via.placeholder.com/150'">
             ${adminButtons} 
@@ -132,6 +152,9 @@ function displayProducts(productsList) {
                 <p class="price-usd">$${parseFloat(product.price).toFixed(2)}</p>
                 <p class="price-lbp">${priceLBP.toLocaleString()} ل.ل</p>
             </div>
+            
+            ${stockInfoHTML} ${quantityHTML}
+
             <button class="add-btn" onclick="addToCart('${product.id}')" ${product.isOutOfStock ? 'disabled style="background:#888"' : ''}>
                 <i class="fas fa-cart-plus"></i> ${product.isOutOfStock ? 'غير متوفر' : 'أضف للسلة'}
             </button>
@@ -167,12 +190,22 @@ function filterByCategory(category, btn) {
     displayProducts(filtered);
 }
 
-// 6. نظام السلة
-function addToCart(productId) {
+/// 6. نظام السلة
+async function addToCart(productId) {
+    // --- إضافة السطر التالي لجلب الكمية المختارة من الواجهة ---
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    const chosenQuantity = qtyInput ? parseInt(qtyInput.value) : 1;
+
     // 1. البحث عن المنتج في القائمة الكبيرة
     const product = products.find(p => p.id === productId);
     
     if (product) {
+        // --- فحص المخزن قبل الإضافة ---
+        if (product.stock !== undefined && product.stock < chosenQuantity) {
+            alert(`عذراً، المتوفر في المخزن هو ${product.stock} فقط!`);
+            return;
+        }
+
         // 2. التأكد من أن السلة مصفوفة
         if (!Array.isArray(cart)) cart = [];
 
@@ -180,10 +213,12 @@ function addToCart(productId) {
         const existingItem = cart.find(item => item.id === productId);
 
         if (existingItem) {
-            existingItem.quantity += 1; // زيادة الكمية فقط
+            // --- تعديل السطر التالي ليضيف الكمية المختارة بدلاً من 1 فقط ---
+            existingItem.quantity += chosenQuantity; 
         } else {
             // إضافة المنتج لأول مرة مع خاصية الكمية
-            cart.push({ ...product, quantity: 1 });
+            // --- تعديل السطر التالي ليأخذ الكمية المختارة ---
+            cart.push({ ...product, quantity: chosenQuantity });
         }
 
         // 4. تحديث الواجهة والبيانات
@@ -198,6 +233,24 @@ function addToCart(productId) {
             icon.classList.add('shake-animation');
             setTimeout(() => icon.classList.remove('shake-animation'), 300);
         }
+
+        // --- إضافة سطر لإعادة تصفير العداد إلى 1 بعد الإضافة بنجاح ---
+        if(qtyInput) qtyInput.value = 1;
+
+        // --- تحديث المخزن في Firebase عند الإضافة الناجحة ---
+        try {
+            const newStock = product.stock - chosenQuantity;
+            await db.collection("products").doc(productId).update({
+                stock: newStock,
+                isOutOfStock: newStock <= 0
+            });
+            // تحديث القائمة المحلية لضمان مزامنة البيانات دون إعادة تحميل الصفحة
+            product.stock = newStock;
+            if (newStock <= 0) product.isOutOfStock = true;
+        } catch (error) {
+            console.error("خطأ في تحديث المخزن:", error);
+        }
+
     } else {
         console.error("المنتج غير موجود في القائمة!");
     }
@@ -219,32 +272,78 @@ function renderCartItems() {
     let totalUsd = 0;
 
     cart.forEach((item, index) => {
-        const itemTotal = item.price * item.quantity;
+        // حساب إجمالي السعر بناءً على الكمية المختارة
+        const itemTotal = item.price * (item.quantity || 1); 
         totalUsd += itemTotal;
+
         list.innerHTML += `
             <div class="cart-item-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee;">
                 <div style="flex: 2;">
                     <span style="font-weight: bold;">${item.name}</span>
-                    <div style="font-size: 0.8rem; color: #666;">$${item.price.toFixed(2)} × ${item.quantity}</div>
+                    <div style="font-size: 0.8rem; color: #666;">
+                        $${item.price.toFixed(2)} × ${item.quantity || 1}
+                    </div>
                 </div>
-                <span style="flex: 1; text-align: center; font-weight: bold; color: #c0392b;">$${itemTotal.toFixed(2)}</span>
-                <button onclick="removeFromCart(${index})" style="color:red; border:none; background:none; cursor:pointer; font-size: 1.2rem;">×</button>
+                <div style="flex: 1; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-weight: bold; color: #c0392b;">$${itemTotal.toFixed(2)}</span>
+                    <button onclick="removeFromCart(${index})" style="color:red; border:none; background:none; cursor:pointer; font-size: 1.2rem; margin-right: 10px;">×</button>
+                </div>
             </div>`;
     });
     
-    document.getElementById('total-usd').innerText = totalUsd.toFixed(2);
-    document.getElementById('total-lbp').innerText = (totalUsd * exchangeRate).toLocaleString();
+    // تحديث المجموع النهائي بالدولار والليرة اللبنانية
+    const totalUsdElement = document.getElementById('total-usd');
+    const totalLbpElement = document.getElementById('total-lbp');
+    
+    if (totalUsdElement) totalUsdElement.innerText = totalUsd.toFixed(2);
+    if (totalLbpElement) totalLbpElement.innerText = (totalUsd * exchangeRate).toLocaleString();
+    
+    // تحديث شريط التقدم للحصول على التوصيل المجاني
     updateRewardProgress();
 }
+async function removeFromCart(index) {
+    // 1. الحصول على بيانات المنتج المراد حذفه من السلة
+    const itemToRemove = cart[index];
 
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    updateCartCount();
-    renderCartItems();
-    saveCartToStorage();
-    updateRewardProgress();
+    if (itemToRemove) {
+        try {
+            const db = firebase.firestore();
+            
+            // 2. تحديث المخزن في Firebase (الزيادة الحقيقية في السيرفر)
+            // بما أنك تستخدم onSnapshot، فإن Firebase سيرسل التحديث الجديد للمصفوفة تلقائياً
+            await db.collection("products").doc(itemToRemove.id).update({
+                stock: firebase.firestore.FieldValue.increment(itemToRemove.quantity),
+                isOutOfStock: false
+            });
+
+            // 3. تحديث مصفوفة المنتجات المحلية (products)
+            // ملاحظة: قمنا بتعطيل العملية الحسابية هنا لأن onSnapshot سيقوم بجلب القيمة الصحيحة فوراً من Firebase
+            const localProduct = products.find(p => p.id === itemToRemove.id);
+            if (localProduct) {
+                // نترك القيمة ليتم تحديثها عبر onSnapshot لضمان عدم التكرار (4 بدلاً من 2)
+                localProduct.isOutOfStock = false;
+            }
+
+            // 4. حذف المنتج من مصفوفة السلة (كودك الأصلي)
+            cart.splice(index, 1);
+
+            // 5. تحديث الواجهة والبيانات (أكوادك الأصلية)
+            saveCartToStorage();
+            updateCartCount();
+            renderCartItems();
+            updateRewardProgress();
+            
+            // 6. تحديث عرض المنتجات (UI) ليعكس الكمية الصحيحة
+            // في حالة onSnapshot، الواجهة ستتحدث تلقائياً، ولكن استدعاءها هنا يضمن السلاسة
+            displayProducts(products); 
+
+            console.log("تمت إعادة الكمية بدقة: تم استرجاع " + itemToRemove.quantity);
+
+        } catch (error) {
+            console.error("خطأ أثناء الحذف:", error);
+        }
+    }
 }
-
 function saveCartToStorage() {
     localStorage.setItem('stop_shop_cart', JSON.stringify(cart));
 }
@@ -532,6 +631,10 @@ async function saveProduct() {
     // --- الإضافة الجديدة لجلب الباركود دون حذف أي سطر ---
     const barcode = document.getElementById('new-barcode').value.trim();
 
+    // --- الإضافة الجديدة لجلب الكمية المتوفرة ---
+    const stockInput = document.getElementById('new-stock');
+    const stock = stockInput ? parseInt(stockInput.value) : 0;
+
     if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
 
     const data = { 
@@ -540,7 +643,8 @@ async function saveProduct() {
         category, 
         image, 
         barcode, // حفظ الباركود الجديد في Firebase
-        isOutOfStock, // حفظ الحالة
+        isOutOfStock: isOutOfStock || (stock <= 0), // تحديث الحالة تلقائياً إذا كانت الكمية 0
+        stock, // حفظ الكمية المتوفرة الجديدة
         lastUpdated: Date.now() 
     };
 
@@ -1412,6 +1516,34 @@ function filterCustomers() {
                 tr[i].style.display = ""; // إظهار الصف
             } else {
                 tr[i].style.display = "none"; // إخفاء الصف
+            }
+        }
+    }
+}
+// دالة لتحديث الكمية في واجهة العرض
+// دالة لتحديث الكمية مع مراعاة المخزن المتوفر
+function updateQty(productId, change) {
+    const qtyInput = document.getElementById(`qty-${productId}`);
+    
+    // البحث عن المنتج في القائمة لمعرفة الكمية المتوفرة (Stock)
+    const product = products.find(p => p.id === productId);
+
+    if (qtyInput && product) {
+        let currentQty = parseInt(qtyInput.value) || 1;
+        let newQty = currentQty + change;
+
+        // 1. منع العداد من النزول عن 1
+        if (change === -1 && newQty >= 1) {
+            qtyInput.value = newQty;
+        } 
+        
+        // 2. منع العداد من تجاوز الكمية الموجودة في المخزن
+        else if (change === 1) {
+            if (newQty <= product.stock) {
+                qtyInput.value = newQty;
+            } else {
+                // اختياري: تنبيه بسيط للزبون أنه وصل للحد الأقصى
+                alert(`نعتذر، لا يوجد سوى ${product.stock} قطع متوفرة من هذا المنتج.`);
             }
         }
     }

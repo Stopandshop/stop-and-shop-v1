@@ -767,4 +767,39 @@ th { background: #f8f9fa; color: #333; }
 .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button {
     -webkit-appearance: none; margin: 0;
 }
+/* تحسين شكل أزرار الكمية لتعمل على الهاتف والكمبيوتر */
+.quantity-control {
+    display: flex !important; /* التأكد من أنها فليكس */
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0;
+    width: 100%; /* تأخذ عرض الكرت بالكامل */
+}
+
+.quantity-control button {
+    width: 35px !important; /* حجم مناسب للمس بالإصبع */
+    height: 35px !important;
+    min-width: 35px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    -webkit-tap-highlight-color: transparent; /* يمنع الوميض الأزرق عند اللمس في الهاتف */
+}
+
+.quantity-control input {
+    width: 50px !important;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-weight: bold;
+    height: 30px;
+    background: white;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

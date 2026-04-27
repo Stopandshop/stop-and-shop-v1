@@ -296,6 +296,13 @@ function renderCartItems() {
                         $${item.price.toFixed(2)} × ${item.quantity || 1}
                     </div>
                 </div>
+                
+                <div style="display: flex; align-items: center; gap: 5px; margin: 0 10px;">
+                    <button onclick="changeQuantity(${index}, 1)" style="width:25px; height:25px; border-radius:50%; border:1px solid #ddd; background:white; cursor:pointer;">+</button>
+                    <span style="min-width: 20px; text-align: center; font-weight: bold;">${item.quantity || 1}</span>
+                    <button onclick="changeQuantity(${index}, -1)" style="width:25px; height:25px; border-radius:50%; border:1px solid #ddd; background:white; cursor:pointer;">-</button>
+                </div>
+
                 <div style="flex: 1; display: flex; align-items: center; justify-content: space-between;">
                     <span style="font-weight: bold; color: #c0392b;">$${itemTotal.toFixed(2)}</span>
                     <button onclick="removeFromCart(${index})" style="color:red; border:none; background:none; cursor:pointer; font-size: 1.2rem; margin-right: 10px;">×</button>
@@ -312,6 +319,21 @@ function renderCartItems() {
     
     // تحديث شريط التقدم للحصول على التوصيل المجاني
     updateRewardProgress();
+}
+
+// أضف هذه الدالة تحت دالة renderCartItems لكي تعمل الأزرار
+function changeQuantity(index, delta) {
+    if (cart[index].quantity + delta > 0) {
+        cart[index].quantity += delta;
+    } else {
+        // إذا نقصت الكمية عن 1 يتم حذف المنتج
+        removeFromCart(index);
+        return; 
+    }
+    // حفظ التعديل وتحديث الواجهة
+    if (typeof saveCart === "function") saveCart(); 
+    renderCartItems();
+    if (typeof updateCartCount === "function") updateCartCount();
 }
 async function removeFromCart(index) {
     // 1. الحصول على بيانات المنتج المراد حذفه من السلة
@@ -426,6 +448,25 @@ async function checkout() {
     if (!customerPhone) return alert("الرقم ضروري لحفظ نقاطك وتأكيد الطلب!");
     // -------------------------------------------------------
 
+    // --- إضافة: جلب ملاحظات الطلب من الحقل ---
+    const orderNotes = document.getElementById('order-notes') ? document.getElementById('order-notes').value : "";
+    // -------------------------------------------------------
+
+    // --- إضافة: جلب تاريخ ووقت التوصيل المفضل ---
+    const deliveryDate = document.getElementById('delivery-date') ? document.getElementById('delivery-date').value : "غير محدد";
+    const deliveryTime = document.getElementById('delivery-time') ? document.getElementById('delivery-time').value : "غير محدد";
+    // -------------------------------------------------------
+
+    // --- إضافة: التحقق من ساعات العمل (8 صباحاً - 10 مساءً) ---
+    if (deliveryTime !== "غير محدد") {
+        const hour = parseInt(deliveryTime.split(':')[0]);
+        if (hour < 8 || hour >= 22) {
+            alert("نعتذر، خدمة التوصيل في Stop & Shop متوفرة من 8:00 صباحاً حتى 10:00 مساءً فقط.");
+            return;
+        }
+    }
+    // -------------------------------------------------------
+
     const totalUsd = parseFloat(document.getElementById('total-usd').innerText);
     const payment = document.getElementById('payment-choice').value;
     
@@ -434,10 +475,13 @@ async function checkout() {
     const pointsEarned = Math.floor(totalUsd / 5); 
 
     try {
-        // حفظ الطلب في Firebase - نفس أسطرك الأصلية (أضفنا customerPhone فقط)
+        // حفظ الطلب في Firebase - نفس أسطرك الأصلية (أضفنا التاريخ والوقت والملاحظات)
         await db.collection("orders").add({
             orderId: orderId,
             customerPhone: customerPhone, // حفظ الرقم مع الطلب
+            orderNotes: orderNotes,       // حفظ الملاحظات في قاعدة البيانات
+            deliveryDate: deliveryDate,   // حفظ تاريخ التوصيل
+            deliveryTime: deliveryTime,   // حفظ وقت التوصيل
             total: totalUsd,
             totalPrice: totalUsd,
             items: cart,
@@ -462,6 +506,18 @@ async function checkout() {
             msg += `${i + 1}- ${item.name} (الكمية: ${item.quantity})\n`;
         });
         msg += `--------------------------\n`;
+        
+        // --- إضافة: موعد التوصيل للرسالة ---
+        msg += `📅 *موعد التوصيل:* ${deliveryDate} | ${deliveryTime}\n`;
+        msg += `--------------------------\n`;
+
+        // --- إضافة: إدراج الملاحظات في رسالة الواتساب إذا وجدت ---
+        if (orderNotes.trim() !== "") {
+            msg += `📝 *ملاحظات الطلب:* ${orderNotes}\n`;
+            msg += `--------------------------\n`;
+        }
+        // -------------------------------------------------------
+
         msg += `💰 *الإجمالي:* $${totalUsd}\n`;
         msg += `💳 *الدفع:* ${payment}\n`;
         msg += `✨ *نقاط هذا الطلب:* ${pointsEarned} نقطة\n`;
@@ -503,6 +559,17 @@ async function checkout() {
         renderCartItems();
         updateRewardProgress();
         localStorage.removeItem('stop_shop_cart');
+        
+        // تفريغ حقول الإدخال أيضاً
+        if (document.getElementById('order-notes')) {
+            document.getElementById('order-notes').value = "";
+        }
+        if (document.getElementById('delivery-date')) {
+            document.getElementById('delivery-date').value = "";
+        }
+        if (document.getElementById('delivery-time')) {
+            document.getElementById('delivery-time').value = "";
+        }
 
     } catch (e) {
         console.error("Firebase Error:", e);

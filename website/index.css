@@ -890,4 +890,37 @@ th { background: #f8f9fa; color: #333; }
     font-size: 0.75rem;
     font-weight: bold;
 }
+.quantity-controls-mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.quantity-controls-mini button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.quantity-controls-mini button:hover {
+    background: #f8f9fa;
+}
+
+.quantity-controls-mini input {
+    width: 40px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 4px;
+    font-weight: bold;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

@@ -411,6 +411,24 @@ async function showMyPoints() {
                 </select>
             </div>
             <div class="cart-actions">
+                <div style="margin-top: 15px; padding: 0 10px; display: flex; gap: 10px;">
+    <div style="flex: 1;">
+        <label style="display: block; font-size: 0.8rem; margin-bottom: 5px; font-weight: bold;">تاريخ التوصيل:</label>
+        <input type="date" id="delivery-date" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-family: inherit;">
+    </div>
+    <div style="flex: 1;">
+        
+        <div style="flex: 1;">
+    <label style="display: block; font-size: 0.8rem; margin-bottom: 5px; font-weight: bold;">وقت التوصيل الدقيق:</label>
+    <input type="time" id="delivery-time" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-family: inherit;">
+</div>
+    </div>
+</div>
+                <div style="margin-top: 15px; padding: 0 10px;">
+    <label for="order-notes" style="display: block; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold; color: #333;">ملاحظات إضافية للطلب:</label>
+    <textarea id="order-notes" placeholder="مثلاً: الطابق الثاني، أو ملاحظات حول المنتجات..." 
+        style="width: 100%; height: 60px; border-radius: 8px; border: 1px solid #ddd; padding: 8px; font-family: inherit; resize: none;"></textarea>
+</div>
                 <button class="btn-checkout" onclick="checkout()">طلب عبر واتساب</button>
                 <button class="btn-print" onclick="printInvoice()">طباعة 🖨️</button>
                 <button class="btn-clear" onclick="clearCart()">تفريغ 🗑️</button>

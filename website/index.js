@@ -283,6 +283,21 @@ function renderCartItems() {
     list.innerHTML = "";
     let totalUsd = 0;
 
+    // --- إضافة: التحقق من وجود طلب سابق لإظهار زر الإعادة إذا كانت السلة فارغة ---
+    if (cart.length === 0) {
+        const lastOrder = localStorage.getItem('last_order');
+        if (lastOrder) {
+            list.innerHTML = `
+                <div id="reorder-container" style="padding: 20px; text-align: center; background: #fff9f0; border-radius: 10px; margin: 10px;">
+                    <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">هل تود إضافة منتجات آخر طلب قمت به؟</p>
+                    <button onclick="repeatLastOrder()" style="background-color: #f39c12; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>🔄</span> إعادة طلب سابق
+                    </button>
+                </div>`;
+        }
+    }
+    // -----------------------------------------------------------------------
+
     cart.forEach((item, index) => {
         // حساب إجمالي السعر بناءً على الكمية المختارة
         const itemTotal = item.price * (item.quantity || 1); 
@@ -552,7 +567,12 @@ async function checkout() {
             }, 500); // تأخير بسيط لنصف ثانية لضمان انتهاء عمليات Firebase
         }
         // --- نهاية التعديل ---
+        // حفظ الطلب الأخير في ذاكرة المتصفح قبل مسحه
+localStorage.setItem('last_order', JSON.stringify(cart));
 
+// إظهار نافذة النجاح وتحديث رقم الطلب فيها
+document.getElementById('success-order-id').innerText = "رقم الطلب: #" + orderId;
+document.getElementById('success-modal').style.display = 'flex';
         // تفريغ السلة بعد نجاح الحفظ
         cart = [];
         updateCartCount();
@@ -1664,4 +1684,62 @@ function updateOffersBanner(productsList) {
     } else {
         bannerSection.style.display = 'none';
     }
+}
+function updateShopStatus() {
+    const statusText = document.getElementById('shop-status-text');
+    const body = document.body; // للتحكم في خلفية الموقع
+    if (!statusText) return;
+
+    const now = new Date();
+    const hour = now.getHours(); // يجلب الساعة الحالية (0-23)
+
+    // تحديد ساعات العمل (من 8:00 صباحاً حتى 10:00 مساءً)
+    const openingHour = 8;
+    const closingHour = 22;
+
+    if (hour >= openingHour && hour < closingHour) {
+        // --- حالة المتجر: مفتوح ---
+        statusText.innerText = "مفتوح الآن ✅";
+        statusText.style.color = "#27ae60"; // أخضر مريح للعين
+        
+        // إرجاع الألوان العادية للموقع
+        body.style.backgroundColor = "white"; 
+        body.style.filter = "none";
+        
+    } else {
+        // --- حالة المتجر: مغلق ---
+        statusText.innerText = "مغلق الآن ❌";
+        statusText.style.color = "#e74c3c"; // أحمر واضح
+        
+        // تطبيق "الوضع الليلي" أو التعتيم البصري
+        // هذا يعطي إيحاء للزبون أن المتجر في حالة راحة
+        body.style.transition = "all 0.5s ease"; // انتقال ناعم للألوان
+        body.style.backgroundColor = "#f4f4f4"; // خلفية رمادية فاتحة
+        
+        // اختياري: إضافة فئة CSS إذا كنت تريد تحكم أكبر بالألوان
+        // body.classList.add('shop-closed-mode');
+    }
+}
+
+// تشغيل الدالة عند تحميل الصفحة
+window.addEventListener('DOMContentLoaded', updateShopStatus);
+
+// تحديث الحالة كل دقيقة للتأكد من دقة الوقت إذا ترك الزبون الصفحة مفتوحة
+setInterval(updateShopStatus, 60000);
+function repeatLastOrder() {
+    const lastOrder = localStorage.getItem('last_order');
+    if (lastOrder) {
+        cart = JSON.parse(lastOrder);
+        updateCartCount();
+        renderCartItems();
+        updateRewardProgress();
+        alert("تمت إضافة منتجات آخر طلب إلى سلتك!");
+    } else {
+        alert("لا يوجد طلبات سابقة مسجلة.");
+    }
+}
+
+function closeSuccessModal() {
+    document.getElementById('success-modal').style.display = 'none';
+    location.reload(); // لإعادة تحديث الصفحة وتنظيف الواجهة
 }

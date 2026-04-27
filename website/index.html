@@ -59,6 +59,9 @@
             <div class="welcome-icon">🏪</div>
             <h2>أهلاً بك في Stop & Shop</h2>
             <p>استمتع بتجربة تسوق ذكية وسريعة. اطلب الآن وتصلك طلباتك حتى باب المنزل!</p>
+            <div id="shop-status-container" style="text-align: center; margin: 10px 0; font-weight: bold; font-size: 1.1rem;">
+    حالة المتجر الآن: <span id="shop-status-text">جاري التحقق...</span>
+</div>
             <button onclick="closeWelcome()" class="close-welcome-btn">ابدأ التسوق الآن</button>
         </div>
     </div>
@@ -432,6 +435,11 @@ async function showMyPoints() {
                 <button class="btn-checkout" onclick="checkout()">طلب عبر واتساب</button>
                 <button class="btn-print" onclick="printInvoice()">طباعة 🖨️</button>
                 <button class="btn-clear" onclick="clearCart()">تفريغ 🗑️</button>
+                <div id="reorder-container" style="padding: 10px; text-align: center;">
+    <button onclick="repeatLastOrder()" style="background-color: #f39c12; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <span>🔄</span> إعادة طلب سابق
+    </button>
+</div>
             </div>
         </div>
     </div>
@@ -468,7 +476,15 @@ async function showMyPoints() {
             <button onclick="closeWhishModal()" style="background: none; border: none; color: #e74c3c; margin-top: 15px; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">إلغاء</button>
         </div>
     </div>
-    
+    <div id="success-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center; flex-direction:column; color:white; text-align:center;">
+    <div style="background:white; color:#333; padding:30px; border-radius:15px; width:90%; max-width:400px;">
+        <div style="font-size: 50px;">🎉</div>
+        <h2 style="color:#27ae60;">تم إرسال طلبك بنجاح!</h2>
+        <p id="success-order-id" style="font-weight:bold; margin:10px 0;"></p>
+        <p>شكراً لثقتك بـ <b>Stop & Shop</b>. سنتواصل معك قريباً لتأكيد التوصيل.</p>
+        <button onclick="closeSuccessModal()" style="background:#27ae60; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; width:100%; margin-top:15px;">العودة للمتجر</button>
+    </div>
+</div>
 
     <script src="index.js?v=1.7"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>

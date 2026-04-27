@@ -1,5 +1,8 @@
 
-
+window.onload = function() {
+    updateShopStatus(); // تحديث حالة المتجر فوراً
+    renderCartItems();  // تحديث السلة فوراً
+};
 // 1. إعدادات Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",

@@ -83,6 +83,9 @@ function loadProducts() {
         setTimeout(() => {
             if (loadingArea) loadingArea.style.display = 'none';
         }, 1500);
+        // أضف هذا السطر داخل الـ Snapshot
+updateOffersBanner(products);
+displayProducts(products);
         
     }, (error) => {
         if (loadingText) loadingText.innerText = "❌ فشل التحميل، يرجى المحاولة لاحقاً";
@@ -103,6 +106,9 @@ function displayProducts(productsList) {
         const threeDays = 3 * 24 * 60 * 60 * 1000;
         const isNew = product.createdAt && (now - product.createdAt) < threeDays;
         
+        // --- الإضافة الجديدة: فحص هل يوجد عرض (Offer) ---
+        const hasOffer = product.oldPrice && parseFloat(product.oldPrice) > parseFloat(product.price);
+        
         let badgeHTML = "";
         let outOfStockClass = "";
 
@@ -110,6 +116,9 @@ function displayProducts(productsList) {
         if (product.isOutOfStock) {
             badgeHTML = `<span class="product-badge badge-out">نفذ من المخزن</span>`;
             outOfStockClass = "out-of-stock";
+        } else if (hasOffer) {
+            // إذا كان هناك عرض، تظهر علامة "عرض خاص"
+            badgeHTML = `<span class="product-badge" style="background:#e74c3c; color:white;">عرض خاص</span>`;
         } else if (isNew) {
             badgeHTML = `<span class="product-badge badge-new">جديد</span>`;
         }
@@ -149,7 +158,10 @@ function displayProducts(productsList) {
             ${adminButtons} 
             <h3>${product.name}</h3>
             <div class="price-container">
-                <p class="price-usd">$${parseFloat(product.price).toFixed(2)}</p>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <p class="price-usd" style="margin:0;">$${parseFloat(product.price).toFixed(2)}</p>
+                    ${hasOffer ? `<p style="text-decoration: line-through; color: #e74c3c; font-size: 0.8rem; margin:0;">$${parseFloat(product.oldPrice).toFixed(2)}</p>` : ''}
+                </div>
                 <p class="price-lbp">${priceLBP.toLocaleString()} ل.ل</p>
             </div>
             
@@ -635,6 +647,10 @@ async function saveProduct() {
     const stockInput = document.getElementById('new-stock');
     const stock = stockInput ? parseInt(stockInput.value) : 0;
 
+    // --- التعديل هنا: استخدام ID المطابق للـ HTML الخاص بك ---
+    const oldPriceInput = document.getElementById('product-old-price');
+    const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
+
     if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
 
     const data = { 
@@ -645,6 +661,7 @@ async function saveProduct() {
         barcode, // حفظ الباركود الجديد في Firebase
         isOutOfStock: isOutOfStock || (stock <= 0), // تحديث الحالة تلقائياً إذا كانت الكمية 0
         stock, // حفظ الكمية المتوفرة الجديدة
+        oldPrice: oldPrice || null, // حفظ السعر القديم إذا وجد لعمل عرض
         lastUpdated: Date.now() 
     };
 
@@ -1546,5 +1563,38 @@ function updateQty(productId, change) {
                 alert(`نعتذر، لا يوجد سوى ${product.stock} قطع متوفرة من هذا المنتج.`);
             }
         }
+    }
+}
+function updateOffersBanner(productsList) {
+    const bannerSection = document.getElementById('offers-banner');
+    const slider = document.getElementById('banner-slider');
+    
+    // نختار فقط المنتجات التي عليها عرض وليست نافذة
+    const offerProducts = productsList.filter(p => p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price) && !p.isOutOfStock);
+
+    if (offerProducts.length > 0) {
+        bannerSection.style.display = 'block';
+        slider.innerHTML = '';
+
+        offerProducts.forEach(product => {
+            const discount = Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100);
+            
+            slider.innerHTML += `
+                <div class="banner-item">
+                    <img src="${product.image}">
+                    <div style="flex-grow: 1; text-align: right;">
+                        <span class="banner-discount-badge">خصم ${discount}%</span>
+                        <h4 style="margin: 5px 0; font-size: 0.9rem;">${product.name}</h4>
+                        <div style="display: flex; gap: 8px; align-items: baseline;">
+                            <span style="color: #27ae60; font-weight: bold; font-size: 1.1rem;">$${product.price}</span>
+                            <span style="text-decoration: line-through; color: #888; font-size: 0.8rem;">$${product.oldPrice}</span>
+                        </div>
+                        <button onclick="addToCart('${product.id}')" style="background:#27ae60; color:white; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; width:100%; margin-top:5px;">أضف للعرض</button>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        bannerSection.style.display = 'none';
     }
 }

@@ -802,4 +802,92 @@ th { background: #f8f9fa; color: #333; }
     height: 30px;
     background: white;
 }
+/* تنسيق السعر القديم المشطوب */
+.old-price {
+    text-decoration: line-through;
+    color: #e74c3c;
+    font-size: 0.9rem;
+    margin-right: 8px;
+}
+
+/* علامة العرض (Offer Tag) */
+.offer-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #e74c3c;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.8rem;
+    z-index: 1;
+}
+#banner-slider::-webkit-scrollbar {
+    height: 5px;
+}
+#banner-slider::-webkit-scrollbar-thumb {
+    background: #e74c3c;
+    border-radius: 10px;
+}
+.banner-item {
+    min-width: 280px;
+    background: linear-gradient(145deg, #fff, #fff5f5);
+    border: 2px solid #e74c3c;
+    border-radius: 15px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.banner-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+.banner-price-tag {
+    background: #e74c3c;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+.banner-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px;
+    scroll-behavior: smooth;
+    scrollbar-width: none; /* إخفاء شريط التمرير للمتصفحات الحديثة */
+}
+.banner-scroll::-webkit-scrollbar { display: none; } /* إخفاء الشريط لـ Chrome */
+
+.banner-item {
+    min-width: 250px;
+    background: white;
+    border: 2px solid #e74c3c;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.banner-item img {
+    width: 65px;
+    height: 65px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.banner-discount-badge {
+    background: #e74c3c;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

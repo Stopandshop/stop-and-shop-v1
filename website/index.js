@@ -440,19 +440,24 @@ async function updateCustomerPoints(phone, newPoints) {
     const userRef = db.collection("users").doc(phone);
     const doc = await userRef.get();
 
+    // إضافة: التأكد من أن النقاط رقم صحيح لتجنب أخطاء Firebase
+    const pointsToAdd = parseInt(newPoints) || 0;
+
     if (doc.exists) {
         // إضافة النقاط الجديدة للموجود سابقاً
         await userRef.update({
-            points: firebase.firestore.FieldValue.increment(newPoints),
+            points: firebase.firestore.FieldValue.increment(pointsToAdd),
             lastOrder: firebase.firestore.FieldValue.serverTimestamp()
         });
+        console.log(`✅ تم تحديث نقاط الزبون ${phone}`);
     } else {
         // إنشاء سجل جديد للزبون لأول مرة
         await userRef.set({
             phone: phone,
-            points: newPoints,
+            points: pointsToAdd,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        console.log(`✨ تم إنشاء سجل جديد لنقاط الزبون ${phone}`);
     }
 }
 // متغير عالمي لحفظ رابط الواتساب واستخدامه لاحقاً
@@ -1774,4 +1779,41 @@ function repeatLastOrder() {
 function closeSuccessModal() {
     document.getElementById('success-modal').style.display = 'none';
     location.reload(); // لإعادة تحديث الصفحة وتنظيف الواجهة
+}
+async function checkMyPoints() {
+    const phoneInput = document.getElementById('check-phone-input');
+    const resultDiv = document.getElementById('points-result');
+
+    // التأكد من إدخال رقم
+    if (!phoneInput || !phoneInput.value.trim()) {
+        alert("يرجى إدخال رقم الهاتف أولاً!");
+        return;
+    }
+
+    const phone = phoneInput.value.trim();
+    resultDiv.style.color = "#2c3e50"; // لون محايد أثناء التحميل
+    resultDiv.innerText = "جاري الفحص... ⏳";
+
+    try {
+        // البحث في مجموعة users (نفس المجموعة التي تستخدمها في دالة التحديث)
+        const userRef = db.collection("users").doc(phone);
+        const doc = await userRef.get();
+
+        if (doc.exists) {
+            const userData = doc.data();
+            const totalPoints = userData.points || 0;
+            
+            // عرض النتيجة بنجاح
+            resultDiv.style.color = "#27ae60"; // اللون الأخضر
+            resultDiv.innerHTML = `رصيدك الحالي هو: <span style="font-size: 28px;">${totalPoints}</span> نقطة 🏆`;
+        } else {
+            // الرقم غير موجود
+            resultDiv.style.color = "#e74c3c"; // اللون الأحمر
+            resultDiv.innerText = "هذا الرقم غير مسجل في نظام النقاط لدينا.";
+        }
+    } catch (error) {
+        console.error("خطأ في جلب النقاط:", error);
+        resultDiv.style.color = "#e74c3c";
+        resultDiv.innerText = "حدث خطأ أثناء الاتصال. تأكد من الإنترنت.";
+    }
 }

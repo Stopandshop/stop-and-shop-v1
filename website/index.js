@@ -461,6 +461,14 @@ window.currentWhatsAppUrl = "";
 async function checkout() {
     if (cart.length === 0) return;
 
+    // --- إضافة: التحقق من حالة المتجر قبل البدء (8 صباحاً - 10 مساءً) ---
+    const currentHour = new Date().getHours();
+    if (currentHour < 8 || currentHour >= 22) {
+        alert("نعتذر منك، المتجر مغلق الآن. يمكنك الطلب غداً بدءاً من الساعة 8:00 صباحاً.");
+        return;
+    }
+    // -------------------------------------------------------
+
     // --- إضافة: طلب رقم الهاتف لحفظ النقاط دون حذف أسطرك ---
     const customerPhone = prompt("يرجى إدخال رقم هاتفك لحفظ نقاط الولاء:");
     if (!customerPhone) return alert("الرقم ضروري لحفظ نقاطك وتأكيد الطلب!");
@@ -493,6 +501,10 @@ async function checkout() {
     const pointsEarned = Math.floor(totalUsd / 5); 
 
     try {
+        // تحسين: تغيير نص زر الدفع لإشعار الزبون بالانتظار
+        const checkoutBtn = document.querySelector('.checkout-btn'); // افترضنا وجود هذا الكلاس
+        if(checkoutBtn) checkoutBtn.innerText = "جاري الحفظ... ⏳";
+
         // حفظ الطلب في Firebase - نفس أسطرك الأصلية (أضفنا التاريخ والوقت والملاحظات)
         await db.collection("orders").add({
             orderId: orderId,
@@ -549,12 +561,15 @@ async function checkout() {
 
         if (payment === "عن طريق Whish Money") {
             const modal = document.getElementById('whish-payment-modal');
-            modal.style.display = 'flex';
+            if(modal) modal.style.display = 'flex';
             
-            const numberToCopy = document.getElementById('whish-num-display').innerText;
-            navigator.clipboard.writeText(numberToCopy).catch(err => {
-                console.error("فشل النسخ التلقائي: ", err);
-            });
+            const numDisplay = document.getElementById('whish-num-display');
+            if(numDisplay) {
+                const numberToCopy = numDisplay.innerText;
+                navigator.clipboard.writeText(numberToCopy).catch(err => {
+                    console.error("فشل النسخ التلقائي: ", err);
+                });
+            }
         } else {
             // التعديل هنا لضمان التوافق مع جميع المتصفحات
             setTimeout(() => {
@@ -570,12 +585,17 @@ async function checkout() {
             }, 500); // تأخير بسيط لنصف ثانية لضمان انتهاء عمليات Firebase
         }
         // --- نهاية التعديل ---
-        // حفظ الطلب الأخير في ذاكرة المتصفح قبل مسحه
-localStorage.setItem('last_order', JSON.stringify(cart));
 
-// إظهار نافذة النجاح وتحديث رقم الطلب فيها
-document.getElementById('success-order-id').innerText = "رقم الطلب: #" + orderId;
-document.getElementById('success-modal').style.display = 'flex';
+        // حفظ الطلب الأخير في ذاكرة المتصفح قبل مسحه
+        localStorage.setItem('last_order', JSON.stringify(cart));
+
+        // إظهار نافذة النجاح وتحديث رقم الطلب فيها
+        const successIdDisplay = document.getElementById('success-order-id');
+        if(successIdDisplay) successIdDisplay.innerText = "رقم الطلب: #" + orderId;
+        
+        const successModal = document.getElementById('success-modal');
+        if(successModal) successModal.style.display = 'flex';
+
         // تفريغ السلة بعد نجاح الحفظ
         cart = [];
         updateCartCount();
@@ -584,19 +604,18 @@ document.getElementById('success-modal').style.display = 'flex';
         localStorage.removeItem('stop_shop_cart');
         
         // تفريغ حقول الإدخال أيضاً
-        if (document.getElementById('order-notes')) {
-            document.getElementById('order-notes').value = "";
-        }
-        if (document.getElementById('delivery-date')) {
-            document.getElementById('delivery-date').value = "";
-        }
-        if (document.getElementById('delivery-time')) {
-            document.getElementById('delivery-time').value = "";
-        }
+        if (document.getElementById('order-notes')) document.getElementById('order-notes').value = "";
+        if (document.getElementById('delivery-date')) document.getElementById('delivery-date').value = "";
+        if (document.getElementById('delivery-time')) document.getElementById('delivery-time').value = "";
+
+        // إرجاع نص الزر لحالته الطبيعية
+        if(checkoutBtn) checkoutBtn.innerText = "إتمام الطلب";
 
     } catch (e) {
         console.error("Firebase Error:", e);
         alert("فشل في حفظ الطلب: " + e.message);
+        const checkoutBtn = document.querySelector('.checkout-btn');
+        if(checkoutBtn) checkoutBtn.innerText = "إتمام الطلب";
     }
 }
 function processWhishAndOpen() {
@@ -1695,6 +1714,7 @@ function updateShopStatus() {
 
     const now = new Date();
     const hour = now.getHours(); // يجلب الساعة الحالية (0-23)
+    const minutes = now.getMinutes();
 
     // تحديد ساعات العمل (من 8:00 صباحاً حتى 10:00 مساءً)
     const openingHour = 8;
@@ -1702,8 +1722,14 @@ function updateShopStatus() {
 
     if (hour >= openingHour && hour < closingHour) {
         // --- حالة المتجر: مفتوح ---
-        statusText.innerText = "مفتوح الآن ✅";
-        statusText.style.color = "#27ae60"; // أخضر مريح للعين
+        // تحسين: إضافة عد تنازلي بسيط إذا اقترب موعد الإغلاق (أقل من ساعة)
+        if (hour === closingHour - 1) {
+            statusText.innerText = `مفتوح (يغلق خلال ${60 - minutes} دقيقة) ⏳`;
+            statusText.style.color = "#f39c12"; // لون برتقالي للتنبيه
+        } else {
+            statusText.innerText = "مفتوح الآن ✅";
+            statusText.style.color = "#27ae60"; // أخضر مريح للعين
+        }
         
         // إرجاع الألوان العادية للموقع
         body.style.backgroundColor = "white"; 
@@ -1711,7 +1737,10 @@ function updateShopStatus() {
         
     } else {
         // --- حالة المتجر: مغلق ---
-        statusText.innerText = "مغلق الآن ❌";
+        // تحسين: إخبار الزبون متى سيفتح المتجر
+        let waitHours = (hour < openingHour) ? (openingHour - hour) : (24 - hour + openingHour);
+        statusText.innerText = `مغلق الآن ❌ (يفتح بعد ${waitHours} ساعة)`;
+        
         statusText.style.color = "#e74c3c"; // أحمر واضح
         
         // تطبيق "الوضع الليلي" أو التعتيم البصري

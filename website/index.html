@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>ميني ماركت Stop&Shop | مؤسسة نصور التجارية</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -30,16 +30,19 @@
     </script>
     
     <style>
-        .admin-section { background: #fff; padding: 20px; border-radius: 15px; margin: 20px 0; color: #333; }
-        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .add-new-btn { background: #c0392b; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        /* إضافة تحسينات CSS بسيطة لضمان التنسيق دون تغيير الهيكل */
+        body { font-family: 'Tajawal', sans-serif; background-color: #f4f7f6; }
+        .admin-section { background: #fff; padding: 20px; border-radius: 15px; margin: 20px 0; color: #333; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .add-new-btn { background: #c0392b; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .add-new-btn:hover { background: #e74c3c; transform: translateY(-2px); }
         .table-responsive { overflow-x: auto; background: white; border-radius: 10px; }
         #customers-table { width: 100%; border-collapse: collapse; margin-top: 10px; text-align: center; }
         #customers-table th, #customers-table td { padding: 12px; border-bottom: 1px solid #eee; }
         #customers-table th { background: #f8f9fa; color: #555; }
         .quick-add { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
         .admin-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10001; }
-        .admin-modal .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; color: #333; }
+        .admin-modal .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .admin-modal input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
         .confirm-btn { background: #27ae60; color: white; border: none; flex: 1; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
@@ -48,9 +51,15 @@
         /* --- التنسيق الجديد لقسم العروض (Banner) --- */
         .banner-scroll { display: flex; overflow-x: auto; gap: 15px; padding: 10px; scroll-behavior: smooth; scrollbar-width: none; }
         .banner-scroll::-webkit-scrollbar { display: none; }
-        .banner-item { min-width: 260px; background: white; border: 2px solid #e74c3c; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .banner-item { min-width: 260px; background: white; border: 2px solid #e74c3c; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); transition: 0.3s; }
+        .banner-item:hover { transform: scale(1.02); }
         .banner-item img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; }
         .banner-discount-badge { background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        
+        /* تصميم بطاقة الولاء المطور */
+        .loyalty-card { background: linear-gradient(135deg, #2c3e50, #000); color: white; padding: 20px; border-radius: 15px; position: relative; overflow: hidden; margin-top: 15px; }
+        .loyalty-card .store-name { font-weight: bold; letter-spacing: 2px; color: #f1c40f; }
+        .points-val { font-size: 2.5rem; font-weight: bold; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
@@ -60,8 +69,8 @@
             <h2>أهلاً بك في Stop & Shop</h2>
             <p>استمتع بتجربة تسوق ذكية وسريعة. اطلب الآن وتصلك طلباتك حتى باب المنزل!</p>
             <div id="shop-status-container" style="text-align: center; margin: 10px 0; font-weight: bold; font-size: 1.1rem;">
-    حالة المتجر الآن: <span id="shop-status-text">جاري التحقق...</span>
-</div>
+                حالة المتجر الآن: <span id="shop-status-text">جاري التحقق...</span>
+            </div>
             <button onclick="closeWelcome()" class="close-welcome-btn">ابدأ التسوق الآن</button>
         </div>
     </div>
@@ -75,18 +84,18 @@
             </div>
 
             <div class="search-container" style="position: relative; display: flex; align-items: center; width: 100%; max-width: 400px;">
-                <input type="text" id="search-input" placeholder="ابحث عن منتج أو باركود..." oninput="searchProducts()" style="width: 100%; padding: 10px 45px 10px 15px; border-radius: 25px; border: 1px solid #ddd;">
+                <input type="text" id="search-input" placeholder="ابحث عن منتج أو باركود..." oninput="searchProducts()" style="width: 100%; padding: 10px 45px 10px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; transition: 0.3s;">
                 <i class="fas fa-barcode" onclick="startScanner()" style="position: absolute; right: 15px; cursor: pointer; font-size: 1.5rem; color: #e74c3c; padding: 5px;"></i>
             </div>
 
-            <div id="scanner-wrapper" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; flex-direction:column; align-items:center; justify-content:center;">
+            <div id="scanner-wrapper" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; flex-direction:column; align-items:center; justify-content:center;">
                 <div id="reader" style="width: 300px; background:#fff; border-radius:10px; overflow:hidden;"></div>
-                <button onclick="stopScanner()" style="margin-top:20px; padding:10px 20px; background:#c0392b; color:#fff; border:none; border-radius:5px; font-weight:bold;">إغلاق الكاميرا</button>
+                <button onclick="stopScanner()" style="margin-top:20px; padding:12px 25px; background:#c0392b; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">إغلاق الكاميرا</button>
             </div>
 
             <div class="header-icons">
                 <div id="login-btn" class="user-account" onclick="toggleAdmin()">
-                    <i class="fas fa-user"></i> دخول
+                    <i class="fas fa-user-shield"></i> <span>دخول</span>
                 </div>
                 
                 <div class="cart-info" onclick="toggleCartPopup()">
@@ -99,33 +108,33 @@
     </header>
 
     <main>
-        <div id="admin-dashboard" style="display: none; background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: var(--shadow-soft);">
+        <div id="admin-dashboard" style="display: none; background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
             <h2 style="text-align: center; margin-bottom: 20px; border-bottom: 1px solid #34495e; padding-bottom: 10px;">
                 <i class="fas fa-chart-line"></i> لوحة تحكم Stop & Shop
             </h2>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px;">
-                <div style="background: #34495e; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="background: #34495e; padding: 15px; border-radius: 10px; text-align: center; border-bottom: 4px solid #e74c3c;">
                     <span style="display: block; font-size: 0.8rem; opacity: 0.8;">إجمالي الأصناف</span>
                     <strong id="stat-total-products" style="font-size: 1.3rem;">0</strong>
                 </div>
                 
-                <div style="background: #34495e; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="background: #34495e; padding: 15px; border-radius: 10px; text-align: center; border-bottom: 4px solid #3498db;">
                     <span style="display: block; font-size: 0.8rem; opacity: 0.8;">الأقسام</span>
                     <strong id="stat-total-categories" style="font-size: 1.3rem;">0</strong>
                 </div>
 
-                <div id="sales-card" style="background: #27ae60; padding: 15px; border-radius: 10px; text-align: center;">
+                <div id="sales-card" style="background: #27ae60; padding: 15px; border-radius: 10px; text-align: center; border-bottom: 4px solid #2ecc71;">
                     <span style="display: block; font-size: 0.8rem; opacity: 0.9;">مبيعات اليوم</span>
                     <strong id="stat-total-sales" style="font-size: 1.3rem;">0.00 $</strong>
                 </div>
 
-                <div style="background: #c0392b; padding: 15px; border-radius: 10px; text-align: center;">
+                <div style="background: #c0392b; padding: 15px; border-radius: 10px; text-align: center; border-bottom: 4px solid #fff;">
                     <span style="display: block; font-size: 0.8rem; opacity: 0.8;">Firebase</span>
                     <strong id="stat-sync-status" style="font-size: 0.8rem;">متصل ✅</strong>
                 </div>
             </div>
-
+            
             <div style="margin-top: 30px; background: #34495e; padding: 20px; border-radius: 10px;">
                 <h3 style="text-align: center; color: #27ae60; margin-bottom: 15px;">
                     <i class="fas fa-history"></i> سجل الفواتير الأخيرة
@@ -204,7 +213,7 @@
                 <h3 style="text-align: center; border-bottom: 1px solid #fff; padding-bottom: 10px;">
                     <i class="fas fa-file-invoice"></i> ملخص الأرباح للفترة المحددة
                 </h3>
-                <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center;">
+                <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <span style="display: block; font-size: 0.9rem;">عدد الطلبات</span>
                         <strong id="report-order-count" style="font-size: 1.5rem;">0</strong>
@@ -242,10 +251,12 @@
         <div id="progress-bar" style="width: 0%; height: 8px; background: #e74c3c; transition: width 0.3s;"></div>
     </div>
 </div>
-<div class="points-checker" style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin: 10px;">
-    <h4>🎁 افحص رصيد نقاطك</h4>
-    <input type="text" id="check-phone" placeholder="أدخل رقم هاتفك">
-    <button onclick="showMyPoints()">فحص</button>
+<div class="points-checker" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 10px; border: 1px solid #e0e0e0; text-align: center;">
+    <h4 style="margin-bottom: 15px;">🎁 افحص رصيد نقاطك</h4>
+    <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
+        <input type="text" id="check-phone" placeholder="أدخل رقم هاتفك" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; max-width: 300px;">
+        <button onclick="showMyPoints()" style="padding: 12px 25px; background: #2c3e50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">فحص</button>
+    </div>
     <div id="points-display"></div>
 </div>
 
@@ -301,27 +312,27 @@ async function showMyPoints() {
         
         display.innerHTML = `
             <div class="loyalty-card">
-                <div class="card-header">
+                <div class="card-header" style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
                     <span class="store-name">STOP & SHOP</span>
-                    <span class="card-type">LOYALTY CARD</span>
+                    <span class="card-type" style="font-size: 0.7rem; opacity: 0.7;">بطاقة الولاء</span>
                 </div>
                 
                 <div class="points-section">
-                    <span class="label">رصيد نقاطك</span>
+                    <span class="label" style="display: block; font-size: 0.9rem; opacity: 0.8;">رصيد نقاطك المتاح</span>
                     <span class="points-val">${points}</span>
                 </div>
 
-                <div class="barcode-container">
+                <div class="barcode-container" style="background: white; padding: 10px; border-radius: 8px; margin: 15px 0;">
                     <svg id="barcode"></svg> 
                 </div>
                 
-                <p class="card-footer">شكراً لثقتك بنا ✨</p>
+                <p class="card-footer" style="font-size: 0.8rem; margin-top: 10px;">شكراً لثقتك بنا في مؤسسة نصور ✨</p>
             </div>
         `;
 
         JsBarcode("#barcode", phoneInput, {
             format: "CODE128",
-            lineColor: "#fff",
+            lineColor: "#000",
             width: 2,
             height: 40,
             displayValue: true,
@@ -333,13 +344,17 @@ async function showMyPoints() {
     }
 }
 </script>
-
+        
         <section class="controls">
             <div class="section-title">الأقسام</div>
             <div class="categories">
                 <button class="active" onclick="filterByCategory('الكل', this)">الكل</button>
                 <button onclick="filterByCategory('أجبان وألبان', this)"><i class="fas fa-cheese"></i> أجبان وألبان</button>
-                <button onclick="filterByCategory('مواد غذائية', this)"><i class="fas fa-cheese"></i>  مواد غذائية</button>
+                <button onclick="filterByCategory('مواد غذائية', this)"><i class="fas fa-utensils"></i>  مواد غذائية</button>
+                
+                <button onclick="filterByCategory('تشيبس', this)"><i class="fas fa-cookie"></i> تشيبس</button>
+                <button onclick="filterByCategory('مياه', this)"><i class="fas fa-tint"></i> مياه</button>
+                
                 <button onclick="filterByCategory('مكسرات', this)"><i class="fas fa-seedling"></i> مكسرات</button>
                 <button onclick="filterByCategory('مخبوزات', this)"><i class="fas fa-bread-slice"></i> مخبوزات</button>
                 <button onclick="filterByCategory('سكاكر', this)"><i class="fas fa-candy-cane"></i> سكاكر</button>
@@ -352,6 +367,7 @@ async function showMyPoints() {
                 <button onclick="filterByCategory('محارم', this)"><i class="fas fa-box-tissue"></i> محارم</button>
                 <button onclick="filterByCategory('حفاضات', this)"><i class="fas fa-baby"></i> حفاضات</button>
             </div>
+            
             <div id="add-product-form" class="admin-controls-panel" style="display: none;">
     <h3 id="form-title">إدارة المنتج</h3>
     <input type="hidden" id="edit-product-id">
@@ -362,6 +378,10 @@ async function showMyPoints() {
     <select id="new-category">
         <option value="أجبان وألبان">أجبان وألبان</option>
         <option value="مواد غذائية">مواد غذائية</option>
+        
+        <option value="تشيبس">تشيبس</option>
+        <option value="مياه">مياه</option>
+        
         <option value="مكسرات">مكسرات</option>
         <option value="مخبوزات">مخبوزات</option>
         <option value="سكاكر">سكاكر</option>
@@ -389,6 +409,7 @@ async function showMyPoints() {
         <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
     </div>
 </div>
+
         </section>
         
         <section id="products-container" class="products-grid"></section>

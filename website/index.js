@@ -488,6 +488,11 @@ async function checkout() {
     const deliveryTime = document.getElementById('delivery-time') ? document.getElementById('delivery-time').value : "غير محدد";
     // -------------------------------------------------------
 
+    // --- إضافة: جلب الموقع الجغرافي (رابط الخريطة) ---
+    const customerLocation = document.getElementById('location-url') ? document.getElementById('location-url').value : "";
+    const manualAddress = document.getElementById('customer-address') ? document.getElementById('customer-address').value : "غير محدد";
+    // -------------------------------------------------------
+
     // --- إضافة: التحقق من ساعات العمل (8 صباحاً - 10 مساءً) ---
     if (deliveryTime !== "غير محدد") {
         const hour = parseInt(deliveryTime.split(':')[0]);
@@ -510,13 +515,15 @@ async function checkout() {
         const checkoutBtn = document.querySelector('.checkout-btn'); // افترضنا وجود هذا الكلاس
         if(checkoutBtn) checkoutBtn.innerText = "جاري الحفظ... ⏳";
 
-        // حفظ الطلب في Firebase - نفس أسطرك الأصلية (أضفنا التاريخ والوقت والملاحظات)
+        // حفظ الطلب في Firebase - نفس أسطرك الأصلية (أضفنا الموقع الجغرافي)
         await db.collection("orders").add({
             orderId: orderId,
             customerPhone: customerPhone, // حفظ الرقم مع الطلب
             orderNotes: orderNotes,       // حفظ الملاحظات في قاعدة البيانات
             deliveryDate: deliveryDate,   // حفظ تاريخ التوصيل
             deliveryTime: deliveryTime,   // حفظ وقت التوصيل
+            customerLocation: customerLocation, // حفظ رابط الخريطة
+            manualAddress: manualAddress,       // حفظ العنوان المكتوب
             total: totalUsd,
             totalPrice: totalUsd,
             items: cart,
@@ -542,8 +549,12 @@ async function checkout() {
         });
         msg += `--------------------------\n`;
         
-        // --- إضافة: موعد التوصيل للرسالة ---
+        // --- إضافة: موعد التوصيل والعنوان للرسالة ---
         msg += `📅 *موعد التوصيل:* ${deliveryDate} | ${deliveryTime}\n`;
+        msg += `📍 *العنوان:* ${manualAddress}\n`;
+        if (customerLocation) {
+            msg += `🗺️ *رابط الموقع:* ${customerLocation}\n`;
+        }
         msg += `--------------------------\n`;
 
         // --- إضافة: إدراج الملاحظات في رسالة الواتساب إذا وجدت ---
@@ -558,8 +569,6 @@ async function checkout() {
         msg += `✨ *نقاط هذا الطلب:* ${pointsEarned} نقطة\n`;
         msg += `🏆 *إجمالي نقاطك الآن:* ${totalPointsNow} نقطة\n\n`; // إظهار الرصيد الكلي
         msg += `📍 *لتتبع حالة طلبك اضغط هنا:*\n${trackingLink}`;
-
-        // ... الكود السابق الخاص بالرسالة والمتغيرات ...
 
         const finalUrl = `https://wa.me/96181479786?text=${encodeURIComponent(msg)}`;
         window.currentWhatsAppUrl = finalUrl; 
@@ -576,44 +585,37 @@ async function checkout() {
                 });
             }
         } else {
-            // التعديل هنا لضمان التوافق مع جميع المتصفحات
             setTimeout(() => {
                 if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                    window.location.href = finalUrl; // استخدام href بدلاً من assign أحياناً يكون أضمن
+                    window.location.href = finalUrl; 
                 } else {
                     const newWindow = window.open(finalUrl, '_blank');
                     if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-                        // في حال حظر المتصفح للنافذة، نستخدم الرابط المباشر في نفس الصفحة
                         window.location.href = finalUrl;
                     }
                 }
-            }, 500); // تأخير بسيط لنصف ثانية لضمان انتهاء عمليات Firebase
+            }, 500); 
         }
-        // --- نهاية التعديل ---
 
-        // حفظ الطلب الأخير في ذاكرة المتصفح قبل مسحه
         localStorage.setItem('last_order', JSON.stringify(cart));
 
-        // إظهار نافذة النجاح وتحديث رقم الطلب فيها
         const successIdDisplay = document.getElementById('success-order-id');
         if(successIdDisplay) successIdDisplay.innerText = "رقم الطلب: #" + orderId;
         
         const successModal = document.getElementById('success-modal');
         if(successModal) successModal.style.display = 'flex';
 
-        // تفريغ السلة بعد نجاح الحفظ
         cart = [];
         updateCartCount();
         renderCartItems();
         updateRewardProgress();
         localStorage.removeItem('stop_shop_cart');
         
-        // تفريغ حقول الإدخال أيضاً
         if (document.getElementById('order-notes')) document.getElementById('order-notes').value = "";
         if (document.getElementById('delivery-date')) document.getElementById('delivery-date').value = "";
         if (document.getElementById('delivery-time')) document.getElementById('delivery-time').value = "";
+        if (document.getElementById('location-url')) document.getElementById('location-url').value = "";
 
-        // إرجاع نص الزر لحالته الطبيعية
         if(checkoutBtn) checkoutBtn.innerText = "إتمام الطلب";
 
     } catch (e) {
@@ -911,7 +913,7 @@ function printInvoice() {
                 <p><b>طريقة الدفع:</b> <span style="background: #f4f4f4; padding: 2px 8px; border-radius: 4px;">${paymentMethod}</span></p>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
                 <thead>
                     <tr style="background: #f9f9f9; border-bottom: 2px solid #333;">
                         <th style="text-align: right; padding: 10px; font-size: 14px;">المنتج</th>
@@ -935,6 +937,20 @@ function printInvoice() {
     invoiceContent += `
                 </tbody>
             </table>
+
+            <div style="border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; text-align: left; line-height: 1.8;">
+                <div style="display: flex; justify-content: space-between; font-size: 16px;">
+                    <span>المجموع بالدولار:</span>
+                    <span style="font-weight: bold; color: #c0392b;">$${totalUsd}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
+                    <span>المجموع باللبناني:</span>
+                    <span style="font-weight: bold;">${totalLbp} L.L</span>
+                </div>
+                <div style="background: #fdf2f2; padding: 5px; border-radius: 5px; text-align: center; font-size: 13px;">
+                    🎉 نقاطك المحصلة من هذه الفاتورة: <b>${points} نقطة</b>
+                </div>
+            </div>
 
            <div style="margin-top: 25px; text-align: center; border-top: 1px solid #eee; padding-top: 15px;">
                 <p style="margin: 5px 0; font-size: 14px;">
@@ -1817,3 +1833,33 @@ async function checkMyPoints() {
         resultDiv.innerText = "حدث خطأ أثناء الاتصال. تأكد من الإنترنت.";
     }
 }
+function getLocation() {
+    const status = document.getElementById('location-status');
+    const addressInput = document.getElementById('customer-address');
+    const locationUrlInput = document.getElementById('location-url');
+
+    if (!navigator.geolocation) {
+        status.innerText = "متصفحك لا يدعم تحديد الموقع.";
+        return;
+    }
+
+    status.innerText = "جاري تحديد موقعك... ⏳";
+
+    navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        
+        // إنشاء رابط خرائط جوجل
+        const mapLink = `https://www.google.com/maps?q=${lat},${lon}`;
+        locationUrlInput.value = mapLink;
+        
+        status.style.color = "#27ae60";
+        status.innerText = "✅ تم تحديد الموقع بنجاح!";
+        addressInput.value = "تم تحديد الموقع عبر الخريطة 📍";
+    }, (error) => {
+        status.style.color = "#e74c3c";
+        status.innerText = "فشل التحديد: يرجى إعطاء الإذن للموقع.";
+    });
+}
+// أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
+document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

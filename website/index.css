@@ -923,4 +923,100 @@ th { background: #f8f9fa; color: #333; }
     padding: 4px;
     font-weight: bold;
 }
+/* تصغير المسافات بين حقول الطلب */
+.location-section, .delivery-info, .notes-section {
+    margin-bottom: 8px !important; /* تقليل المسافة بين الأقسام */
+}
+
+.location-section label, .delivery-info label {
+    font-size: 13px !important; /* تصغير نصوص التسمية */
+    margin-bottom: 3px !important;
+}
+
+#customer-address, #order-notes, #delivery-date, #delivery-time {
+    padding: 8px !important;
+    font-size: 14px !important;
+}
+
+/* تصغير زر التحديد الأخضر */
+.location-section button {
+    padding: 0 15px !important;
+    font-size: 13px !important;
+}
+/* تصغير حاوية السلة الإجمالية */
+.cart-items-container {
+    max-height: 300px; /* تحديد ارتفاع أقصى للسلة قبل التمرير */
+    overflow-y: auto;
+    padding: 5px !important;
+}
+
+/* تصغير كرت المنتج داخل السلة */
+.cart-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px !important; /* تقليل المسافات الداخلية */
+    margin-bottom: 5px !important;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+/* تصغير صورة المنتج في السلة */
+.cart-item img {
+    width: 40px !important; /* كانت عادة 50px أو 60px */
+    height: 40px !important;
+    border-radius: 5px;
+    margin-left: 10px;
+}
+
+/* تصغير نصوص المنتج */
+.cart-item-info {
+    flex-grow: 1;
+    font-size: 13px !important; /* خط أصغر لاسم المنتج */
+}
+
+.cart-item-name {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 2px;
+}
+
+/* تصغير أزرار التحكم بالكمية (+ و -) */
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.quantity-controls button {
+    width: 25px !important; /* تصغير حجم الزر */
+    height: 25px !important;
+    padding: 0 !important;
+    font-size: 12px !important;
+    line-height: 25px;
+}
+
+.quantity-display {
+    font-size: 14px !important;
+    min-width: 20px;
+    text-align: center;
+}
+.cart-summary {
+    padding: 10px !important;
+    background: #f9f9f9;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.cart-summary p {
+    margin: 3px 0 !important; /* تقليل المسافات بين الأسطر */
+    font-size: 14px !important;
+    display: flex;
+    justify-content: space-between;
+}
+
+.total-amount {
+    font-size: 16px !important;
+    font-weight: bold;
+    color: #c0392b;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

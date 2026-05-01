@@ -1,4 +1,4 @@
-const cacheName = 'stop-shop-v3';// غيرنا v1 إلى v2
+const cacheName = 'stop-shop-v4';// غيرنا v1 إلى v2
 const staticAssets = [
   './',
   './index.html',

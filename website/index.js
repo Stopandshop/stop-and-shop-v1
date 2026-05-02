@@ -200,8 +200,14 @@ function filterByCategory(category, btn) {
         document.querySelectorAll('.categories button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
+    
     const cleanCategory = category.trim();
-    const filtered = (cleanCategory === 'الكل') ? products : products.filter(p => p.category.trim() === cleanCategory);
+    
+    // تعديل السطر ليكون أكثر مرونة في البحث
+    const filtered = (cleanCategory === 'الكل') 
+        ? products 
+        : products.filter(p => p.category && p.category.toString().includes(cleanCategory));
+        
     displayProducts(filtered);
 }
 

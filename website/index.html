@@ -378,6 +378,7 @@ async function showMyPoints() {
         <button onclick="filterByCategory('زيوت', this)"><i class="fas fa-oil-can"></i> زيوت</button>
         <button onclick="filterByCategory('سمنة', this)"><i class="fas fa-mortar-pestle"></i> سمنة</button>
         <button onclick="filterByCategory('قسم الدايت', this)"><i class="fas fa-apple-alt"></i> قسم الدايت</button>
+        <button onclick="filterByCategory('قسم الدخان', this)"><i class="fas fa-smoking"></i> قسم الدخان</button>
             </div>
             
             <div id="add-product-form" class="admin-controls-panel" style="display: none;">
@@ -387,30 +388,30 @@ async function showMyPoints() {
     <input type="number" id="new-price" step="0.01" placeholder="السعر بالدولار $">
     <input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
     <input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن (مثلاً: 50)">
-    <select id="new-category">
-        <option value="أجبان وألبان">أجبان وألبان</option>
-        <option value="مواد غذائية">مواد غذائية</option>
-        
-        <option value="تشيبس">تشيبس</option>
-        <option value="مياه">مياه</option>
-        
-        <option value="مكسرات">مكسرات</option>
-        <option value="مخبوزات">مخبوزات</option>
-        <option value="سكاكر">سكاكر</option>
-        <option value="معلبات">معلبات</option>
-        <option value="حبوب">حبوب</option>
-        <option value="ادوات تنظيف">ادوات تنظيف</option>
-        <option value="خرضوات">خرضوات</option>
-        <option value="خاص للحلويات">خاص للحلويات</option>
-        <option value="مشروبات">مشروبات</option>
-        <option value="محارم">محارم</option>
-        <option value="حفاضات">حفاضات</option>
-        <option value="بوظة">بوظة</option>
-        <option value="قسم السيدات">قسم السيدات</option>
-        <option value="زيوت">زيوت</option>
-            <option value="سمنة">سمنة</option>
-         <option value="قسم الدايت">قسم الدايت</option>
-    </select>
+    <input type="text" id="new-category" list="category-list" placeholder="اختر أو اكتب الأقسام (افصل بينها بفاصلة)">
+<datalist id="category-list">
+    <option value="أجبان وألبان">
+    <option value="مواد غذائية">
+    <option value="تشيبس">
+    <option value="مياه">
+    <option value="مكسرات">
+    <option value="مخبوزات">
+    <option value="سكاكر">
+    <option value="معلبات">
+    <option value="حبوب">
+    <option value="ادوات تنظيف">
+    <option value="خرضوات">
+    <option value="خاص للحلويات">
+    <option value="مشروبات">
+    <option value="محارم">
+    <option value="حفاضات">
+    <option value="بوظة">
+    <option value="قسم السيدات">
+    <option value="زيوت">
+    <option value="سمنة">
+    <option value="قسم الدايت">
+    <option value="قسم الدخان">
+</datalist>
     <input type="text" id="new-image" placeholder="رابط الصورة">
     
     <div style="margin: 15px 0; display: flex; align-items: center; gap: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
@@ -537,7 +538,7 @@ async function showMyPoints() {
     </div>
 </div>
 
-    <script src="index.js?v=2.2"></script>
+    <script src="index.js?v=2.3"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </body>
 </html>

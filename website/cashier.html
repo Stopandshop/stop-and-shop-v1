@@ -437,8 +437,10 @@
     <div class="status-footer">
         <span><i class="fas fa-user-circle"></i> الموظف: <b id="employee-display">جاري التحميل...</b> <a href="#" onclick="logout()" style="color:red; text-decoration:none; margin-right:5px;">(خروج)</a></span>
         <div class="exchange-rate-container" onclick="changeExchangeRate()" style="cursor: pointer;">
-    <i class="fas fa-exchange-alt"></i> الصرف: 
-    <span id="current-exchange-rate">89,500</span> L.L
+    <div class="stat-card">
+    <div class="stat-label">سعر الصرف (ل.ل)</div>
+    <div class="stat-value" id="rate-display">---</div>
+</div>
 </div>
         <span><i class="fas fa-circle" style="color: var(--success); font-size: 8px;"></i> النظام متصل</span>
     </div>
@@ -492,14 +494,16 @@
 
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
-    let products = [];
+let products = [];
     let cart = [];
     let heldInvoices = [];
-    let rate = 89500;
-    let sellingRate = 89000;
-    let currentEmployee = localStorage.getItem('emp_name') || "مدير الصالة";
+    
+    // اجعل القيم الافتراضية تعتمد على الذاكرة أو 0، وسيتم تحديثها فوراً من Firebase
+    let rate = parseFloat(localStorage.getItem('exchangeRate')) || 90000;
+    let sellingRate = parseFloat(localStorage.getItem('sellingRate')) || 89000;
+    let currentRateFromDB = rate; // لتوحيد الأسماء في الكود
 
+    let currentEmployee = localStorage.getItem('emp_name') || "مدير الصالة";
     // --- 2. نظام الدخول ---
     // --- 2. نظام الدخول المعدل ---
     async function loginSystem() {
@@ -570,9 +574,10 @@
     }
 function renderCart() {
     const container = document.getElementById('cart-container');
-    const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
+    const discountInput = document.getElementById('discount-val');
+    const discount = parseFloat(discountInput?.value || 0);
     
-    // تأكيد ظهور الاسم المسجل حالياً في أعلى السلة
+    // 1. تحديث اسم الموظف في الواجهة
     const empDisplay = document.getElementById('employee-display') || document.getElementById('employee-name-display');
     if (empDisplay) {
         empDisplay.innerText = currentEmployee; 
@@ -581,6 +586,7 @@ function renderCart() {
     container.innerHTML = '';
     let subtotal = 0;
 
+    // 2. حالة السلة فارغة
     if (cart.length === 0) {
         container.innerHTML = `<div style="text-align: center; color: #ccc; margin-top: 50px;"><i class="fas fa-cart-arrow-down fa-4x"></i><p>ابدأ بإضافة المنتجات للفاتورة</p></div>`;
         document.getElementById('subtotal-usd').innerText = "0.00 $";
@@ -589,6 +595,7 @@ function renderCart() {
         return;
     }
 
+    // 3. بناء عناصر السلة وحساب المجموع
     cart.forEach((item, index) => {
         const itemTotal = item.price * item.qty;
         subtotal += itemTotal;
@@ -612,17 +619,25 @@ function renderCart() {
             </div>`;
     });
 
+    // 4. الحسابات الديناميكية (بدون أرقام ثابتة)
     const finalUSD = Math.max(0, subtotal - discount);
-    const rateCalc = 90000; 
-    const rateShow = 89000; 
-    const lbp = finalUSD * rateCalc;
+    
+    // الحساب بناءً على سعر الصرف الحالي من المتغيرات العامة
+    // استخدام Math.round لتقريب الليرة لأقرب 500
+    const rawLBP = finalUSD * rate; 
+    const lbp = Math.round(rawLBP / 500) * 500;
 
+    // 5. تحديث الأرقام في الواجهة
     document.getElementById('subtotal-usd').innerText = subtotal.toFixed(2) + " $";
     document.getElementById('total-lbp').innerText = lbp.toLocaleString() + " L.L";
-    document.getElementById('final-usd-text').innerText = "صافي: " + (lbp / rateShow).toFixed(2) + " $";
+    
+    // حساب الصافي بالدولار بناءً على سعر البيع (Selling Rate)
+    const finalNetUSD = lbp / sellingRate;
+    document.getElementById('final-usd-text').innerText = "صافي: " + finalNetUSD.toFixed(2) + " $";
 
+    // تحديث ملصق سعر الصرف إذا كان موجوداً
     const rateLabel = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
-    if (rateLabel) rateLabel.innerText = rateShow.toLocaleString();
+    if (rateLabel) rateLabel.innerText = sellingRate.toLocaleString();
 } // دالة تحديث الكمية يدوياً بالكتابة
     function updateQtyManual(i, val) {
         let newQty = parseInt(val);
@@ -905,9 +920,17 @@ function printInvoice() {
         </html>
     `);
     printWindow.document.close();
+}// --- 6. نظام تعليق واستعادة الفواتير ---
+function holdInvoice() { 
+    if(cart.length > 0) { 
+        heldInvoices.push([...cart]); 
+        cart = []; 
+        renderCart(); 
+        alert("تم تعليق الفاتورة بنجاح"); 
+    } 
 }
-    function holdInvoice() { if(cart.length > 0) { heldInvoices.push([...cart]); cart = []; renderCart(); alert("تم تعليق الفاتورة بنجاح"); } }
-    function showHeldInvoices() {
+
+function showHeldInvoices() {
     if (heldInvoices.length === 0) {
         alert("لا توجد فواتير معلقة حالياً.");
         return;
@@ -942,16 +965,17 @@ function printInvoice() {
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
-// دالة استعادة الفاتورة المعلقة إلى السلة
 function restoreInvoice(index) {
     if (cart.length > 0) {
         if (!confirm("السلة الحالية تحتوي على منتجات، هل تريد استبدالها بالفاتورة المعلقة؟")) return;
     }
-    cart = heldInvoices[index]; // استعادة البيانات
-    heldInvoices.splice(index, 1); // حذفها من المعلق
-    document.getElementById('held-modal').remove(); // إغلاق النافذة
-    renderCart(); // تحديث السلة
+    cart = heldInvoices[index]; 
+    heldInvoices.splice(index, 1); 
+    if(document.getElementById('held-modal')) document.getElementById('held-modal').remove(); 
+    renderCart(); 
 }
+
+// --- 7. نظام الإدارة وسعر الصرف ---
 function openAdminPassModal() {
     document.getElementById('adminPasswordModal').style.display = 'flex';
     document.getElementById('adminLoginInput').focus();
@@ -964,94 +988,78 @@ function closeAdminPassModal() {
 
 function checkAndShowDashboard() {
     const enteredPass = document.getElementById('adminLoginInput').value;
-    const correctPass = "1234"; // كلمة المرور الخاصة بك
+    const correctPass = "1234"; 
 
     if (enteredPass === correctPass) {
-        // إغلاق النافذة المنبثقة أولاً
         closeAdminPassModal();
-        
-        // الانتقال لصفحة الإدارة
         window.location.href = "index.html"; 
     } else {
         alert("كلمة المرور خاطئة!");
         document.getElementById('adminLoginInput').value = '';
     }
 }
-function changeExchangeRate() {
-    // 1. طلب سعر الصرف الجديد من المستخدم
-    const newRate = prompt("أدخل سعر صرف الدولار الجديد (L.L):", "89500");
 
+function changeExchangeRate() {
+    const newRate = prompt("أدخل سعر صرف الدولار الجديد (L.L):", rate);
     if (newRate !== null && newRate !== "" && !isNaN(newRate)) {
         const rateValue = parseFloat(newRate);
+        // تحديث محلي فوري
+        rate = rateValue;
+        currentRateFromDB = rateValue;
+        
+        const rateDisp = document.getElementById('current-exchange-rate') || document.getElementById('rate-display');
+        if(rateDisp) rateDisp.innerText = rateValue.toLocaleString();
 
-        // 2. تحديث النص في أسفل الشاشة
-        document.getElementById('current-exchange-rate').innerText = rateValue.toLocaleString();
-
-        // 3. تخزين السعر الجديد في متغير عام (Global Variable) ليتم استخدامه في الحسابات
-        currentRate = rateValue; 
-
-        // 4. إعادة حساب الإجمالي بالليرة اللبنانية فوراً
-        updateTotals(); 
-
-        // اختياري: حفظ السعر في LocalStorage ليبقى ثابتاً عند تحديث الصفحة
         localStorage.setItem('exchangeRate', rateValue);
-
-        alert("تم تحديث سعر الصرف إلى: " + rateValue.toLocaleString() + " ل.ل");
+        renderCart(); // إعادة الحساب بناءً على السعر الجديد
+        alert("تم تحديث سعر الصرف محلياً: " + rateValue.toLocaleString());
     }
 }
+
+// دالة تحديث الإجماليات (مرتبطة بسعر الصرف من Firebase)
 function updateTotals() {
-    let totalUSD = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    let subtotalUSD = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
-    const finalUSD = Math.max(0, totalUSD - discount);
-
-    // سعر الضرب الثابت لليرة
-    const rateCalc = 90000; 
+    let finalUSD = Math.max(0, subtotalUSD - discount);
     
-    // سعر الصرف المجلوب من الداتابيز (تم إصلاح التكرار هنا)
-    const rateShow = currentRateFromDB; 
+    // استخدام السعر القادم من الداتابيس
+    let totalLBP = finalUSD * currentRateFromDB;
+    let roundedLBP = Math.round(totalLBP / 500) * 500;
 
-    const totalLBP = finalUSD * rateCalc;
-
-    if(document.getElementById('total-lbp')) {
-        document.getElementById('total-lbp').innerText = totalLBP.toLocaleString() + " L.L";
-    }
-
-    if(document.getElementById('final-usd-text')) {
-        // الحساب بناءً على السعر القادم من الويب
-        const netUSD = totalLBP / rateShow;
-        document.getElementById('final-usd-text').innerText = "صافي: " + netUSD.toFixed(2) + " $";
-    }
+    if(document.getElementById('total-usd-val')) document.getElementById('total-usd-val').innerText = finalUSD.toFixed(2) + " $";
+    if(document.getElementById('total-lbp-val')) document.getElementById('total-lbp-val').innerText = roundedLBP.toLocaleString() + " L.L";
 }
-// في دالة جلب الإعدادات أو عند تحميل الصفحة
+
 function displayExchangeRate() {
-    const displayRate = 89000; // السعر الذي يظهر للعين فقط
-    const rateElement = document.getElementById('exchange-rate-display'); // تأكد من الـ ID
+    const displayRate = sellingRate || 89000; 
+    const rateElement = document.getElementById('exchange-rate-display'); 
     if(rateElement) {
         rateElement.innerText = `L.L ${displayRate.toLocaleString()}`;
     }
-
 }
+
+// --- 8. حفظ العمليات والمزامنة ---
 async function saveOrder() {
     if (cart.length === 0) return;
 
-    // جلب اسم الموظف من القائمة (Dropdown)
     const empSelect = document.getElementById('employee-select');
-    const employeeName = empSelect ? empSelect.value : (typeof currentEmployee !== 'undefined' ? currentEmployee : "غير محدد");
+    // نستخدم الاسم المسجل في النظام أو المختار من القائمة
+    const employeeName = currentEmployee || (empSelect ? empSelect.value : "غير محدد");
 
     const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const finalUSD = Math.max(0, subtotal - discount);
     
-    // الحساب على 90000
-    const totalLBP = finalUSD * 90000;
+    // الحساب بناءً على السعر المحدث لحظياً (rate) بدلاً من تثبيته على 90000
+    const totalLBP = Math.round((finalUSD * rate) / 500) * 500;
 
     const orderData = {
-        items: cart,
+        items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
         subtotal_usd: subtotal,
         discount: discount,
         total_usd: finalUSD,
         total_lbp: totalLBP,
-        cashier_name: employeeName, // حفظ اسم الموظف المختار
+        cashier_name: employeeName,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         date: new Date().toLocaleDateString('en-GB')
     };
@@ -1067,28 +1075,50 @@ async function saveOrder() {
         alert("حدث خطأ أثناء الحفظ");
     }
 }
-function logout() { 
-        if(confirm("هل تريد تسجيل الخروج؟")) {
-            localStorage.removeItem('emp_name'); 
-            currentEmployee = "مدير الصالة";
-            location.reload(); 
-        }
-    }
-    let currentRateFromDB = 89000; // قيمة افتراضية
 
 function startRateListener() {
     db.collection("settings").doc("exchange_rate").onSnapshot((doc) => {
         if (doc.exists) {
-            currentRateFromDB = doc.data().value;
-            // تحديث العرض في الأسفل فوراً
-            const rateDisplay = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
-            if (rateDisplay) rateDisplay.innerText = currentRateFromDB.toLocaleString();
+            const data = doc.data();
+            const newRate = data.value;
             
-            // إعادة حساب السلة إذا كان هناك منتجات
-            if (typeof renderCart === "function") renderCart();
+            rate = newRate;
+            currentRateFromDB = newRate;
+            sellingRate = data.sellingRate || newRate;
+            
+            localStorage.setItem('exchangeRate', newRate);
+            localStorage.setItem('sellingRate', sellingRate);
+
+            const rateDisplay = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
+            if (rateDisplay) {
+                rateDisplay.innerText = rate.toLocaleString();
+            }
+            
+            if (cart.length > 0) renderCart();
+            displayExchangeRate(); // تحديث سعر العرض
+            console.log("✅ المزامنة تمت: السعر الجديد هو " + newRate);
         }
     });
 }
+
+// دالة الحساب النهائي (مكررة ومنظمة)
+function calculateFinalTotal() {
+    let totalUSD = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
+    let finalUSD = Math.max(0, totalUSD - discount);
+
+    let totalLBP = finalUSD * currentRateFromDB;
+    let roundedLBP = Math.round(totalLBP / 500) * 500;
+
+    if(document.getElementById('total-usd-val')) document.getElementById('total-usd-val').innerText = finalUSD.toFixed(2) + " $";
+    if(document.getElementById('total-lbp-val')) document.getElementById('total-lbp-val').innerText = roundedLBP.toLocaleString() + " L.L";
+}
+
+// تشغيل المستمع عند التحميل
+window.addEventListener('load', () => {
+    startRateListener();
+    displayExchangeRate();
+});
 </script>
 
 </body>

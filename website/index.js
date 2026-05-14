@@ -1,6 +1,6 @@
 window.onload = function() {
-    updateShopStatus(); // تحديث حالة المتجر فوراً
-    renderCartItems();  // تحديث السلة فوراً
+    updateShopStatus(); 
+    renderCartItems();  
 };
 // 1. إعدادات Firebase
 const firebaseConfig = {
@@ -19,10 +19,10 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 
 // 2. المتغيرات العامة
-const exchangeRate = 90000;
+let exchangeRate = parseFloat(localStorage.getItem('exchangeRate')) || 90000; 
 let isAdmin = false;
 let cart = [];
-let products = []; 
+let products = [];; 
 
 // 3. دوال التشغيل والتحميل
 window.addEventListener('load', () => {
@@ -30,6 +30,14 @@ window.addEventListener('load', () => {
     loadSavedCart();     // استرجاع السلة
     checkFirstVisit();   // فحص الترحيب
 });
+async function syncExchangeRate() {
+    const rateDoc = await db.collection("settings").doc("exchange_rate").get();
+    if (rateDoc.exists) {
+        exchangeRate = rateDoc.data().value;
+        localStorage.setItem('exchangeRate', exchangeRate);
+    }
+}
+syncExchangeRate();
 
 // --- وظائف النافذة والترحيب ---
 function toggleCartPopup() {
@@ -2148,26 +2156,26 @@ async function saveProductToFirebase() {
 }
 // دالة التحويل من دولار إلى ليرة (عند الكتابة في خانة الدولار)
 function convertToLBP() {
-    const usdValue = parseFloat(document.getElementById('new-price').value) || 0;
+    // نستخدم الأسماء التي وضعتها أنت في HTML
+    const usdInput = document.getElementById('new-price'); 
     const lbpInput = document.getElementById('new-price-lbp');
-    
-    // الحساب والتقريب لأقرب 500 ليرة
-    const result = usdValue * rate;
-    lbpInput.value = Math.round(result / 500) * 500;
+    if (usdInput && lbpInput) {
+        const val = parseFloat(usdInput.value) || 0;
+        lbpInput.value = Math.round((val * exchangeRate) / 500) * 500;
+        calculateProfit(); // نحدث الربح تلقائياً
+    }
 }
 
 function convertToUSD() {
-    const lbpValue = parseFloat(document.getElementById('new-price-lbp').value) || 0;
     const usdInput = document.getElementById('new-price');
-    
-    if (rate > 0) {
-        // الحساب والتقريب لرقمين عشريين
-        const result = lbpValue / rate;
-        usdInput.value = result.toFixed(2);
+    const lbpInput = document.getElementById('new-price-lbp');
+    if (usdInput && lbpInput && exchangeRate > 0) {
+        const val = parseFloat(lbpInput.value) || 0;
+        usdInput.value = (val / exchangeRate).toFixed(2);
+        calculateProfit();
     }
 }
-// جلب سعر الصرف من المتصفح (الذي حددناه في صفحة الكاشير) أو وضعه يدوياً
-let rate = parseFloat(localStorage.getItem('exchangeRate')) || 90000; 
+
 
 // دالة لتحديث عرض سعر الصرف في الواجهة
 function displayCurrentRate() {
@@ -2294,14 +2302,8 @@ function calculateProfit() {
     const profitDisplay = document.getElementById('profit-margin');
 
     if (purchase > 0 && sale > 0) {
-        // المعادلة: ((سعر البيع - سعر الشراء) / سعر الشراء) * 100
         const profitPercent = ((sale - purchase) / purchase) * 100;
         profitDisplay.value = profitPercent.toFixed(1) + "%";
-        
-        // تغيير اللون للتنبيه إذا كان هناك خسارة
-        profitDisplay.style.color = profitPercent < 0 ? "#d32f2f" : "#2e7d32";
-    } else {
-        profitDisplay.value = "0%";
     }
 }
 
@@ -2440,16 +2442,55 @@ document.addEventListener('DOMContentLoaded', () => {
 // دالة لتحديث سعر الصرف في قاعدة البيانات
 // أضفها في نهاية الملف تماماً
 async function updateGlobalExchangeRate(newRate) {
+    if(!newRate) return;
     try {
         await db.collection("settings").doc("exchange_rate").set({
             value: parseInt(newRate),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        alert("✅ تم تحديث سعر الصرف بنجاح في قاعدة البيانات");
+        exchangeRate = parseInt(newRate);
+        localStorage.setItem('exchangeRate', exchangeRate);
+        alert("✅ تم تحديث سعر الصرف بنجاح");
+        location.reload(); 
     } catch (error) {
-        console.error("Error updating rate:", error);
-        alert("❌ فشل التحديث: " + error.message);
+        alert("❌ فشل التحديث");
     }
 }
+window.addEventListener('load', () => {
+    loadProducts();      
+    loadSavedCart();     
+    checkFirstVisit();   
+    
+    // ربط الخانات بالتحويل فوراً
+    document.getElementById('new-price')?.addEventListener('input', convertToLBP);
+    document.getElementById('new-price-lbp')?.addEventListener('input', convertToUSD);
+    document.getElementById('purchase-price')?.addEventListener('input', calculateProfit);
+});
+// --- أضف هذا الجزء لضمان عمل التحويل التلقائي عند الكتابة ---
+document.addEventListener('DOMContentLoaded', () => {
+    // ربط خانة الدولار لتغير الليرة والربح
+    const usdIn = document.getElementById('new-price');
+    if (usdIn) {
+        usdIn.addEventListener('input', () => {
+            convertToLBP();    // يحول لليرة فوراً
+            calculateProfit(); // يحسب الربح فوراً
+        });
+    }
+
+    // ربط خانة الليرة لتغير الدولار والربح
+    const lbpIn = document.getElementById('new-price-lbp');
+    if (lbpIn) {
+        lbpIn.addEventListener('input', () => {
+            convertToUSD();    // يحول للدولار فوراً
+            calculateProfit(); // يحول الربح فوراً
+        });
+    }
+
+    // ربط خانة سعر الشراء لتحديث الربح
+    const purchaseIn = document.getElementById('purchase-price');
+    if (purchaseIn) {
+        purchaseIn.addEventListener('input', calculateProfit);
+    }
+});
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

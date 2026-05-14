@@ -109,6 +109,10 @@
 
     <main>
         <div id="admin-dashboard" style="display: none; background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+            <button onclick="this.parentElement.style.display='none'" 
+            style="float: left; background: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 8px; cursor: pointer;">
+        إغلاق X
+    </button>
             <h2 style="text-align: center; margin-bottom: 20px; border-bottom: 1px solid #34495e; padding-bottom: 10px;">
                 <i class="fas fa-chart-line"></i> لوحة تحكم Stop & Shop
             </h2>
@@ -134,6 +138,7 @@
                     <strong id="stat-sync-status" style="font-size: 0.8rem;">متصل ✅</strong>
                 </div>
             </div>
+            
             
             <div style="margin-top: 30px; background: #34495e; padding: 20px; border-radius: 10px;">
                 <h3 style="text-align: center; color: #27ae60; margin-bottom: 15px;">
@@ -209,6 +214,89 @@
                 </div>
                 <p id="admin-action-status" style="text-align: center; margin-top: 10px; font-weight: bold;"></p>
             </div>
+            <div class="admin-section" style="background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <i class="fas fa-lock-open"></i>
+            <h3>منطقة محمية</h3>
+        </div>
+        <p>الرجاء إدخال كلمة مرور الإدارة للدخول لنظام الكاشير</p>
+        <input type="password" id="adminPassInput" placeholder="••••••••" autofocus>
+        <div class="modal-buttons">
+            <button onclick="checkAdminPassword()" class="btn-confirm">دخول</button>
+            <button onclick="closePassModal()" class="btn-cancel">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<button onclick="openPassModal()" class="btn-nav-cashier">
+    <i class="fas fa-cash-register"></i>
+    فتح نظام الكاشير
+</button>
+    <h3 style="color: #2c3e50; margin-top: 0;">➕ إضافة كاشير جديد</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input type="text" id="new-staff-name" placeholder="اسم الموظف" 
+               style="flex: 2; min-width: 150px; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+        
+        <input type="password" id="new-staff-pin" placeholder="كلمة المرور (أرقام)" 
+               style="flex: 1; min-width: 100px; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+        
+        <button onclick="addNewStaff()" 
+                style="flex: 1; background: #4db6ac; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; min-width: 120px;">
+            حفظ البيانات
+        </button>
+    </div>
+</div>
+            <div style="background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-top: 20px;">
+    <h3 style="color:black;"><i class="fas fa-chart-line"></i> ملخص مبيعات اليوم</h3>
+    <button onclick="resetTodaySales()" 
+        style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+    🔄 بدء يوم جديد (تصفير)
+</button>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+            <p style="margin:0; color: black;">إجمالي المبيعات ($)</p>
+            <h2 id="today-total-usd" style="margin:5px 0; color: black;">0.00 $</h2>
+        </div>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+            <p style="margin:0; color: black;">عدد الفواتير</p>
+            <h2 id="today-orders-count" style="margin:5px 0; color: black;">0</h2>
+        </div>
+    </div>
+    
+    <h4><i class="fas fa-users"></i> أداء الموظفين</h4>
+    <table style="width: 100%; border-collapse: collapse; text-align: right;">
+        <thead>
+            <tr style="border-bottom: 2px solid #eee;">
+                <th style="padding: 10px;">الموظف</th>
+                <th style="padding: 10px;">عدد الفواتير</th>
+                <th style="padding: 10px;">الإجمالي ($)</th>
+            </tr>
+        </thead>
+        <tbody id="staff-performance-body">
+            </tbody>
+    </table>
+</div>
+<div id="inventory-section" class="admin-card">
+    <h3 style="padding: 10px;"><i class="fas fa-boxes"></i> مراقبة الجرد والمخزن</h3>
+    
+    <div class="inventory-container">
+        <table style="width: 100%; border-collapse: collapse; text-align: right;">
+            <thead class="inventory-header">
+                <tr>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd;">الصنف</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd; text-align: center;">الكمية</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd; text-align: center;">الحالة</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #ddd; text-align: center;">إضافة</th>
+                </tr>
+            </thead>
+            <tbody id="inventory-table-body">
+                </tbody>
+        </table>
+    </div>
+    </div>
             <div id="reports-section" style="margin-top: 20px; background: #27ae60; color: white; padding: 20px; border-radius: 10px;">
                 <h3 style="text-align: center; border-bottom: 1px solid #fff; padding-bottom: 10px;">
                     <i class="fas fa-file-invoice"></i> ملخص الأرباح للفترة المحددة
@@ -379,15 +467,72 @@ async function showMyPoints() {
         <button onclick="filterByCategory('سمنة', this)"><i class="fas fa-mortar-pestle"></i> سمنة</button>
         <button onclick="filterByCategory('قسم الدايت', this)"><i class="fas fa-apple-alt"></i> قسم الدايت</button>
         <button onclick="filterByCategory('قسم الدخان', this)"><i class="fas fa-smoking"></i> قسم الدخان</button>
-            </div>
+        <button onclick="filterByCategory('قسم البهارات', this)"><i class="fas fa-mortar-pestle"></i> قسم البهارات</button>
+        <button onclick="filterByCategory('قسم الشامبو', this)"><i class="fas fa-pump-soap"></i> قسم الشامبو</button> 
+    </div>
             
             <div id="add-product-form" class="admin-controls-panel" style="display: none;">
-    <h3 id="form-title">إدارة المنتج</h3>
-    <input type="hidden" id="edit-product-id">
-    <input type="text" id="new-name" placeholder="اسم المنتج">
-    <input type="number" id="new-price" step="0.01" placeholder="السعر بالدولار $">
-    <input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
-    <input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن (مثلاً: 50)">
+   <h3 id="form-title">إدارة المنتج</h3>
+   <div style="background: #e0f2f1; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #4db6ac;">
+    <div id="admin-rate-control" style="background: #fff; padding: 20px; border-radius: 15px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-right: 5px solid #e74c3c;">
+    <h3 style="margin-top: 0; color: #2c3e50;"><i class="fas fa-money-bill-wave"></i> إدارة سعر الصرف</h3>
+    <p style="font-size: 0.9rem; color: #666;">تغيير السعر هنا سيؤدي لتحديثه فوراً لدى الكاشير</p>
+    
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <input type="number" id="new-rate-input" placeholder="أدخل السعر (مثلاً 89000)" 
+               style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; flex: 1; font-size: 1rem;">
+        
+        <button onclick="updateRateFromUI()" 
+                style="background: #e74c3c; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            تحديث الآن
+        </button>
+    </div>
+</div>
+
+<script>
+   function updateRateFromUI() {
+        const rateInput = document.getElementById('new-rate-input');
+        const rate = rateInput.value;
+        if (rate && rate > 0) {
+            if(confirm(`هل أنت متأكد من تغيير سعر الصرف إلى ${rate}؟`)) {
+                updateGlobalExchangeRate(rate);
+                rateInput.value = ''; // تنظيف الخانة بعد الإرسال
+            }
+        } else {
+            alert("يرجى إدخال سعر صحيح");
+        }
+    }
+</script>
+</div>
+<input type="hidden" id="edit-product-id">
+<input type="text" id="new-name" placeholder="اسم المنتج">
+
+<div id="admin-rate-display" style="font-size: 0.85rem; color: #2c3e50; font-weight: bold; margin-bottom: 5px;">
+    جاري تحميل سعر الصرف...
+</div>
+<div style="display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; color: #d32f2f;">سعر الشراء ($)</label>
+        <input type="number" id="purchase-price" step="0.01" placeholder="0.00 $" oninput="calculateProfit()">
+    </div>
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; color: #388e3c;">نسبة الربح (%)</label>
+        <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32;">
+    </div>
+</div>
+<div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem;">السعر بالدولار ($)</label>
+        <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP()" onchange="convertToLBP()">
+    </div>
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem;">السعر بالليرة (L.L)</label>
+        <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD()" onchange="convertToUSD()">
+    </div>
+</div>
+
+<input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
+<input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن (مثلاً: 50)">
     <input type="text" id="new-category" list="category-list" placeholder="اختر أو اكتب الأقسام (افصل بينها بفاصلة)">
 <datalist id="category-list">
     <option value="أجبان وألبان">
@@ -411,6 +556,8 @@ async function showMyPoints() {
     <option value="سمنة">
     <option value="قسم الدايت">
     <option value="قسم الدخان">
+    <option value="قسم البهارات">قسم البهارات</option>
+    <option value="قسم الشامبو">قسم الشامبو</option>
 </datalist>
     <input type="text" id="new-image" placeholder="رابط الصورة">
     
@@ -425,6 +572,12 @@ async function showMyPoints() {
     <div class="admin-btns">
         <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
         <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
+        <button onclick="printProductLabel()" 
+        style="background: #2c3e50; color: white; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;">
+    <i class="fas fa-print"></i> طباعة ملصق السعر (Xprinter) 🖨️
+</button>
+
+<div id="label-print-area" style="display: none;"></div>
     </div>
 </div>
 

@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stop & Shop | النظام الذكي</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #e74c3c;
+            --dark: #2c3e50;
+            --success: #2ecc71;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+            --shadow: 0 10px 25px rgba(0,0,0,0.08);
+            --radius: 16px;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--dark);
+        }
+
+        /* --- الهيكل الرئيسي --- */
+        .sidebar-actions {
+            width: 280px;
+            background: var(--white);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-left: 1px solid #e0e0e0;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.02);
+            z-index: 10;
+        }
+
+        .main-workspace {
+            flex: 1;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .billing-panel {
+            width: 380px;
+            background: var(--white);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e0e0e0;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.02);
+        }
+
+        /* --- العناصر الجميلة --- */
+        .glass-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 20px;
+        }
+
+        .search-container {
+            position: relative;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 18px 25px;
+            border-radius: 50px;
+            border: 2px solid transparent;
+            background: var(--white);
+            box-shadow: var(--shadow);
+            font-size: 1.1rem;
+            outline: none;
+            transition: 0.3s;
+            font-weight: 600;
+        }
+
+        .search-input:focus { border-color: var(--primary); }
+
+        .btn-action {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 700;
+            font-family: 'Cairo';
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .btn-save { background: var(--success); color: white; height: 70px; font-size: 1.2rem; }
+        .btn-secondary { background: #ecf0f1; color: var(--dark); }
+        .btn-danger { background: #fff5f5; color: var(--primary); }
+        .btn-action:hover { transform: translateY(-3px); filter: brightness(1.05); }
+
+        .products-list-header {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-weight: 900;
+            font-size: 1.2rem;
+            color: var(--dark);
+        }
+
+        .product-row {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: var(--white);
+            border-radius: var(--radius);
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            border: 1px solid #f0f0f0;
+            animation: fadeIn 0.4s ease;
+        }
+
+        /* تنسيق صورة المنتج */
+        .product-img-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            object-fit: cover;
+            background: #f0f2f5;
+            border: 1px solid #eee;
+        }
+
+        .qty-box {
+            display: flex;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 30px;
+            padding: 5px 15px;
+            gap: 10px;
+        }
+
+        /* تنسيق حقل الكمية القابل للكتابة */
+        .qty-input-manual {
+            width: 45px;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-weight: bold;
+            font-family: 'Cairo';
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .qty-btn {
+            background: var(--white);
+            border: 1px solid #ddd;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .brand-section {
+            background: var(--dark);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+
+        .brand-section img {
+            width: 80px;
+            border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.2);
+            margin-bottom: 10px;
+        }
+
+        .total-banner {
+            background: var(--primary);
+            color: white;
+            padding: 25px;
+            border-radius: var(--radius);
+            text-align: center;
+            margin: 20px;
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .status-footer {
+            background: #fff;
+            padding: 12px 25px;
+            border-radius: 50px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            box-shadow: var(--shadow);
+        }
+        /* زر الانتقال للمسؤول */
+.btn-to-admin {
+    background-color: #34495e;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.3s;
+    margin: 10px; /* ليتناسب مع موقعك */
+}
+
+.btn-to-admin:hover {
+    background-color: #2c3e50;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* نمط خاص لنافذة الإدارة */
+.admin-theme {
+    border-top: 5px solid #34495e;
+}
+
+.btn-confirm-admin {
+    flex: 2;
+    background: #34495e;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+}
+/* تنسيق منطقة الأزرار الجانبية مع خاصية الـ Scroll */
+.sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    height: 100%; /* تأخذ كامل الطول المتاح */
+    overflow-y: auto; /* تفعيل التمرير العمودي */
+    overflow-x: hidden; /* إخفاء التمرير الأفقي */
+    scrollbar-width: thin; /* لشاشات فايرفوكس */
+    scrollbar-color: #ccc transparent;
+}
+
+/* تحسين شكل شريط التمرير (للمتصفحات مثل Chrome و Edge) */
+.sidebar-actions::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-actions::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-actions::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 10px;
+}
+
+.sidebar-actions::-webkit-scrollbar-thumb:hover {
+    background-color: #999;
+}
+/* خلفية النافذة - جعلتها أغمق قليلاً لزيادة التركيز */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8); /* سواد شفاف */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px); /* تأثير تغبيش خلف النافذة */
+}
+
+/* صندوق المحتوى */
+.modal-content.admin-theme {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    width: 380px;
+    text-align: center;
+    border-top: 6px solid #e74c3c; /* اللون الأحمر الخاص بـ Stop & Shop */
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+}
+
+/* أيقونة القفل */
+.modal-header i {
+    font-size: 45px;
+    color: #2c3e50; /* اللون الداكن للنظام */
+    margin-bottom: 15px;
+}
+
+/* حقل إدخال كلمة المرور */
+#adminLoginInput {
+    width: 100%;
+    padding: 15px;
+    margin: 20px 0;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 22px;
+    letter-spacing: 5px;
+    outline: none;
+    transition: 0.3s;
+}
+
+#adminLoginInput:focus {
+    border-color: #e74c3c; /* يتحول للأحمر عند الكتابة */
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.1);
+}
+
+/* أزرار النافذة */
+.btn-confirm-admin {
+    flex: 2;
+    background: #e74c3c; /* أحمر */
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.btn-cancel {
+    flex: 1;
+    background: #f8f9fa;
+    color: #666;
+    border: 1px solid #ddd;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+}
+
+/* استخدم نفس الـ Modal CSS الذي استعملناه في صفحة المسؤول سابقاً */
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-actions">
+    <div style="margin-bottom: 10px; text-align: center;">
+        <i class="fas fa-desktop" style="font-size: 2rem; color: #ddd;"></i>
+    </div>
+    
+    <button class="btn-action btn-save" onclick="saveInvoice()">
+        <i class="fas fa-check-circle fa-lg"></i> حفظ الفاتورة (F9)
+    </button>
+    
+    <button class="btn-action btn-secondary" style="background: #34495e; color: white;" onclick="printInvoice()">
+        <i class="fas fa-print"></i> طباعة إيصال (F10)
+    </button>
+    
+    <button class="btn-action btn-secondary" onclick="holdInvoice()">
+        <i class="fas fa-pause-circle"></i> تعليق الفاتورة (F4)
+    </button>
+    
+    <button class="btn-action btn-secondary" onclick="showHeldInvoices()">
+        <i class="fas fa-layer-group"></i> الفواتير المعلقة
+    </button>
+    
+    <button class="btn-action btn-secondary" style="background: #2980b9; color: white;" onclick="showMonthlyReview()">
+        <i class="fas fa-chart-line"></i> أرشيف المبيعات
+    </button>
+    
+    <button class="btn-action btn-danger" onclick="if(confirm('مسح السلة؟')) { cart = []; renderCart(); }">
+        <i class="fas fa-trash-alt"></i> إفراغ السلة (Esc)
+    </button>
+
+    <div class="glass-card" style="margin-top: auto; font-size: 0.8rem; background: #fff9f0; border-color: #ffeaa7;">
+        <i class="fas fa-lightbulb" style="color: #f39c12;"></i> <b>نصيحة:</b><br>
+        استخدم الاختصارات للعمل بشكل أسرع.
+    </div>
+    <button onclick="openAdminPassModal()" class="btn-to-admin">
+    <i class="fas fa-user-shield"></i>
+    لوحة الإدارة
+</button>
+
+<div id="adminPasswordModal" class="modal-overlay">
+    <div class="modal-content admin-theme"> <div class="modal-header">
+            <i class="fas fa-user-lock"></i>
+            <h3 style="color: #2c3e50; margin: 10px 0;">دخول الإدارة</h3>
+        </div>
+        <p style="color: #7f8c8d; font-size: 0.9rem;">هذه المنطقة محمية، يرجى إدخال الرمز</p>
+        <input type="password" id="adminLoginInput" placeholder="••••">
+        <div class="modal-buttons" style="display: flex; gap: 10px;">
+            <button onclick="checkAndShowDashboard()" class="btn-confirm-admin">دخول</button>
+            <button onclick="closeAdminPassModal()" class="btn-cancel">إلغاء</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<div class="main-workspace">
+    <div class="search-container">
+        <input type="text" id="barcode-input" class="search-input" 
+               placeholder="أدخل اسم المنتج أو امسح الباركود..." 
+               list="products-list" autocomplete="off" autofocus>
+        <datalist id="products-list"></datalist>
+    </div>
+
+    <div class="glass-card" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="products-list-header">
+            <i class="fas fa-shopping-basket"></i> قائمة المنتجات الحالية
+        </div>
+        <div id="cart-container" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+            <div style="text-align: center; color: #ccc; margin-top: 50px;">
+                <i class="fas fa-cart-arrow-down fa-4x"></i>
+                <p>ابدأ بإضافة المنتجات للفاتورة</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-footer">
+        <span><i class="fas fa-user-circle"></i> الموظف: <b id="employee-display">جاري التحميل...</b> <a href="#" onclick="logout()" style="color:red; text-decoration:none; margin-right:5px;">(خروج)</a></span>
+        <div class="exchange-rate-container" onclick="changeExchangeRate()" style="cursor: pointer;">
+    <i class="fas fa-exchange-alt"></i> الصرف: 
+    <span id="current-exchange-rate">89,500</span> L.L
+</div>
+        <span><i class="fas fa-circle" style="color: var(--success); font-size: 8px;"></i> النظام متصل</span>
+    </div>
+</div>
+
+<div class="billing-panel">
+    <div class="brand-section">
+        <img src="logo.jpg" alt="Stop & Shop">
+        <h2 style="margin: 0; letter-spacing: 1px;">STOP & SHOP</h2>
+        <p style="font-size: 0.8rem; opacity: 0.7; margin: 5px 0 0;">نظام الإدارة المتكامل</p>
+    </div>
+
+    <div style="padding: 25px; flex: 1;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 600;">
+            <span>المجموع الأولي:</span>
+            <span id="subtotal-usd">0.00 $</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center;">
+            <span>الخصم المطبق ($):</span>
+            <input type="number" id="discount-val" value="0" oninput="renderCart()" style="width: 70px; padding: 8px; border-radius: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
+        </div>
+
+        <div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; border-top: 1px solid #f0f0f0; padding-top: 15px;">
+            <span>نقاط الولاء المكتسبة:</span>
+            <span id="points-earned">0</span>
+        </div>
+
+        <div class="total-banner">
+            <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px;">الإجمالي بالليرة اللبنانية</div>
+            <div id="total-lbp" style="font-size: 2.2rem; font-weight: 900;">0 L.L</div>
+            <div id="final-usd-text" style="font-size: 1rem; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px;">صافي: 0.00 $</div>
+        </div>
+
+        <div style="text-align: center; font-size: 0.8rem; color: #999; margin-top: 20px;">
+            <i class="fas fa-calendar-alt"></i> تاريخ العملية: <span id="current-time"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. الإعدادات والربط مع Firebase ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",
+        authDomain: "stopandshop-157ff.firebaseapp.com",
+        projectId: "stopandshop-157ff",
+        storageBucket: "stopandshop-157ff.firebasestorage.app",
+        messagingSenderId: "622958508953",
+        appId: "1:622958508953:web:8f2b8f60f1d4e323353108"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let products = [];
+    let cart = [];
+    let heldInvoices = [];
+    let rate = 89500;
+    let sellingRate = 89000;
+    let currentEmployee = localStorage.getItem('emp_name') || "مدير الصالة";
+
+    // --- 2. نظام الدخول ---
+    // --- 2. نظام الدخول المعدل ---
+    async function loginSystem() {
+        const pin = prompt("دخول الموظفين - أدخل الرمز الخاص بك:");
+        if (!pin) { 
+            if(!localStorage.getItem('emp_name')) loginSystem(); // إجبار الموظف على الدخول
+            return; 
+        }
+        try {
+            const snap = await db.collection("staff").where("pin", "==", pin.trim()).get();
+            if (snap.empty) { 
+                alert("الرمز خطأ!"); 
+                loginSystem(); 
+            } else {
+                currentEmployee = snap.docs[0].data().name;
+                localStorage.setItem('emp_name', currentEmployee);
+                // تحديث اسم الموظف في كل مكان بالواجهة
+                updateUI();
+                renderCart(); // لإظهار الاسم في السلة أيضاً
+                alert("أهلاً بك يا " + currentEmployee);
+            }
+        } catch (e) { alert("خطأ: " + e.message); }
+    }
+
+    function updateUI() {
+        // تحديث العنصر الذي أشرت إليه في الصورة
+        const empDisplay = document.getElementById('employee-display') || document.getElementById('employee-name-display');
+        if (empDisplay) {
+            empDisplay.innerText = currentEmployee;
+        }
+        
+        const timeDisplay = document.getElementById('current-time');
+        if (timeDisplay) {
+            timeDisplay.innerText = new Date().toLocaleDateString('ar-LB');
+        }
+        
+        const rateDisplay = document.getElementById('rate-display');
+        if (rateDisplay) {
+            rateDisplay.innerText = rate.toLocaleString();
+        }
+    }
+
+    function logout() { localStorage.removeItem('emp_name'); location.reload(); }
+
+    // --- 3. إدارة المنتجات والسلة ---
+    function fetchProducts() {
+        db.collection("products").onSnapshot(snap => {
+            products = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const dl = document.getElementById('products-list');
+            dl.innerHTML = products.map(p => `<option value="${p.name}">${p.price} $</option>`).join('');
+        });
+    }
+
+    function addProduct(query) {
+        const p = products.find(i => i.barcode === query || i.name === query);
+        if (p) {
+            const exist = cart.find(c => c.id === p.id);
+            if (exist) {
+                if (exist.qty < p.stock) exist.qty++;
+                else alert("لا يوجد كمية كافية!");
+            } else {
+                if (p.stock > 0) cart.push({ ...p, qty: 1 });
+                else alert("نفذ المخزون!");
+            }
+            renderCart();
+            document.getElementById('barcode-input').value = '';
+        }
+    }
+function renderCart() {
+    const container = document.getElementById('cart-container');
+    const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
+    
+    // تأكيد ظهور الاسم المسجل حالياً في أعلى السلة
+    const empDisplay = document.getElementById('employee-display') || document.getElementById('employee-name-display');
+    if (empDisplay) {
+        empDisplay.innerText = currentEmployee; 
+    }
+
+    container.innerHTML = '';
+    let subtotal = 0;
+
+    if (cart.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: #ccc; margin-top: 50px;"><i class="fas fa-cart-arrow-down fa-4x"></i><p>ابدأ بإضافة المنتجات للفاتورة</p></div>`;
+        document.getElementById('subtotal-usd').innerText = "0.00 $";
+        document.getElementById('total-lbp').innerText = "0 L.L";
+        document.getElementById('final-usd-text').innerText = "صافي: 0.00 $";
+        return;
+    }
+
+    cart.forEach((item, index) => {
+        const itemTotal = item.price * item.qty;
+        subtotal += itemTotal;
+        const productImg = item.image || 'https://cdn-icons-png.flaticon.com/512/679/679821.png';
+
+        container.innerHTML += `
+            <div class="product-row">
+                <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
+                    <img src="${productImg}" class="product-img-circle" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'">
+                    <div>
+                        <div style="font-weight: 700;">${item.name}</div>
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">سعر الوحدة: ${item.price} $</div>
+                    </div>
+                </div>
+                <div class="qty-box">
+                    <button class="qty-btn" onclick="updateQty(${index}, -1)">-</button>
+                    <input type="number" class="qty-input-manual" value="${item.qty}" onchange="updateQtyManual(${index}, this.value)">
+                    <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
+                </div>
+                <div style="width: 100px; text-align: left; font-weight: 900; color: var(--dark);">${itemTotal.toFixed(2)} $</div>
+            </div>`;
+    });
+
+    const finalUSD = Math.max(0, subtotal - discount);
+    const rateCalc = 90000; 
+    const rateShow = 89000; 
+    const lbp = finalUSD * rateCalc;
+
+    document.getElementById('subtotal-usd').innerText = subtotal.toFixed(2) + " $";
+    document.getElementById('total-lbp').innerText = lbp.toLocaleString() + " L.L";
+    document.getElementById('final-usd-text').innerText = "صافي: " + (lbp / rateShow).toFixed(2) + " $";
+
+    const rateLabel = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
+    if (rateLabel) rateLabel.innerText = rateShow.toLocaleString();
+} // دالة تحديث الكمية يدوياً بالكتابة
+    function updateQtyManual(i, val) {
+        let newQty = parseInt(val);
+        if (isNaN(newQty) || newQty < 1) newQty = 1;
+        
+        // التحقق من المخزون
+        if (newQty > cart[i].stock) {
+            alert("الكمية المطلوبة أكبر من المتوفر في المخزون!");
+            newQty = cart[i].stock;
+        }
+        
+        cart[i].qty = newQty;
+        renderCart();
+    }
+
+    function updateQty(i, d) {
+        cart[i].qty += d;
+        if (cart[i].qty <= 0) cart.splice(i, 1);
+        renderCart();
+    }
+
+    // --- 4. الحفظ والأرشفة ---
+   async function saveInvoice() {
+        if (cart.length === 0) return alert("السلة فارغة!");
+        if (!confirm("تأكيد حفظ الفاتورة؟")) return;
+
+        const usd = parseFloat(document.getElementById('subtotal-usd').innerText);
+        const lbp = parseInt(document.getElementById('total-lbp').innerText.replace(/,/g, ''));
+
+        try {
+            const batch = db.batch();
+            const saleRef = db.collection("sales").doc();
+            
+            batch.set(saleRef, {
+                items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+                employee: currentEmployee, // استخدام المتغير العالمي الذي تم تعبئته عند الدخول
+                totalUSD: usd,
+                totalLBP: lbp,
+                time: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // تحديث المخزون
+            cart.forEach(item => {
+                const ref = db.collection("products").doc(item.id);
+                batch.update(ref, { stock: firebase.firestore.FieldValue.increment(-item.qty) });
+            });
+
+            await batch.commit();
+            saveToInvoices(usd, lbp);
+            alert("تم حفظ العملية بنجاح بواسطة: " + currentEmployee);
+            cart = []; 
+            renderCart();
+        } catch (e) { alert("خطأ في الحفظ: " + e.message); }
+    }
+
+    function saveToInvoices(u, l) {
+        const mid = new Date().toISOString().slice(0, 7);
+        db.collection("invoices").add({
+            invoice_date: firebase.firestore.FieldValue.serverTimestamp(),
+            month_id: mid,
+            total_usd: u,
+            total_lbp: l,
+            employee: currentEmployee
+        });
+    }
+
+    // --- 5. التشغيل والتحكم ---
+    window.onload = () => { 
+    startRateListener(); // تأكد أن هذا السطر موجود في البداية
+    fetchProducts(); 
+    updateUI(); 
+    if(!localStorage.getItem('emp_name')) loginSystem(); 
+};
+
+    document.getElementById('barcode-input').addEventListener('input', (e) => {
+        const val = e.target.value;
+        const match = products.find(p => p.name === val || p.barcode === val);
+        if (match) { addProduct(val); }
+    });
+
+    document.getElementById('barcode-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') { 
+            addProduct(e.target.value); 
+            e.target.value = ''; 
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'F9') { e.preventDefault(); saveInvoice(); }
+        if (e.key === 'Escape') { if(confirm('مسح السلة؟')){cart = []; renderCart();} }
+    });
+
+    async function showMonthlyReview() {
+    // 1. إنشاء نافذة الأرشيف وتصميمها
+    let modalHtml = `
+        <div id="archive-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:2000; font-family:'Cairo';">
+            <div style="background:white; width:90%; max-width:800px; height:85vh; border-radius:20px; display:flex; flex-direction:column; overflow:hidden; position:relative; animation: fadeIn 0.3s;">
+                
+                <div style="background:var(--dark); color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="margin:0;"><i class="fas fa-archive"></i> أرشيف مبيعات الشهر</h2>
+                    <button onclick="document.getElementById('archive-modal').remove()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>
+
+                <div id="archive-stats" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; padding:20px; background:#f8f9fa;">
+                    <div style="background:white; padding:15px; border-radius:12px; border-right:5px solid var(--success); box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <small style="color:#666;">إجمالي مبيعات الشهر ($)</small>
+                        <div id="month-total-usd" style="font-size:1.5rem; font-weight:900; color:var(--success);">0.00 $</div>
+                    </div>
+                    <div style="background:white; padding:15px; border-radius:12px; border-right:5px solid var(--primary); box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <small style="color:#666;">إجمالي مبيعات الشهر (L.L)</small>
+                        <div id="month-total-lbp" style="font-size:1.5rem; font-weight:900; color:var(--primary);">0 L.L</div>
+                    </div>
+                </div>
+
+                <div style="flex:1; overflow-y:auto; padding:20px;">
+                    <table style="width:100%; border-collapse:collapse; text-align:right;">
+                        <thead>
+                            <tr style="background:#eee; position:sticky; top:0;">
+                                <th style="padding:12px; border-bottom:2px solid #ddd;">التاريخ والوقت</th>
+                                <th style="padding:12px; border-bottom:2px solid #ddd;">الموظف</th>
+                                <th style="padding:12px; border-bottom:2px solid #ddd;">المبلغ ($)</th>
+                                <th style="padding:12px; border-bottom:2px solid #ddd;">المبلغ (L.L)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archive-table-body">
+                            <tr><td colspan="4" style="text-align:center; padding:30px;">جاري تحميل البيانات...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // 2. جلب البيانات من Firebase
+    try {
+        const currentMonthId = new Date().toISOString().slice(0, 7); // مثل "2026-05"
+        const snapshot = await db.collection("sales")
+            .where("time", ">=", new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+            .orderBy("time", "desc")
+            .get();
+
+        const tbody = document.getElementById('archive-table-body');
+        tbody.innerHTML = '';
+        
+        let totalUSD = 0;
+        let totalLBP = 0;
+
+        if (snapshot.empty) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">لا توجد مبيعات مسجلة لهذا الشهر</td></tr>';
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const date = data.time ? data.time.toDate().toLocaleString('ar-LB') : '---';
+            totalUSD += data.totalUSD || 0;
+            totalLBP += data.totalLBP || 0;
+
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:12px; font-size:0.9rem;">${date}</td>
+                    <td style="padding:12px;">${data.employee || 'غير معروف'}</td>
+                    <td style="padding:12px; font-weight:bold; color:var(--success);">${(data.totalUSD || 0).toFixed(2)} $</td>
+                    <td style="padding:12px;">${(data.totalLBP || 0).toLocaleString()} L.L</td>
+                </tr>`;
+        });
+
+        // تحديث أرقام الملخص
+        document.getElementById('month-total-usd').innerText = totalUSD.toFixed(2) + " $";
+        document.getElementById('month-total-lbp').innerText = totalLBP.toLocaleString() + " L.L";
+
+    } catch (error) {
+        console.error("خطأ في جلب الأرشيف:", error);
+        alert("فشل في تحميل الأرشيف، تأكد من إعدادات الـ Index في Firebase.");
+    }
+}
+function printInvoice() {
+    const employee = document.getElementById('employee-display').innerText;
+    const subtotal = document.getElementById('subtotal-usd').innerText;
+    const totalLBP = document.getElementById('total-lbp').innerText;
+    const finalUSD = document.getElementById('final-usd-text').innerText;
+    const discount = document.getElementById('discount-val').value || 0;
+    const points = document.getElementById('points-earned').innerText;
+    const date = new Date().toLocaleString('ar-LB', { hour12: true });
+    
+    // رقم الهاتف الخاص بالمحل (قم بتغييره هنا)
+    const phoneNumber = "78954599"; 
+    // رابط الـ QR (يمكنك وضع رابط الواتساب أو صفحة الفيس بوك)
+    const qrValue = `https://wa.me/961${phoneNumber}`;
+
+    let itemsHtml = "";
+    cart.forEach(item => {
+        itemsHtml += `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="flex: 2; text-align: right;">${item.name}</span>
+                <span style="flex: 1; text-align: center;">${item.qty} x</span>
+                <span style="flex: 1; text-align: left; font-weight: bold;">$${(item.price * item.qty).toFixed(2)}</span>
+            </div>`;
+    });
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Stop & Shop Receipt</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                body { 
+                    width: 80mm; margin: 0; padding: 10px; direction: rtl; 
+                    font-family: 'Cairo', sans-serif; font-size: 13px; color: #000;
+                }
+                .logo-area { text-align: center; margin-bottom: 10px; }
+                .logo-area h1 { margin: 0; font-size: 24px; font-weight: 900; }
+                .line { border-top: 1px dashed #000; margin: 10px 0; }
+                .info-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+                .total-section { margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 5px; border: 1px solid #eee; }
+                .big-price { font-size: 20px; font-weight: bold; text-align: center; margin: 5px 0; }
+                .footer { text-align: center; margin-top: 15px; }
+                .qr-code { margin: 10px auto; width: 100px; height: 100px; }
+                .phone-box { font-weight: bold; font-size: 14px; margin: 5px 0; direction: ltr; }
+            </style>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+        </head>
+        <body>
+            <div class="logo-area">
+                <h1>🛒 STOP & SHOP</h1>
+                <div style="font-size: 12px; font-weight: bold;">مؤسسة نصور التجارية</div>
+                <div class="phone-box">📞 +961 ${phoneNumber}</div>
+            </div>
+
+            <div class="info-row"><span>📅 التاريخ:</span> <span>${date}</span></div>
+            <div class="info-row"><span>👤 الموظف:</span> <span>${employee}</span></div>
+
+            <div class="line"></div>
+
+            <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px;">
+                <span style="flex: 2; text-align: right;">الصنف</span>
+                <span style="flex: 1; text-align: center;">الكمية</span>
+                <span style="flex: 1; text-align: left;">السعر</span>
+            </div>
+
+            ${itemsHtml}
+
+            <div class="line"></div>
+
+            <div class="total-section">
+                <div style="text-align: center; font-size: 11px;">المبلغ المطلوب بالليرة اللبنانية</div>
+                <div class="big-price">${totalLBP}</div>
+                <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 5px;">
+                    صافي بالدولار: <b>${finalUSD}</b>
+                </div>
+            </div>
+
+            <div class="footer">
+                <div id="qrcode" class="qr-code"></div>
+                <p style="margin: 5px 0;">شكراً لزيارتكم ❤️</p>
+                <div style="font-size: 9px; opacity: 0.5;">يرجى الاحتفاظ بالإيصال للمراجعة</div>
+            </div>
+
+            <script>
+                // توليد رمز الـ QR عند فتح الصفحة
+                new QRCode(document.getElementById("qrcode"), {
+                    text: "${qrValue}",
+                    width: 100,
+                    height: 100,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+
+                window.onload = function() { 
+                    setTimeout(() => { 
+                        window.print(); 
+                        window.close(); 
+                    }, 800); // تأخير بسيط لضمان رسم الـ QR
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+    function holdInvoice() { if(cart.length > 0) { heldInvoices.push([...cart]); cart = []; renderCart(); alert("تم تعليق الفاتورة بنجاح"); } }
+    function showHeldInvoices() {
+    if (heldInvoices.length === 0) {
+        alert("لا توجد فواتير معلقة حالياً.");
+        return;
+    }
+
+    let html = `
+        <div id="held-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;">
+            <div style="background:white; padding:25px; border-radius:16px; width:450px; max-height:80vh; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+                <h3 style="border-bottom:2px solid var(--primary); padding-bottom:10px; margin-top:0;">الفواتير المعلقة (${heldInvoices.length})</h3>
+                <div id="held-list">`;
+
+    heldInvoices.forEach((inv, index) => {
+        const total = inv.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; border:1px solid #eee; border-radius:10px; margin-bottom:10px; background:#f9f9f9;">
+                <div>
+                    <strong style="display:block;">فاتورة #${index + 1}</strong>
+                    <small style="color:#666;">عدد المواد: ${inv.length} | الإجمالي: ${total.toFixed(2)} $</small>
+                </div>
+                <button onclick="restoreInvoice(${index})" style="background:var(--success); color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer;">
+                    استعادة <i class="fas fa-undo"></i>
+                </button>
+            </div>`;
+    });
+
+    html += `
+                </div>
+                <button onclick="document.getElementById('held-modal').remove()" style="width:100%; padding:12px; margin-top:10px; border:none; border-radius:8px; background:#eee; cursor:pointer; font-weight:bold;">إغلاق</button>
+            </div>
+        </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+// دالة استعادة الفاتورة المعلقة إلى السلة
+function restoreInvoice(index) {
+    if (cart.length > 0) {
+        if (!confirm("السلة الحالية تحتوي على منتجات، هل تريد استبدالها بالفاتورة المعلقة؟")) return;
+    }
+    cart = heldInvoices[index]; // استعادة البيانات
+    heldInvoices.splice(index, 1); // حذفها من المعلق
+    document.getElementById('held-modal').remove(); // إغلاق النافذة
+    renderCart(); // تحديث السلة
+}
+function openAdminPassModal() {
+    document.getElementById('adminPasswordModal').style.display = 'flex';
+    document.getElementById('adminLoginInput').focus();
+}
+
+function closeAdminPassModal() {
+    document.getElementById('adminPasswordModal').style.display = 'none';
+    document.getElementById('adminLoginInput').value = '';
+}
+
+function checkAndShowDashboard() {
+    const enteredPass = document.getElementById('adminLoginInput').value;
+    const correctPass = "1234"; // كلمة المرور الخاصة بك
+
+    if (enteredPass === correctPass) {
+        // إغلاق النافذة المنبثقة أولاً
+        closeAdminPassModal();
+        
+        // الانتقال لصفحة الإدارة
+        window.location.href = "index.html"; 
+    } else {
+        alert("كلمة المرور خاطئة!");
+        document.getElementById('adminLoginInput').value = '';
+    }
+}
+function changeExchangeRate() {
+    // 1. طلب سعر الصرف الجديد من المستخدم
+    const newRate = prompt("أدخل سعر صرف الدولار الجديد (L.L):", "89500");
+
+    if (newRate !== null && newRate !== "" && !isNaN(newRate)) {
+        const rateValue = parseFloat(newRate);
+
+        // 2. تحديث النص في أسفل الشاشة
+        document.getElementById('current-exchange-rate').innerText = rateValue.toLocaleString();
+
+        // 3. تخزين السعر الجديد في متغير عام (Global Variable) ليتم استخدامه في الحسابات
+        currentRate = rateValue; 
+
+        // 4. إعادة حساب الإجمالي بالليرة اللبنانية فوراً
+        updateTotals(); 
+
+        // اختياري: حفظ السعر في LocalStorage ليبقى ثابتاً عند تحديث الصفحة
+        localStorage.setItem('exchangeRate', rateValue);
+
+        alert("تم تحديث سعر الصرف إلى: " + rateValue.toLocaleString() + " ل.ل");
+    }
+}
+function updateTotals() {
+    let totalUSD = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
+    const finalUSD = Math.max(0, totalUSD - discount);
+
+    // سعر الضرب الثابت لليرة
+    const rateCalc = 90000; 
+    
+    // سعر الصرف المجلوب من الداتابيز (تم إصلاح التكرار هنا)
+    const rateShow = currentRateFromDB; 
+
+    const totalLBP = finalUSD * rateCalc;
+
+    if(document.getElementById('total-lbp')) {
+        document.getElementById('total-lbp').innerText = totalLBP.toLocaleString() + " L.L";
+    }
+
+    if(document.getElementById('final-usd-text')) {
+        // الحساب بناءً على السعر القادم من الويب
+        const netUSD = totalLBP / rateShow;
+        document.getElementById('final-usd-text').innerText = "صافي: " + netUSD.toFixed(2) + " $";
+    }
+}
+// في دالة جلب الإعدادات أو عند تحميل الصفحة
+function displayExchangeRate() {
+    const displayRate = 89000; // السعر الذي يظهر للعين فقط
+    const rateElement = document.getElementById('exchange-rate-display'); // تأكد من الـ ID
+    if(rateElement) {
+        rateElement.innerText = `L.L ${displayRate.toLocaleString()}`;
+    }
+
+}
+async function saveOrder() {
+    if (cart.length === 0) return;
+
+    // جلب اسم الموظف من القائمة (Dropdown)
+    const empSelect = document.getElementById('employee-select');
+    const employeeName = empSelect ? empSelect.value : (typeof currentEmployee !== 'undefined' ? currentEmployee : "غير محدد");
+
+    const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const finalUSD = Math.max(0, subtotal - discount);
+    
+    // الحساب على 90000
+    const totalLBP = finalUSD * 90000;
+
+    const orderData = {
+        items: cart,
+        subtotal_usd: subtotal,
+        discount: discount,
+        total_usd: finalUSD,
+        total_lbp: totalLBP,
+        cashier_name: employeeName, // حفظ اسم الموظف المختار
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        date: new Date().toLocaleDateString('en-GB')
+    };
+
+    try {
+        await db.collection('orders').add(orderData);
+        alert("تم حفظ الفاتورة بنجاح - الموظف: " + employeeName);
+        cart = [];
+        if(document.getElementById('discount-val')) document.getElementById('discount-val').value = 0;
+        renderCart();
+    } catch (error) {
+        console.error("خطأ في الحفظ: ", error);
+        alert("حدث خطأ أثناء الحفظ");
+    }
+}
+function logout() { 
+        if(confirm("هل تريد تسجيل الخروج؟")) {
+            localStorage.removeItem('emp_name'); 
+            currentEmployee = "مدير الصالة";
+            location.reload(); 
+        }
+    }
+    let currentRateFromDB = 89000; // قيمة افتراضية
+
+function startRateListener() {
+    db.collection("settings").doc("exchange_rate").onSnapshot((doc) => {
+        if (doc.exists) {
+            currentRateFromDB = doc.data().value;
+            // تحديث العرض في الأسفل فوراً
+            const rateDisplay = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
+            if (rateDisplay) rateDisplay.innerText = currentRateFromDB.toLocaleString();
+            
+            // إعادة حساب السلة إذا كان هناك منتجات
+            if (typeof renderCart === "function") renderCart();
+        }
+    });
+}
+</script>
+
+</body>
+</html>

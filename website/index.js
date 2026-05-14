@@ -1,4 +1,3 @@
-
 window.onload = function() {
     updateShopStatus(); // تحديث حالة المتجر فوراً
     renderCartItems();  // تحديث السلة فوراً
@@ -20,7 +19,7 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 
 // 2. المتغيرات العامة
-const exchangeRate = 89000;
+const exchangeRate = 90000;
 let isAdmin = false;
 let cart = [];
 let products = []; 
@@ -217,61 +216,68 @@ async function addToCart(productId) {
     const qtyInput = document.getElementById(`qty-${productId}`);
     const chosenQuantity = qtyInput ? parseInt(qtyInput.value) : 1;
 
-    // 1. البحث عن المنتج في القائمة الكبيرة
-    const product = products.find(p => p.id === productId);
+    // --- [تعديل ذكي للباركود]: البحث عن المنتج سواء أرسلنا ID أو باركود ---
+    let product = products.find(p => p.id === productId || p.barcode === productId);
     
     if (product) {
-        // --- فحص المخزن قبل الإضافة ---
-        if (product.stock !== undefined && product.stock < chosenQuantity) {
-            alert(`عذراً، المتوفر في المخزن هو ${product.stock} فقط!`);
-            return;
+        // تحديث الـ productId الحقيقي في حال تم العثور عليه عن طريق الباركود لضمان عمل العمليات التالية
+        const realProductId = product.id;
+
+        // 1. البحث عن المنتج في القائمة الكبيرة (موجود مسبقاً في السطر أعلاه)
+        
+        if (product) {
+            // --- فحص المخزن قبل الإضافة ---
+            if (product.stock !== undefined && product.stock < chosenQuantity) {
+                alert(`عذراً، المتوفر في المخزن هو ${product.stock} فقط!`);
+                return;
+            }
+
+            // 2. التأكد من أن السلة مصفوفة
+            if (!Array.isArray(cart)) cart = [];
+
+            // 3. البحث إذا كان المنتج موجوداً مسبقاً في السلة
+            const existingItem = cart.find(item => item.id === realProductId);
+
+            if (existingItem) {
+                // --- تعديل السطر التالي ليضيف الكمية المختارة بدلاً من 1 فقط ---
+                existingItem.quantity += chosenQuantity; 
+            } else {
+                // إضافة المنتج لأول مرة مع خاصية الكمية
+                // --- تعديل السطر التالي ليأخذ الكمية المختارة ---
+                cart.push({ ...product, quantity: chosenQuantity });
+            }
+
+            // 4. تحديث الواجهة والبيانات
+            updateCartCount();
+            saveCartToStorage();
+            renderCartItems(); // تحديث شكل السلة فوراً
+            checkCartMilestone(); // تحديث شريط التقدم 50$
+
+            // 5. تأثير حركي (أنيميشن)
+            const icon = document.querySelector('.cart-info');
+            if(icon) {
+                icon.classList.add('shake-animation');
+                setTimeout(() => icon.classList.remove('shake-animation'), 300);
+            }
+
+            // --- إضافة سطر لإعادة تصفير العداد إلى 1 بعد الإضافة بنجاح ---
+            if(qtyInput) qtyInput.value = 1;
+
+            // --- تحديث المخزن في Firebase عند الإضافة الناجحة ---
+            try {
+                const newStock = product.stock - chosenQuantity;
+                await db.collection("products").doc(realProductId).update({
+                    stock: newStock,
+                    isOutOfStock: newStock <= 0
+                });
+                // تحديث القائمة المحلية لضمان مزامنة البيانات دون إعادة تحميل الصفحة
+                product.stock = newStock;
+                if (newStock <= 0) product.isOutOfStock = true;
+            } catch (error) {
+                console.error("خطأ في تحديث المخزن:", error);
+            }
+
         }
-
-        // 2. التأكد من أن السلة مصفوفة
-        if (!Array.isArray(cart)) cart = [];
-
-        // 3. البحث إذا كان المنتج موجوداً مسبقاً في السلة
-        const existingItem = cart.find(item => item.id === productId);
-
-        if (existingItem) {
-            // --- تعديل السطر التالي ليضيف الكمية المختارة بدلاً من 1 فقط ---
-            existingItem.quantity += chosenQuantity; 
-        } else {
-            // إضافة المنتج لأول مرة مع خاصية الكمية
-            // --- تعديل السطر التالي ليأخذ الكمية المختارة ---
-            cart.push({ ...product, quantity: chosenQuantity });
-        }
-
-        // 4. تحديث الواجهة والبيانات
-        updateCartCount();
-        saveCartToStorage();
-        renderCartItems(); // تحديث شكل السلة فوراً
-        checkCartMilestone(); // تحديث شريط التقدم 50$
-
-        // 5. تأثير حركي (أنيميشن)
-        const icon = document.querySelector('.cart-info');
-        if(icon) {
-            icon.classList.add('shake-animation');
-            setTimeout(() => icon.classList.remove('shake-animation'), 300);
-        }
-
-        // --- إضافة سطر لإعادة تصفير العداد إلى 1 بعد الإضافة بنجاح ---
-        if(qtyInput) qtyInput.value = 1;
-
-        // --- تحديث المخزن في Firebase عند الإضافة الناجحة ---
-        try {
-            const newStock = product.stock - chosenQuantity;
-            await db.collection("products").doc(productId).update({
-                stock: newStock,
-                isOutOfStock: newStock <= 0
-            });
-            // تحديث القائمة المحلية لضمان مزامنة البيانات دون إعادة تحميل الصفحة
-            product.stock = newStock;
-            if (newStock <= 0) product.isOutOfStock = true;
-        } catch (error) {
-            console.error("خطأ في تحديث المخزن:", error);
-        }
-
     } else {
         console.error("المنتج غير موجود في القائمة!");
     }
@@ -753,6 +759,7 @@ function launchConfetti() {
     }());
 }
 // 7. إدارة المسؤول (Firebase CRUD)
+// 7. إدارة المسؤول (Firebase CRUD)
 async function saveProduct() {
     const id = document.getElementById('edit-product-id').value;
     const name = document.getElementById('new-name').value;
@@ -763,7 +770,9 @@ async function saveProduct() {
     const isOutOfStock = document.getElementById('out-of-stock-check').checked;
     
     // --- الإضافة الجديدة لجلب الباركود دون حذف أي سطر ---
-    const barcode = document.getElementById('new-barcode').value.trim();
+    // تأكد أن id الحقل في الـ HTML هو فعلاً "new-barcode"
+    const barcodeInput = document.getElementById('new-barcode');
+    const barcode = barcodeInput ? barcodeInput.value.trim() : ""; 
 
     // --- الإضافة الجديدة لجلب الكمية المتوفرة ---
     const stockInput = document.getElementById('new-stock');
@@ -795,13 +804,34 @@ async function saveProduct() {
     try {
         if (id) {
             await db.collection("products").doc(id).update(data);
-            alert("تم التعديل!");
+            alert("تم تحديث بيانات المنتج!");
         } else {
             await db.collection("products").add(data);
-            alert("تمت الإضافة!");
+            alert("تمت إضافة المنتج الجديد!");
         }
-        resetForm();
-    } catch (e) { alert("خطأ في Firebase: " + e.message); }
+
+        // --- تعديل لضمان عدم حدوث خطأ Null قبل استدعاء الفورم ---
+        if (typeof resetForm === "function") resetForm();
+
+        // --- الحل الآمن لمشكلة الـ style التي ظهرت في الصور ---
+        // تم توسيع البحث ليشمل كافة الاحتمالات لضمان الإغلاق دون خطأ
+        const modal = document.querySelector('.modal') || 
+                      document.getElementById('edit-modal') || 
+                      document.getElementById('product-modal') ||
+                      document.querySelector('[style*="display: block"]'); // بحث عن أي نافذة مفتوحة حالياً
+
+        if (modal && modal.style) {
+            modal.style.display = 'none';
+        } else {
+            // محاولة أخيرة باستخدام دالة الإغلاق العامة
+            if (typeof closeModal === "function") closeModal();
+        }
+
+    } catch (e) {
+        // رسالة الخطأ أصبحت أوضح لتحديد ما إذا كانت المشكلة من Firebase أو من الكود
+        console.error("Firebase Error:", e);
+        alert("خطأ تقني: " + e.message);
+    }
 }
 async function hashPassword(string) {
     // نقوم بتنظيف الكلمة من أي مسافات زائدة قبل التشفير
@@ -873,13 +903,23 @@ function editProduct(id) {
     document.getElementById('new-category').value = product.category;
     document.getElementById('new-image').value = product.image;
     
+    // --- الأسطر المضافة لربط الباركود والكمية بالخانات (دون حذف ما سبق) ---
+    if (document.getElementById('new-barcode')) {
+        document.getElementById('new-barcode').value = product.barcode || '';
+    }
+    if (document.getElementById('new-stock')) {
+        document.getElementById('new-stock').value = product.stock || 0;
+    }
+    // ------------------------------------------------------------------
+
     // تأشير الـ checkbox بناءً على حالة المنتج
     document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
 
     document.getElementById('form-title').innerText = "تعديل: " + product.name;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // يضاف داخل دالة editProduct
+document.getElementById('new-price-lbp').value = Math.round((product.price * rate) / 500) * 500;
 }
-
 async function deleteProduct(id) {
     if (confirm("حذف المنتج نهائياً؟")) {
         await db.collection("products").doc(id).delete();
@@ -893,6 +933,20 @@ function resetForm() {
     document.getElementById('new-image').value = "";
     document.getElementById('new-barcode').value = "";
     document.getElementById('form-title').innerText = "إضافة منتج جديد";
+
+    // --- الأسطر المضافة لتصفير الخانات الجديدة وضمان عودتها للقيمة 0 ---
+    if(document.getElementById('purchase-price')) document.getElementById('purchase-price').value = "0";
+    if(document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = "0";
+    if(document.getElementById('profit-margin')) document.getElementById('profit-margin').value = "0%";
+    if(document.getElementById('new-stock')) document.getElementById('new-stock').value = "";
+
+    // إعادة لون نسبة الربح للوضع الطبيعي (الأخضر)
+    if(document.getElementById('profit-margin')) {
+        document.getElementById('profit-margin').style.color = "#2e7d32";
+    }
+
+    // وضع المؤشر تلقائياً على خانة الاسم لتسريع العمل
+    document.getElementById('new-name').focus();
 }
 
 // 8. الطباعة والعودة للأعلى
@@ -1866,6 +1920,536 @@ function getLocation() {
         status.style.color = "#e74c3c";
         status.innerText = "فشل التحديد: يرجى إعطاء الإذن للموقع.";
     });
+}
+// ابحث عن الجزء المسؤول عن إظهار رسائل الخطأ واستبدله بهذا ليكون أكثر أماناً
+function updateStatus(msg, isError) {
+    const statusEl = document.getElementById('status-msg');
+    // التحقق أولاً إذا كان العنصر موجوداً قبل محاولة تغيير الـ style
+    if (statusEl) {
+        statusEl.innerText = msg;
+        statusEl.style.display = 'block';
+        statusEl.style.color = isError ? 'red' : 'green';
+    } else {
+        // إذا لم يجد العنصر، يكتفي بإظهار تنبيه عادي ولا يعطل الكود
+        alert(msg);
+    }
+}
+async function loadTodaySales() {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // --- الجزء المضاف: جلب الموظفين الموجودين حالياً فقط ---
+    const staffSnapshot = await db.collection("staff").get();
+    const activeStaff = [];
+    staffSnapshot.forEach(doc => {
+        const sData = doc.data();
+        activeStaff.push(sData.name || sData.staff);
+    });
+    // --------------------------------------------------
+
+    db.collection("sales")
+        .where("time", ">=", startOfDay)
+        .onSnapshot(snapshot => {
+            let totalUSD = 0;
+            let ordersCount = snapshot.size;
+            let staffStats = {};
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // جلب القيمة كرقم مباشرة بعد تحديث finishOrder
+                const saleAmount = parseFloat(data.totalUSD) || 0;
+                const employee = data.employee || "مدير الصالة";
+
+                totalUSD += saleAmount;
+
+                // التعديل: التحقق إذا كان الموظف لا يزال نشطاً قبل إضافته للجدول
+                if (activeStaff.includes(employee)) {
+                    if (!staffStats[employee]) {
+                        staffStats[employee] = { count: 0, total: 0 };
+                    }
+                    staffStats[employee].count += 1;
+                    staffStats[employee].total += saleAmount;
+                }
+            });
+
+            // تحديث العناصر في الواجهة
+            document.getElementById('today-total-usd').innerText = "$ " + totalUSD.toFixed(2);
+            document.getElementById('today-orders-count').innerText = ordersCount;
+
+            const tableBody = document.getElementById('staff-performance-body');
+            tableBody.innerHTML = '';
+            
+            for (const [name, stats] of Object.entries(staffStats)) {
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>${name}</td>
+                        <td>${stats.count} فاتورة</td>
+                        <td class="total-cell">${stats.total.toFixed(2)} $</td>
+                        <td style="text-align: center;">
+                            <button onclick="deleteStaffMember('${name}')" 
+                                    style="background: #ff5252; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Segoe UI';">
+                                حذف الموظف
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+}
+
+// تشغيل الدالة عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', loadTodaySales);
+async function deleteStaffMember(staffName) {
+    if (confirm(`هل أنت متأكد من حذف الموظف "${staffName}" نهائياً؟`)) {
+        try {
+            const snapshot = await db.collection("staff").where("name", "==", staffName).get();
+            let targetSnapshot = snapshot;
+            if (targetSnapshot.empty) {
+                targetSnapshot = await db.collection("staff").where("staff", "==", staffName).get();
+            }
+
+            if (targetSnapshot.empty) {
+                alert("تعذر العثور على الموظف!");
+                return;
+            }
+
+            const batch = db.batch();
+            targetSnapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+
+            alert("تم الحذف بنجاح ✅");
+            
+            // السطر الأهم: تحديث الصفحة ليختفي الاسم من الجدول فوراً
+            location.reload(); 
+
+        } catch (error) {
+            alert("حدث خطأ: " + error.message);
+        }
+    }
+    // بعد نجاح عملية الحذف في Firebase
+await batch.commit();
+alert("تم حذف الموظف بنجاح ✅");
+
+// تحديث الصفحة لإعادة بناء الجدول من البيانات الجديدة
+location.reload();
+}
+async function addNewStaff() {
+    const nameInput = document.getElementById('new-staff-name');
+    const pinInput = document.getElementById('new-staff-pin');
+    
+    const name = nameInput.value.trim();
+    const pin = pinInput.value.trim();
+
+    if (name === "" || pin === "") {
+        alert("يرجى إدخال الاسم وكلمة المرور!");
+        return;
+    }
+
+    try {
+        await db.collection("staff").add({
+            name: name,
+            pin: pin, // حفظ كلمة المرور
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("تم حفظ الموظف " + name + " بنجاح ✅");
+        nameInput.value = "";
+        pinInput.value = "";
+        
+        if(typeof loadTodaySales === "function") loadTodaySales();
+        
+    } catch (error) {
+        alert("خطأ: " + error.message);
+    }
+}
+async function resetTodaySales() {
+    if (confirm("هل أنت متأكد من تصفير مبيعات اليوم؟ لا يمكن التراجع عن هذه الخطوة!")) {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        try {
+            // جلب مبيعات اليوم فقط
+            const snapshot = await db.collection("sales")
+                                    .where("time", ">=", startOfDay)
+                                    .get();
+
+            if (snapshot.empty) {
+                alert("العدادات صفر بالفعل!");
+                return;
+            }
+
+            const batch = db.batch();
+            snapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit();
+            alert("تم تصفير العدادات بنجاح. ابدأ يومك بالرزق الحلال! ✅");
+            
+            // تحديث الأرقام في الواجهة فوراً
+            location.reload(); 
+
+        } catch (error) {
+            alert("حدث خطأ أثناء التصفير: " + error.message);
+        }
+    }
+}
+async function saveProductToFirebase() {
+    const barcode = document.getElementById('add-product-barcode').value.trim();
+    const name = document.getElementById('add-product-name').value.trim();
+    const price = parseFloat(document.getElementById('add-product-price').value) || 0;
+    const stock = parseInt(document.getElementById('add-product-stock').value) || 0;
+    // --- الأسطر المضافة لجلب القيم الجديدة ---
+    const purchasePrice = parseFloat(document.getElementById('purchase-price').value) || 0;
+
+    if (barcode === "" || name === "") {
+        alert("يرجى مسح الباركود وإدخال اسم المنتج!");
+        return;
+    }
+
+    try {
+        // التحقق إذا كان الباركود موجوداً مسبقاً لمنع التكرار
+        const existing = await db.collection("products").where("barcode", "==", barcode).get();
+        if (!existing.empty) {
+            alert("⚠️ هذا الباركود مسجل مسبقاً لمنتج آخر!");
+            return;
+        }
+
+        // إضافة المنتج الجديد
+        await db.collection("products").add({
+            barcode: barcode,
+            name: name,
+            price: price,
+            stock: stock,
+            // --- حفظ سعر الشراء في قاعدة البيانات ---
+            purchasePrice: purchasePrice,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("تم حفظ المنتج بنجاح في مبيعات Stop & Shop ✅");
+        
+        // تفريغ الخانات للإدخال التالي
+        document.getElementById('add-product-barcode').value = "";
+        document.getElementById('add-product-name').value = "";
+        document.getElementById('add-product-price').value = "0"; // تعديل للقيمة 0
+        document.getElementById('add-product-stock').value = "";
+        
+        // --- تفريغ الخانات الجديدة وتصفير نسبة الربح ---
+        document.getElementById('purchase-price').value = "0";
+        if(document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = "0";
+        if(document.getElementById('profit-margin')) document.getElementById('profit-margin').value = "0%";
+
+        // إعادة التركيز (Focus) على خانة الباركود للمنتج التالي
+        document.getElementById('add-product-barcode').focus();
+
+    } catch (error) {
+        alert("حدث خطأ أثناء الحفظ: " + error.message);
+    }
+}
+// دالة التحويل من دولار إلى ليرة (عند الكتابة في خانة الدولار)
+function convertToLBP() {
+    const usdValue = parseFloat(document.getElementById('new-price').value) || 0;
+    const lbpInput = document.getElementById('new-price-lbp');
+    
+    // الحساب والتقريب لأقرب 500 ليرة
+    const result = usdValue * rate;
+    lbpInput.value = Math.round(result / 500) * 500;
+}
+
+function convertToUSD() {
+    const lbpValue = parseFloat(document.getElementById('new-price-lbp').value) || 0;
+    const usdInput = document.getElementById('new-price');
+    
+    if (rate > 0) {
+        // الحساب والتقريب لرقمين عشريين
+        const result = lbpValue / rate;
+        usdInput.value = result.toFixed(2);
+    }
+}
+// جلب سعر الصرف من المتصفح (الذي حددناه في صفحة الكاشير) أو وضعه يدوياً
+let rate = parseFloat(localStorage.getItem('exchangeRate')) || 90000; 
+
+// دالة لتحديث عرض سعر الصرف في الواجهة
+function displayCurrentRate() {
+    const rateElement = document.getElementById('admin-rate-display');
+    if (rateElement) {
+        rateElement.innerText = "سعر الصرف الحالي: " + rate.toLocaleString() + " L.L";
+    }
+}
+
+// تشغيل العرض عند فتح الصفحة
+window.onload = function() {
+    displayCurrentRate();
+};
+// دالة لتغيير سعر الصرف الشامل
+function updateGlobalRate() {
+    // --- طلب السعرين من المستخدم مع الحفاظ على الأسعار الحالية كاقتراح ---
+    let newRate = prompt("أدخل سعر صرف التسعير (للإدارة - مثلاً 90000):", rate);
+    let newSellingRate = prompt("أدخل سعر صرف البيع (للزبون - مثلاً 89000):", localStorage.getItem('sellingRate') || 89000);
+    
+    if (newRate !== null && newRate !== "" && !isNaN(newRate)) {
+        rate = parseFloat(newRate);
+        
+        // 1. حفظ السعر الجديد في ذاكرة المتصفح
+        localStorage.setItem('exchangeRate', rate);
+        
+        // --- حفظ سعر البيع الجديد أيضاً في المتصفح لكي يقرأه الكاشير ---
+        if (newSellingRate !== null && newSellingRate !== "" && !isNaN(newSellingRate)) {
+            localStorage.setItem('sellingRate', parseFloat(newSellingRate));
+        }
+        
+        // 2. تحديث النص الظاهر في الأعلى
+        const rateDisplay = document.getElementById('admin-rate-display');
+        if (rateDisplay) {
+            rateDisplay.innerText = rate.toLocaleString() + " L.L";
+        }
+
+        // --- الجزء المضاف لجعل السعر "يتحول" فوراً أمامك ---
+        const usdInput = document.getElementById('new-price');
+        const lbpInput = document.getElementById('new-price-lbp');
+
+        if (usdInput.value !== "") {
+            // إذا كنت كاتب سعر بالدولار، سيقوم بتحديث الليرة فوراً بناءً على الصرف الجديد
+            convertToLBP(); 
+        } else if (lbpInput.value !== "") {
+            // إذا كنت كاتب سعر بالليرة، سيقوم بتحديث الدولار فوراً
+            convertToUSD();
+        }
+        // --------------------------------------------------
+        
+        alert("تم تحديث الأسعار بنجاح ✅\nالتسعير: " + rate + " | البيع: " + newSellingRate);
+    }
+}
+
+// تأكد أن الصفحة تقرأ السعر المحفوظ عند التحميل
+window.addEventListener('load', () => {
+    let savedRate = localStorage.getItem('exchangeRate');
+    if (savedRate) {
+        rate = parseFloat(savedRate);
+        // التحقق من وجود العنصر قبل تحديثه لتجنب أخطاء الكونسول
+        const rateDisplay = document.getElementById('admin-rate-display');
+        if (rateDisplay) {
+            rateDisplay.innerText = rate.toLocaleString() + " L.L";
+        }
+    }
+});
+function printProductLabel() {
+    const name = document.getElementById('new-name').value;
+    const priceUSD = document.getElementById('new-price').value;
+    const priceLBP = document.getElementById('new-price-lbp').value;
+    const barcode = document.getElementById('new-barcode').value;
+
+    if (!name || !barcode) {
+        alert("يرجى إدخال اسم المنتج والباركود أولاً!");
+        return;
+    }
+
+    // تصميم الملصق
+    const labelHTML = `
+        <div style="width: 40mm; height: 30mm; padding: 2mm; box-sizing: border-box; text-align: center; font-family: Arial; direction: rtl; border: 1px solid #eee;">
+            <div style="font-size: 10pt; font-weight: bold; white-space: nowrap; overflow: hidden; margin-bottom: 2mm;">
+                Stop & Shop - ${name}
+            </div>
+            <div style="font-size: 11pt; color: #000; font-weight: bold;">
+                ${parseInt(priceLBP).toLocaleString()} L.L
+            </div>
+            <div style="font-size: 9pt; margin-bottom: 2mm;">
+                Price: $${parseFloat(priceUSD).toFixed(2)}
+            </div>
+            <div style="display: flex; justify-content: center; align-items: center;">
+                <svg id="barcode-svg"></svg>
+            </div>
+            <div style="font-size: 8pt;">${barcode}</div>
+        </div>
+    `;
+
+    // فتح نافذة طباعة جديدة للملصق فقط
+    const printWindow = window.open('', '_blank', 'width=400,height=400');
+    printWindow.document.write('<html><head><title>Print Label</title>');
+    printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>');
+    printWindow.document.write('</head><body style="margin:0; padding:0;">');
+    printWindow.document.write(labelHTML);
+    printWindow.document.write(`
+        <script>
+            window.onload = function() {
+                JsBarcode("#barcode-svg", "${barcode}", {
+                    format: "CODE128",
+                    width: 1.5,
+                    height: 30,
+                    displayValue: false
+                });
+                setTimeout(() => {
+                    window.print();
+                    window.close();
+                }, 500);
+            };
+        </script>
+    `);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+}
+function calculateProfit() {
+    const purchase = parseFloat(document.getElementById('purchase-price').value) || 0;
+    const sale = parseFloat(document.getElementById('new-price').value) || 0;
+    const profitDisplay = document.getElementById('profit-margin');
+
+    if (purchase > 0 && sale > 0) {
+        // المعادلة: ((سعر البيع - سعر الشراء) / سعر الشراء) * 100
+        const profitPercent = ((sale - purchase) / purchase) * 100;
+        profitDisplay.value = profitPercent.toFixed(1) + "%";
+        
+        // تغيير اللون للتنبيه إذا كان هناك خسارة
+        profitDisplay.style.color = profitPercent < 0 ? "#d32f2f" : "#2e7d32";
+    } else {
+        profitDisplay.value = "0%";
+    }
+}
+
+function openPassModal() {
+    document.getElementById('passwordModal').style.display = 'flex';
+    document.getElementById('adminPassInput').focus();
+}
+
+function closePassModal() {
+    document.getElementById('passwordModal').style.display = 'none';
+    document.getElementById('adminPassInput').value = ''; // مسح الحقل عند الإغلاق
+}
+
+function checkAdminPassword() {
+    const enteredPass = document.getElementById('adminPassInput').value;
+    const correctPass = "2004"; // ضع كلمة المرور الخاصة بك هنا
+
+    if (enteredPass === correctPass) {
+        window.location.href = "cashier.html";
+    } else {
+        alert("كلمة المرور خاطئة!");
+        document.getElementById('adminPassInput').value = '';
+    }
+}
+
+// السماح بالدخول عند الضغط على زر Enter في لوحة المفاتيح
+document.getElementById('adminPassInput')?.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        checkAdminPassword();
+    }
+});
+// دالة لجلب وعرض الجرد
+async function loadInventory() {
+    const tbody = document.getElementById('inventory-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">جاري ترتيب المخزن... <i class="fas fa-sort-amount-down-alt"></i></td></tr>';
+
+    try {
+        const snapshot = await db.collection("products").get();
+        
+        if (snapshot.empty) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">لا توجد منتجات.</td></tr>';
+            return;
+        }
+
+        // 1. تحويل البيانات إلى مصفوفة (Array) لسهولة ترتيبها
+        let productsList = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            productsList.push({
+                id: doc.id,
+                ...data,
+                stock: (data.stock !== undefined && data.stock !== null) ? data.stock : 0
+            });
+        });
+
+        // 2. الترتيب من الأقل كمية إلى الأكثر كمية
+        productsList.sort((a, b) => a.stock - b.stock);
+
+        tbody.innerHTML = ''; // مسح رسالة التحميل
+
+        // 3. عرض المنتجات المرتبة
+        productsList.forEach(product => {
+            const id = product.id;
+            const stock = product.stock;
+            
+            const statusClass = stock <= 5 ? 'stock-low' : 'stock-ok';
+            const statusText = stock <= 0 ? '❌ نافذ' : (stock <= 5 ? '📉 منخفض' : '✅ متوفر');
+
+            const row = `
+                <tr style="border-bottom: 1px solid #eee; background: ${stock <= 5 ? '#fff5f5' : 'transparent'};">
+                    <td style="padding: 15px; font-weight: bold;">${product.name || 'بدون اسم'}</td>
+                    <td style="padding: 15px; text-align: center;"><span class="${statusClass}">${stock}</span></td>
+                    <td style="padding: 15px; text-align: center;">${statusText}</td>
+                    <td style="padding: 15px; text-align: center;">
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            <input type="number" id="add-qty-${id}" placeholder="+" style="width: 60px; padding: 6px; border-radius: 6px; border: 1px solid #ddd; text-align: center;">
+                            <button onclick="updateStock('${id}', ${stock})" style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+
+    } catch (error) {
+        console.error("Sorting Error:", error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">خطأ في الترتيب: ${error.message}</td></tr>`;
+    }
+}
+function searchInventory() {
+    let input = document.getElementById('inventorySearch').value.toLowerCase();
+    let table = document.getElementById('inventory-table-body');
+    let rows = table.getElementsByTagName('tr');
+
+    for (let i = 0; i < rows.length; i++) {
+        let nameCell = rows[i].getElementsByTagName('td')[0];
+        if (nameCell) {
+            let txtValue = nameCell.textContent || nameCell.innerText;
+            rows[i].style.display = txtValue.toLowerCase().indexOf(input) > -1 ? "" : "none";
+        }
+    }
+}
+
+// دالة زيادة الكمية في المخزن
+async function updateStock(productId, currentStock) {
+    const input = document.getElementById(`add-qty-${productId}`);
+    const addedValue = parseInt(input.value);
+
+    if (isNaN(addedValue) || addedValue <= 0) {
+        alert("يرجى إدخال كمية صحيحة");
+        return;
+    }
+
+    try {
+        const newStock = currentStock + addedValue;
+        await db.collection("products").doc(productId).update({
+            stock: newStock
+        });
+        alert("تم تحديث المخزن بنجاح");
+        input.value = '';
+        loadInventory(); // تحديث الجدول
+    } catch (error) {
+        alert("حدث خطأ أثناء التحديث");
+    }
+}
+
+// تشغيل الجرد عند فتح الصفحة
+loadInventory();
+// تشغيل الجرد تلقائياً عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    loadInventory();
+});
+// دالة لتحديث سعر الصرف في قاعدة البيانات
+// أضفها في نهاية الملف تماماً
+async function updateGlobalExchangeRate(newRate) {
+    try {
+        await db.collection("settings").doc("exchange_rate").set({
+            value: parseInt(newRate),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("✅ تم تحديث سعر الصرف بنجاح في قاعدة البيانات");
+    } catch (error) {
+        console.error("Error updating rate:", error);
+        alert("❌ فشل التحديث: " + error.message);
+    }
 }
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

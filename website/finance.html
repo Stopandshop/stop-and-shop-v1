@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقارير المالية | Stop & Shop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #1c1e21; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #27ae60; padding-bottom: 10px; margin-bottom: 20px; }
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { padding: 15px; border-radius: 10px; text-align: center; color: white; transition: 0.3s; }
+        .bg-sales { background: #27ae60; } .bg-exp { background: #e74c3c; } .bg-net { background: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; }
+        .filter-btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-family: 'Cairo'; margin-left: 5px; background: #ddd; font-weight: bold; }
+        .active-filter { background: #27ae60; color: white; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: 'Cairo'; }
+        .btn-add { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+        .badge-web { background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-right: 5px; }
+        .badge-pos { background: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-right: 5px; }
+        
+        /* تنسيق إضافي متناسق لخانات اختيار التاريخ المخصصة */
+        .date-filter-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .custom-picker { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-family: 'Cairo'; font-size: 0.9rem; outline: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2><i class="fas fa-plus-circle"></i> تسجيل مصروف / دفعة</h2>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="exp-desc" placeholder="بيان الصرف (مثال: فاتورة كهرباء)">
+            <input type="number" id="exp-amount" placeholder="المبلغ $">
+        </div>
+        <button class="btn-add" onclick="saveExpense()">حفظ وتسجيل المصروف</button>
+    </div>
+
+    <div class="card" id="sales-card" style="transition: transform 0.3s ease;">
+        <div class="header-flex">
+            <h2 style="margin:0;">📊 ملخص أرباح وحسابات المتجر</h2>
+            <div class="date-filter-container">
+                <button class="filter-btn active-filter" onclick="loadData('day', this)">اليوم الحالي</button>
+                <input type="date" id="custom-date-picker" class="custom-picker" onchange="document.getElementById('day-custom-btn').click()">
+                <button id="day-custom-btn" class="filter-btn" onclick="loadData('custom-day', this)" style="display: none;"></button>
+
+                <button class="filter-btn" onclick="loadData('month', this)">الشهر الحالي</button>
+                <input type="month" id="custom-month-picker" class="custom-picker" onchange="document.getElementById('month-custom-btn').click()">
+                <button id="month-custom-btn" class="filter-btn" onclick="loadData('custom-month', this)" style="display: none;"></button>
+
+                <button class="filter-btn" onclick="loadData('year', this)">سنوي</button>
+            </div>
+        </div>
+
+        <div class="report-grid">
+            <div class="stat-card bg-sales">
+                <small>إجمالي المبيعات (كاشير + موقع)</small>
+                <div id="sales-total" style="font-size: 1.6rem; font-weight: bold;">0.00 $</div>
+            </div>
+            <div class="stat-card bg-exp">
+                <small>إجمالي المصاريف</small>
+                <div id="exp-total" style="font-size: 1.6rem; font-weight: bold;">0.00 $</div>
+            </div>
+            <div class="stat-card bg-net">
+                <small>صافي الأرباح</small>
+                <div id="net-total" style="font-size: 1.6rem; font-weight: bold;">0.00 $</div>
+            </div>
+        </div>
+
+        <h3><i class="fas fa-list"></i> تفاصيل العمليات الحالية في النطاق المحدد</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>البيان / نوع العملية</th>
+                    <th>المبلغ ($)</th>
+                </tr>
+            </thead>
+            <tbody id="exp-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // إعدادات Firebase الخاصة بـ Stop & Shop
+    const firebaseConfig = {
+        apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",
+        authDomain: "stopandshop-157ff.firebaseapp.com",
+        projectId: "stopandshop-157ff",
+        storageBucket: "stopandshop-157ff.firebasestorage.app",
+        messagingSenderId: "622958508953",
+        appId: "1:622958508953:web:8f2b8f60f1d4e323353108"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // --- دالة تعديل سعر الصرف الشامل المصححة لمنع خطأ التعريف في صفحة المالية ---
+    function updateGlobalRate() {
+        // جلب القيم الحالية بشكل آمن مباشرة لتفادي خطأ rate is not defined
+        let currentRate = parseFloat(localStorage.getItem('exchangeRate')) || 90000;
+        let currentSellingRate = localStorage.getItem('sellingRate') || 89000;
+
+        let newRate = prompt("أدخل سعر صرف التسعير (للإدارة - مثلاً 90000):", currentRate);
+        let newSellingRate = prompt("أدخل سعر صرف البيع (للزبون - مثلاً 89000):", currentSellingRate);
+        
+        if (newRate !== null && newRate !== "" && !isNaN(newRate)) {
+            localStorage.setItem('exchangeRate', parseFloat(newRate));
+            
+            if (newSellingRate !== null && newSellingRate !== "" && !isNaN(newSellingRate)) {
+                localStorage.setItem('sellingRate', parseFloat(newSellingRate));
+            }
+            
+            const rateDisplay = document.getElementById('admin-rate-display');
+            if (rateDisplay) {
+                rateDisplay.innerText = parseFloat(newRate).toLocaleString() + " L.L";
+            }
+            
+            alert("تم تحديث الأسعار بنجاح ✅\nالتسعير: " + newRate + " | البيع: " + newSellingRate);
+            location.reload(); // إعادة التحميل لتحديث الحسابات المالية فوراً بالسعر الجديد
+        }
+    }
+
+    // دالة تسجيل المصاريف وحفظها في Firestore
+    async function saveExpense() {
+        const desc = document.getElementById('exp-desc').value;
+        const amount = parseFloat(document.getElementById('exp-amount').value);
+        if(!desc || isNaN(amount)) return alert("يرجى إدخال البيانات بشكل صحيح");
+
+        try {
+            await db.collection("expenses").add({
+                description: desc,
+                amount: amount,
+                time: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            document.getElementById('exp-desc').value = '';
+            document.getElementById('exp-amount').value = '';
+            
+            // إعادة التحديث تلقائياً للنطاق الحالي بعد الحفظ
+            const activeBtn = document.querySelector('.active-filter');
+            let currentRange = 'day';
+            if (activeBtn) {
+                if (activeBtn.innerText === 'الشهر الحالي') currentRange = 'month';
+                else if (activeBtn.innerText === 'سنوي') currentRange = 'year';
+            }
+            loadData(currentRange);
+        } catch (error) {
+            alert("خطأ أثناء حفظ المصروف: " + error.message);
+        }
+    }
+
+// دالة جلب وحساب البيانات المالية الشاملة والدقيقة لكل نطاق زمني منفصل تماماً (تدعم التواريخ المخصصة)
+async function loadData(range, btn) {
+    if(btn) {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
+        btn.classList.add('active-filter');
+    }
+
+    const now = new Date();
+    let startTime = new Date();
+    let endTime = new Date(); // إضافة وقت نهاية النطاق لضمان دقة الفلترة
+    
+    // ضبط الحدود الزمنية بدقة لكل زر لمنع تداخل الحسابات ودعم الخيارات المخصصة
+    if(range === 'day') {
+        startTime.setHours(0, 0, 0, 0);
+        endTime.setHours(23, 59, 59, 999);
+    } 
+    else if(range === 'custom-day') {
+        // استخراج اليوم المخصص المختار من الرزنامة
+        const dateVal = document.getElementById('custom-date-picker').value;
+        if(!dateVal) {
+            alert("الرجاء اختيار تاريخ أولاً من خانة اليوم المخصص");
+            return;
+        }
+        const selectedDate = new Date(dateVal);
+        startTime = new Date(selectedDate.setHours(0, 0, 0, 0));
+        endTime = new Date(selectedDate.setHours(23, 59, 59, 999));
+    }
+    else if(range === 'month') {
+        startTime = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        endTime = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999); // نهاية الشهر الحالي
+    } 
+    else if(range === 'custom-month') {
+        // استخراج الشهر المخصص المختار
+        const monthVal = document.getElementById('custom-month-picker').value; // الصيغة المستخرجة: "2026-05"
+        if(!monthVal) {
+            alert("الرجاء اختيار الشهر أولاً من خانة الشهر المخصص");
+            return;
+        }
+        const parts = monthVal.split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // الأشهر في جافا سكريبت تبدأ من 0
+        
+        startTime = new Date(year, month, 1, 0, 0, 0, 0);
+        endTime = new Date(year, month + 1, 0, 23, 59, 59, 999); // نهاية ذلك الشهر المختار
+    }
+    else if(range === 'year') {
+        startTime = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        endTime = new Date(now.getFullYear(), 12, 0, 23, 59, 59, 999); // نهاية السنة الحالية
+    }
+
+    console.log(`=== فحص النطاق الزمني (${range}) ===`);
+    console.log("يبدأ من:", startTime.toLocaleString('ar-LB'));
+    console.log("ينتهي في:", endTime.toLocaleString('ar-LB'));
+
+    let currentExchangeRate = parseFloat(localStorage.getItem('exchangeRate')) || 90000;
+
+    try {
+        let totalSales = 0;
+        let totalExp = 0;
+        let allActivitiesArray = []; 
+        
+        const tbody = document.getElementById('exp-body');
+        if(tbody) tbody.innerHTML = '';
+
+        // 1. جلب مبيعات الكاشير من مجموعة (sales) وضبط شرط النطاق
+        const salesSnap = await db.collection("sales").get();
+        salesSnap.forEach(doc => {
+            const data = doc.data();
+            if (data && data.time) {
+                const salesDate = data.time.toDate();
+                // الفحص الدقيق: يجب أن يكون التاريخ بين البداية والنهاية تماماً
+                if (salesDate >= startTime && salesDate <= endTime) {
+                    const amt = parseFloat(data.totalUSD || data.total_usd || data.total || 0);
+                    totalSales += amt;
+                    
+                    let saleId = doc.id ? String(doc.id).substring(0, 6) : "كاشير";
+
+                    allActivitiesArray.push({
+                        dateText: salesDate.toLocaleDateString('ar-LB'),
+                        timestamp: salesDate.getTime(),
+                        description: `فاتورة مبيعات الكاشير رقم (${saleId}) <span class="badge-pos">نقطة بيع</span>`,
+                        amountText: `+ ${amt.toFixed(2)} $`,
+                        color: '#27ae60'
+                    });
+                }
+            }
+        });
+
+        // 2. جلب مبيعات الموقع من مجموعة (orders) وضبط شرط النطاق
+        const webSnap = await db.collection("orders").get();
+        webSnap.forEach(doc => {
+            const data = doc.data();
+            if (data) {
+                let orderDate = null;
+
+                if (data.timestamp && typeof data.timestamp.toDate === 'function') {
+                    orderDate = data.timestamp.toDate();
+                } 
+                else if (data.time && typeof data.time.toDate === 'function') {
+                    orderDate = data.time.toDate();
+                }
+                else if (data.date && typeof data.date === 'string') {
+                    let pureDate = data.date.split(',')[0].trim();
+                    const parts = pureDate.split('/');
+                    if (parts.length === 3) {
+                        orderDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                    }
+                }
+
+                if (!orderDate || isNaN(orderDate.getTime())) {
+                    return; // تخطي أي مستند بدون تاريخ صالح
+                }
+
+                // الفحص الدقيق: يجب أن يكون طلب الموقع ضمن حدود الزر المحددة
+                if (orderDate >= startTime && orderDate <= endTime) {
+                    let rawAmt = parseFloat(data.total_price || data.totalPrice || data.total || 0);
+                    if (rawAmt > 0) {
+                        let amtInUSD = rawAmt;
+                        
+                        if (data.currency === "LBP") {
+                            amtInUSD = rawAmt / currentExchangeRate;
+                        }
+
+                        totalSales += amtInUSD;
+                        let docIdText = doc.id ? String(doc.id).substring(0, 6) : "أونلاين";
+                        let displayDate = orderDate.toLocaleDateString('ar-LB');
+
+                        allActivitiesArray.push({
+                            dateText: displayDate,
+                            timestamp: orderDate.getTime(),
+                            description: `طلب من الموقع الإلكتروني رقم (${docIdText}) <span class="badge-web">أونلاين</span>`,
+                            amountText: `+ ${amtInUSD.toFixed(2)} $`,
+                            color: '#3498db'
+                        });
+                    }
+                }
+            }
+        });
+
+        // 3. جلب المصاريف من مجموعة (expenses) وضبط شرط النطاق
+        const expSnap = await db.collection("expenses").get();
+        expSnap.forEach(doc => {
+            const data = doc.data();
+            if (data && data.time) {
+                const expDate = data.time.toDate();
+                if (expDate >= startTime && expDate <= endTime) {
+                    const amt = parseFloat(data.amount || 0);
+                    totalExp += amt;
+                    allActivitiesArray.push({
+                        dateText: expDate.toLocaleDateString('ar-LB'),
+                        timestamp: expDate.getTime(),
+                        description: `${data.description || 'مصروف'} <span style="color:#e74c3c;">(مصروف)</span>`,
+                        amountText: `- ${amt.toFixed(2)} $`,
+                        color: '#e74c3c'
+                    });
+                }
+            }
+        });
+
+        // ترتيب تنازلي (الأحدث أولاً)
+        allActivitiesArray.sort((a, b) => b.timestamp - a.timestamp);
+
+        // حقن السجلات المفلترة داخل الجدول
+        if(tbody) {
+            allActivitiesArray.forEach(act => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${act.dateText}</td>
+                        <td>${act.description}</td>
+                        <td style="color:${act.color}; font-weight:bold;">${act.amountText}</td>
+                    </tr>`;
+            });
+        }
+
+        // تحديث المجموع الشامل بدقة متناهية للنطاق المختار فقط
+        document.getElementById('sales-total').innerText = totalSales.toFixed(2) + " $";
+        document.getElementById('exp-total').innerText = totalExp.toFixed(2) + " $";
+        document.getElementById('net-total').innerText = (totalSales - totalExp).toFixed(2) + " $";
+
+        console.log(`=== انتهاء الحساب بنجاح للنطاق (${range}): الإجمالي = ${totalSales.toFixed(2)} $ ===`);
+
+        const card = document.getElementById('sales-card');
+        if (card) {
+            card.style.transform = "scale(1.02)";
+            setTimeout(() => { card.style.transform = "scale(1)"; }, 250);
+        }
+
+    } catch (error) {
+        console.error("خطأ أثناء معالجة الحسابات المحددة:", error);
+    }
+}
+    // تشغيل تلقائي عند فتح الصفحة لأول مرة لحساب مبيعات اليوم الحالي
+    window.onload = () => loadData('day');
+</script>
+</body>
+</html>

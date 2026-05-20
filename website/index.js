@@ -789,12 +789,17 @@ async function saveProduct() {
     // --- التعديل هنا: استخدام ID المطابق للـ HTML الخاص بك ---
     const oldPriceInput = document.getElementById('product-old-price');
     const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
+    const costPrice = parseFloat(document.getElementById('product-cost-input').value) || 0;
 
     if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
+
+    // --- سطر إضافي لضمان تحديث النسبة في الواجهة عند الحفظ ---
+    if (typeof calculateProfit === "function") calculateProfit();
 
     const data = { 
         name, 
         price, 
+        cost: costPrice, // <<< هذا هو السطر الذي كان ينقصك لحفظ سعر الشراء
         category, 
         image, 
         barcode, // حفظ الباركود الجديد في Firebase
@@ -818,25 +823,30 @@ async function saveProduct() {
             alert("تمت إضافة المنتج الجديد!");
         }
 
-        // --- تعديل لضمان عدم حدوث خطأ Null قبل استدعاء الفورم ---
+        // --- الجزء المسؤول عن الطباعة (يوضع هنا بعد نجاح الحفظ) ---
+        if (typeof printProductLabel === "function") {
+            printProductLabel({ name, price, barcode });
+        } else if (typeof printBarcode === "function") {
+            printBarcode(barcode, name, price); 
+        }
+        // -------------------------------------------------------
+
+        // --- استدعاء الفورم لتصفير كافة الخانات بما فيها سعر الشراء ---
         if (typeof resetForm === "function") resetForm();
 
         // --- الحل الآمن لمشكلة الـ style التي ظهرت في الصور ---
-        // تم توسيع البحث ليشمل كافة الاحتمالات لضمان الإغلاق دون خطأ
         const modal = document.querySelector('.modal') || 
                       document.getElementById('edit-modal') || 
                       document.getElementById('product-modal') ||
-                      document.querySelector('[style*="display: block"]'); // بحث عن أي نافذة مفتوحة حالياً
+                      document.querySelector('[style*="display: block"]');
 
         if (modal && modal.style) {
             modal.style.display = 'none';
         } else {
-            // محاولة أخيرة باستخدام دالة الإغلاق العامة
             if (typeof closeModal === "function") closeModal();
         }
 
     } catch (e) {
-        // رسالة الخطأ أصبحت أوضح لتحديد ما إذا كانت المشكلة من Firebase أو من الكود
         console.error("Firebase Error:", e);
         alert("خطأ تقني: " + e.message);
     }
@@ -918,15 +928,25 @@ function editProduct(id) {
     if (document.getElementById('new-stock')) {
         document.getElementById('new-stock').value = product.stock || 0;
     }
-    // ------------------------------------------------------------------
+    
+    // --- إضافة سطر جلب سعر الشراء عند التعديل ---
+    if (document.getElementById('product-cost-input')) {
+        document.getElementById('product-cost-input').value = product.cost || 0;
+    }
+
+    // --- السطر الجديد: استدعاء الحسبة لتظهر النسبة فوراً عند التعديل ---
+    if (typeof calculateProfit === "function") calculateProfit();
 
     // تأشير الـ checkbox بناءً على حالة المنتج
     document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
 
     document.getElementById('form-title').innerText = "تعديل: " + product.name;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     // يضاف داخل دالة editProduct
-document.getElementById('new-price-lbp').value = Math.round((product.price * rate) / 500) * 500;
+    if (typeof rate !== 'undefined') {
+        document.getElementById('new-price-lbp').value = Math.round((product.price * rate) / 500) * 500;
+    }
 }
 async function deleteProduct(id) {
     if (confirm("حذف المنتج نهائياً؟")) {
@@ -942,9 +962,10 @@ function resetForm() {
     document.getElementById('new-barcode').value = "";
     document.getElementById('form-title').innerText = "إضافة منتج جديد";
 
-    // --- الأسطر المضافة لتصفير الخانات الجديدة وضمان عودتها للقيمة 0 ---
-    if(document.getElementById('purchase-price')) document.getElementById('purchase-price').value = "0";
-    if(document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = "0";
+    // --- الأسطر المضافة لتصفير الخانات الجديدة وضمان عودتها للقيمة فارغة ---
+    // تم تعديل المعرف هنا ليطابق المستخدم في دالة الحفظ
+    if(document.getElementById('product-cost-input')) document.getElementById('product-cost-input').value = ""; 
+    if(document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = "";
     if(document.getElementById('profit-margin')) document.getElementById('profit-margin').value = "0%";
     if(document.getElementById('new-stock')) document.getElementById('new-stock').value = "";
 
@@ -958,8 +979,13 @@ function resetForm() {
 }
 
 // 8. الطباعة والعودة للأعلى
-function printInvoice() {
+function printInvoice(printWindow) {
     if (cart.length === 0) return alert("السلة فارغة، لا يوجد ما يمكن طباعته!");
+
+    // إذا لم يتم تمرير نافذة مفتوحة مسبقاً (مثلاً لو ضغطت على زر طباعة مباشر)، يتم فتح نافذة جديدة هنا تلقائياً
+    if (!printWindow) {
+        printWindow = window.open('', '_blank');
+    }
 
     const totalUsd = document.getElementById('total-usd').innerText;
     const totalLbp = document.getElementById('total-lbp').innerText;
@@ -967,8 +993,15 @@ function printInvoice() {
     const date = new Date().toLocaleString('ar-LB');
     const points = Math.floor(parseFloat(totalUsd) / 5); // نظام النقاط الخاص بك
 
+    // --- أمر فتح صندوق الكاشير التلقائي (Esc/POS Command) ---
+    // هذا الكود يرسل نبضة كهربائية عبر منفذ الطابعة الحرارية RJ11 ليفتح الصندوق فوراً قبل بدء خروج ورقة الفاتورة
+    const openDrawerCommand = String.fromCharCode(27, 112, 48, 55, 121);
+
     let invoiceContent = `
         <div dir="rtl" style="font-family: 'Tajawal', sans-serif; padding: 30px; border: 1px solid #eee; width: 380px; margin: auto; color: #333; background: #fff;">
+            
+            <span style="display:none;">${openDrawerCommand}</span>
+
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="margin: 0; color: #c0392b; font-size: 28px; letter-spacing: 1px;">Stop & Shop</h1>
                 <p style="margin: 5px 0; font-size: 14px; color: #7f8c8d;">ميني ماركت - تجربة تسوق ذكية</p>
@@ -1042,8 +1075,7 @@ function printInvoice() {
         </div>
     `;
 
-    // فتح نافذة الطباعة
-    const printWindow = window.open('', '_blank');
+    // استخدام النافذة المفتوحة مسبقاً بدلاً من فتح واحدة جديدة
     printWindow.document.write(`
         <html>
             <head>
@@ -1067,7 +1099,6 @@ function printInvoice() {
     `);
     printWindow.document.close();
 }
-
 window.onscroll = function() {
     const btn = document.getElementById("backToTop");
     if (btn) btn.style.display = (window.scrollY > 300) ? "flex" : "none";
@@ -2192,7 +2223,7 @@ window.onload = function() {
 // دالة لتغيير سعر الصرف الشامل
 function updateGlobalRate() {
     // --- طلب السعرين من المستخدم مع الحفاظ على الأسعار الحالية كاقتراح ---
-    let newRate = prompt("أدخل سعر صرف التسعير (للإدارة - مثلاً 90000):", rate);
+    let newRate = prompt("أدخل سعر صرف التسعير (للإدارة - مثلاً 90000):", exchangeRate);
     let newSellingRate = prompt("أدخل سعر صرف البيع (للزبون - مثلاً 89000):", localStorage.getItem('sellingRate') || 89000);
     
     if (newRate !== null && newRate !== "" && !isNaN(newRate)) {
@@ -2230,14 +2261,16 @@ function updateGlobalRate() {
 }
 
 // تأكد أن الصفحة تقرأ السعر المحفوظ عند التحميل
+// تأكد أن الصفحة تقرأ السعر المحفوظ عند التحميل
 window.addEventListener('load', () => {
     let savedRate = localStorage.getItem('exchangeRate');
     if (savedRate) {
-        rate = parseFloat(savedRate);
+        exchangeRate = parseFloat(savedRate); // ✅ تم التصحيح إلى exchangeRate ليتوافق مع أعلى الملف
+        
         // التحقق من وجود العنصر قبل تحديثه لتجنب أخطاء الكونسول
         const rateDisplay = document.getElementById('admin-rate-display');
         if (rateDisplay) {
-            rateDisplay.innerText = rate.toLocaleString() + " L.L";
+            rateDisplay.innerText = exchangeRate.toLocaleString() + " L.L";
         }
     }
 });
@@ -2297,13 +2330,19 @@ function printProductLabel() {
     printWindow.document.close();
 }
 function calculateProfit() {
-    const purchase = parseFloat(document.getElementById('purchase-price').value) || 0;
+    // تم تعديل المسمى ليطابق الـ HTML الخاص بك دون تغيير المنطق
+    const purchase = parseFloat(document.getElementById('product-cost-input').value) || 0;
     const sale = parseFloat(document.getElementById('new-price').value) || 0;
     const profitDisplay = document.getElementById('profit-margin');
 
     if (purchase > 0 && sale > 0) {
         const profitPercent = ((sale - purchase) / purchase) * 100;
         profitDisplay.value = profitPercent.toFixed(1) + "%";
+        
+        // إضافة لمسة جمالية لتلوين النسبة (اختياري)
+        profitDisplay.style.color = profitPercent >= 0 ? "#2e7d32" : "#d32f2f";
+    } else {
+        profitDisplay.value = "0%";
     }
 }
 
@@ -2492,5 +2531,13 @@ document.addEventListener('DOMContentLoaded', () => {
         purchaseIn.addEventListener('input', calculateProfit);
     }
 });
+function openFinancePage() {
+    const pass = prompt("كلمة مرور الإدارة المالية:");
+    if (pass === "2004") { // غير كلمة السر كما تحب
+        window.location.href = "finance.html";
+    } else {
+        alert("خطأ!");
+    }
+}
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -789,7 +789,14 @@ async function saveProduct() {
     // --- التعديل هنا: استخدام ID المطابق للـ HTML الخاص بك ---
     const oldPriceInput = document.getElementById('product-old-price');
     const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
-    const costPrice = parseFloat(document.getElementById('product-cost-input').value) || 0;
+    
+    // 🔍 توحيد المعرف هنا ليتوافق مع الحقل الفعلي في ملفك (purchase-price) لمنع الـ NaN
+    const costPriceInput = document.getElementById('purchase-price') || document.getElementById('product-cost-input');
+    const costPrice = costPriceInput ? (parseFloat(costPriceInput.value) || 0) : 0;
+
+    // 🔍 جلب حقل السعر اللبناني من الواجهة لحفظه مباشرة في الفايربيس
+    const priceLBPInput = document.getElementById('new-price-lbp');
+    const priceLBP = priceLBPInput && priceLBPInput.value ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
 
     if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
 
@@ -799,6 +806,7 @@ async function saveProduct() {
     const data = { 
         name, 
         price, 
+        priceLBP,      // <<< حفظ السعر اللبناني بدقة في قاعدة البيانات
         cost: costPrice, // <<< هذا هو السطر الذي كان ينقصك لحفظ سعر الشراء
         category, 
         image, 
@@ -817,10 +825,10 @@ async function saveProduct() {
     try {
         if (id) {
             await db.collection("products").doc(id).update(data);
-            alert("تم تحديث بيانات المنتج!");
+            alert("تم تحديث بيانات المنتج بنجاح! ✅");
         } else {
             await db.collection("products").add(data);
-            alert("تمت إضافة المنتج الجديد!");
+            alert("تمت إضافة المنتج الجديد بنجاح! ✨");
         }
 
         // --- الجزء المسؤول عن الطباعة (يوضع هنا بعد نجاح الحفظ) ---
@@ -849,6 +857,30 @@ async function saveProduct() {
     } catch (e) {
         console.error("Firebase Error:", e);
         alert("خطأ تقني: " + e.message);
+    }
+}
+async function deleteProduct(id) {
+    if (confirm("حذف المنتج نهائياً؟")) {
+        try {
+            // 1. الحذف من قاعدة البيانات
+            await db.collection("products").doc(id).delete();
+            
+            // 2. تحديث المصفوفة المحلية لحذف المنتج منها فوراً
+            products = products.filter(p => p.id !== id);
+            
+            // 3. إعادة عرض المنتجات المتبقية لتحديث الشاشة تلقائياً
+            displayProducts(products);
+            
+            // 4. تحديث إحصائيات لوحة التحكم إذا كنت المسؤول
+            if (isAdmin && typeof updateDashboardStats === "function") {
+                updateDashboardStats();
+            }
+            
+            alert("تم حذف المنتج بنجاح! 🗑️");
+        } catch (error) {
+            console.error("خطأ أثناء الحذف:", error);
+            alert("فشل حذف المنتج: " + error.message);
+        }
     }
 }
 async function hashPassword(string) {
@@ -920,38 +952,33 @@ function editProduct(id) {
     document.getElementById('new-price').value = product.price;
     document.getElementById('new-category').value = product.category;
     document.getElementById('new-image').value = product.image;
-    
-    // --- الأسطر المضافة لربط الباركود والكمية بالخانات (دون حذف ما سبق) ---
+
     if (document.getElementById('new-barcode')) {
         document.getElementById('new-barcode').value = product.barcode || '';
     }
     if (document.getElementById('new-stock')) {
         document.getElementById('new-stock').value = product.stock || 0;
     }
-    
-    // --- إضافة سطر جلب سعر الشراء عند التعديل ---
     if (document.getElementById('product-cost-input')) {
         document.getElementById('product-cost-input').value = product.cost || 0;
     }
 
-    // --- السطر الجديد: استدعاء الحسبة لتظهر النسبة فوراً عند التعديل ---
+    // 🔍 الإضافة الذكية لحل التضارب: تعبئة الحقل الفعلي (purchase-price) بقيمة التكلفة ليعمل حساب الربح فوراً
+    const alternativeCostField = document.getElementById('purchase-price');
+    if (alternativeCostField) {
+        alternativeCostField.value = product.cost || 0;
+    }
+
+    // لتعبئة حقل الليرة اللبنانية فوراً عند الضغط على زر تعديل منتج
+    if (document.getElementById('new-price-lbp')) {
+        document.getElementById('new-price-lbp').value = product.priceLBP || Math.round((product.price * exchangeRate) / 500) * 500;
+    }
+
     if (typeof calculateProfit === "function") calculateProfit();
 
-    // تأشير الـ checkbox بناءً على حالة المنتج
     document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
-
     document.getElementById('form-title').innerText = "تعديل: " + product.name;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // يضاف داخل دالة editProduct
-    if (typeof rate !== 'undefined') {
-        document.getElementById('new-price-lbp').value = Math.round((product.price * rate) / 500) * 500;
-    }
-}
-async function deleteProduct(id) {
-    if (confirm("حذف المنتج نهائياً؟")) {
-        await db.collection("products").doc(id).delete();
-    }
 }
 
 function resetForm() {
@@ -2133,56 +2160,76 @@ async function resetTodaySales() {
         }
     }
 }
-async function saveProductToFirebase() {
-    const barcode = document.getElementById('add-product-barcode').value.trim();
-    const name = document.getElementById('add-product-name').value.trim();
-    const price = parseFloat(document.getElementById('add-product-price').value) || 0;
-    const stock = parseInt(document.getElementById('add-product-stock').value) || 0;
-    // --- الأسطر المضافة لجلب القيم الجديدة ---
-    const purchasePrice = parseFloat(document.getElementById('purchase-price').value) || 0;
+async function saveProduct() {
+    const id = document.getElementById('edit-product-id').value;
+    const name = document.getElementById('new-name').value;
+    const price = parseFloat(document.getElementById('new-price').value);
+    const category = document.getElementById('new-category').value;
+    const image = document.getElementById('new-image').value;
+    const isOutOfStock = document.getElementById('out-of-stock-check').checked;
+    
+    const barcodeInput = document.getElementById('new-barcode');
+    const barcode = barcodeInput ? barcodeInput.value.trim() : "";
+    
+    const stockInput = document.getElementById('new-stock');
+    const stock = stockInput ? parseInt(stockInput.value) : 0;
+    
+    const oldPriceInput = document.getElementById('product-old-price');
+    const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
+    const costPrice = parseFloat(document.getElementById('product-cost-input').value) || 0;
 
-    if (barcode === "" || name === "") {
-        alert("يرجى مسح الباركود وإدخال اسم المنتج!");
-        return;
+    // جلب حقل السعر اللبناني من الفورم لرفعه
+    const priceLBPInput = document.getElementById('new-price-lbp');
+    const priceLBP = priceLBPInput ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
+
+    if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
+
+    if (typeof calculateProfit === "function") calculateProfit();
+
+    const data = {
+        name,
+        price,
+        priceLBP, // 👈 أضفنا السعر اللبناني هنا ليتم حفظه في قاعدة البيانات مباشرة
+        cost: costPrice, 
+        category,
+        image,
+        barcode, 
+        isOutOfStock: isOutOfStock || (stock <= 0), 
+        stock, 
+        oldPrice: oldPrice || null, 
+        lastUpdated: Date.now()
+    };
+
+    if (!id) {
+        data.createdAt = Date.now();
     }
 
     try {
-        // التحقق إذا كان الباركود موجوداً مسبقاً لمنع التكرار
-        const existing = await db.collection("products").where("barcode", "==", barcode).get();
-        if (!existing.empty) {
-            alert("⚠️ هذا الباركود مسجل مسبقاً لمنتج آخر!");
-            return;
+        if (id) {
+            await db.collection("products").doc(id).update(data);
+            alert("تم تحديث بيانات المنتج!");
+        } else {
+            await db.collection("products").add(data);
+            alert("تمت إضافة المنتج الجديد!");
         }
 
-        // إضافة المنتج الجديد
-        await db.collection("products").add({
-            barcode: barcode,
-            name: name,
-            price: price,
-            stock: stock,
-            // --- حفظ سعر الشراء في قاعدة البيانات ---
-            purchasePrice: purchasePrice,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        if (typeof printProductLabel === "function") {
+            printProductLabel({ name, price, barcode });
+        } else if (typeof printBarcode === "function") {
+            printBarcode(barcode, name, price);
+        }
 
-        alert("تم حفظ المنتج بنجاح في مبيعات Stop & Shop ✅");
-        
-        // تفريغ الخانات للإدخال التالي
-        document.getElementById('add-product-barcode').value = "";
-        document.getElementById('add-product-name').value = "";
-        document.getElementById('add-product-price').value = "0"; // تعديل للقيمة 0
-        document.getElementById('add-product-stock').value = "";
-        
-        // --- تفريغ الخانات الجديدة وتصفير نسبة الربح ---
-        document.getElementById('purchase-price').value = "0";
-        if(document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = "0";
-        if(document.getElementById('profit-margin')) document.getElementById('profit-margin').value = "0%";
+        if (typeof resetForm === "function") resetForm();
 
-        // إعادة التركيز (Focus) على خانة الباركود للمنتج التالي
-        document.getElementById('add-product-barcode').focus();
-
-    } catch (error) {
-        alert("حدث خطأ أثناء الحفظ: " + error.message);
+        const modal = document.querySelector('.modal') || document.getElementById('edit-modal') || document.getElementById('product-modal') || document.querySelector('[style*="display: block"]');
+        if (modal && modal.style) {
+            modal.style.display = 'none';
+        } else {
+            if (typeof closeModal === "function") closeModal();
+        }
+    } catch (e) {
+        console.error("Firebase Error:", e);
+        alert("خطأ تقني: " + e.message);
     }
 }
 // دالة التحويل من دولار إلى ليرة (عند الكتابة في خانة الدولار)
@@ -2539,5 +2586,6 @@ function openFinancePage() {
         alert("خطأ!");
     }
 }
+
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

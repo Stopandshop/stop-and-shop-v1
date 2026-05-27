@@ -361,10 +361,166 @@
     color: #e74c3c !important; /* لون أحمر للنفاد التام */
     text-decoration: line-through;
 }
+/* تحديد ارتفاع أقصى لجدول المنتجات داخل الفاتورة ليظهر له سكرول خاص به */
+.invoice-items-container, #cart-table-container {
+    max-height: 220px; /* يمكنك تعديل هذا الارتفاع ليناسب شاشتك */
+    overflow-y: auto;
+    border-bottom: 2px solid #e2e8f0;
+}
 
+/* تخصيص شكل السكرول ليكون ناعماً ولا يأخذ مساحة */
+.invoice-items-container::-webkit-scrollbar, 
+#cart-table-container::-webkit-scrollbar {
+    width: 6px;
+}
+.invoice-items-container::-webkit-scrollbar-thumb, 
+#cart-table-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 10px;
+}
+
+/* تعديل حجم حاسبة الباقي لتكون مدمجة ومضغوطة جداً فلا تأخذ مساحة عمودية */
+.change-calc-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-top: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    border-top: 3px solid #2ecc71;
+    font-family: 'Cairo', sans-serif;
+}
+
+.calc-header {
+    background: #f8fafc;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.calc-body-compact {
+    padding: 6px;
+}
+
+.calc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.input-row label {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.input-row input {
+    width: 45%;
+    padding: 3px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    text-align: center;
+}
+
+.result-row {
+    background: #f8fafc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+.result-row .val {
+    font-weight: 900;
+    font-size: 0.95rem;
+}
+#change-due-usd { color: #2ecc71; }
+#change-due-lbp { color: #e74c3c; }
 /* استخدم نفس الـ Modal CSS الذي استعملناه في صفحة المسؤول سابقاً */
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* تحسين المظهر تلقائياً عند فتح الصفحة من الهاتف */
+/* --- إعدادات ستايل خاصة بالشاشات الصغيرة والهواتف --- */
+@media (max-width: 768px) {
+    
+    /* 1. الحاوية الرئيسية الكبرى لصفحة الكاشير */
+    /* إذا كانت الحاوية تستخدم flex-direction: row سنقوم بتحويلها إلى column ليصبح الترتيب عمودياً */
+    body, .main-container, .cashier-wrapper, style + div {
+        flex-direction: column !important;
+        display: flex !important;
+        padding: 5px !important;
+        gap: 15px !important;
+    }
+
+    /* 2. لوحة الحسابات والبيانات (billing-panel) */
+    .billing-panel {
+        width: 100% !important;        /* جعلها تأخذ كامل عرض شاشة الهاتف */
+        max-width: 100% !important;
+        min-width: 100% !important;
+        max-height: none !important;    /* إلغاء الارتفاع الثابت لتتمدد بحرية لأسفل */
+        overflow-y: visible !important; /* إلغاء السكرول الداخلي المعقد على الهاتف */
+        box-sizing: border-box !important;
+        padding: 12px !important;       /* تقليل الحشو الداخلي لتوفير المساحة */
+    }
+
+    /* 3. لوحة الأزرار الجانبية (الأزرار الزرقاء والخضراء مثل حفظ وتجميد الفاتورة) */
+    /* بدلاً من ظهورها كعمود جانبي، ستظهر كشبكة متناسقة أسفل أو أعلى الفاتورة */
+    .actions-panel, .buttons-sidebar, .invoice-actions {
+        width: 100% !important;
+        min-width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important; /* تقسيم الأزرار لعمودين متساويين لسهولة الضغط */
+        gap: 8px !important;
+        padding: 10px 0 !important;
+    }
+
+    /* تحسين شكل الأزرار داخل الهاتف لتكون مريحة للمس باليد */
+    .actions-panel button, .buttons-sidebar a, .invoice-actions button {
+        width: 100% !important;
+        padding: 12px 8px !important;
+        font-size: 0.9rem !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: row !important; /* جعل الأيقونة بجانب النص بدلاً من فوقه لتوفير مساحة عمودية */
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 5px !important;
+    }
+
+    /* 4. قسم المجموع والخصومات واللوجو */
+    .brand-section {
+        padding: 10px 0 !important;
+    }
+    .brand-section img {
+        max-height: 50px !important; /* تصغير اللوجو قليلاً على الهاتف */
+    }
+
+    .total-banner {
+        padding: 15px !important;
+    }
+    .total-banner #total-lbp {
+        font-size: 1.8rem !important; /* تصغير خط الرقم الكبير لليرة ليناسب الشاشة */
+    }
+
+    /* 5. حاسبة الباقي التلقائية على الهاتف */
+    .change-calc-box {
+        margin-top: 12px !important;
+    }
+    .input-row {
+        flex-direction: row !important; /* الحفاظ على التسمية بجانب صندوق الإدخال */
+        justify-content: space-between !important;
+    }
+    .input-row input {
+        width: 45% !important; /* إعطاء مساحة مريحة للكتابة */
+        font-size: 1rem !important;
+        padding: 6px !important;
+    }
+}
     </style>
 </head>
 <body>
@@ -455,11 +611,11 @@
     </div>
 </div>
 
-<div class="billing-panel">
+<div class="billing-panel" style="max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
     <div class="brand-section">
         <img src="logo.jpg" alt="Stop & Shop">
         <h2 style="margin: 0; letter-spacing: 1px;">STOP & SHOP</h2>
-        <p style="font-size: 0.8rem; opacity: 0.7; margin: 5px 0 0;">نظام الإدارة المتكامل</p>
+        
     </div>
 
     <div style="padding: 25px; flex: 1;">
@@ -483,10 +639,146 @@
             <div id="total-lbp" style="font-size: 2.2rem; font-weight: 900;">0 L.L</div>
             <div id="final-usd-text" style="font-size: 1rem; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px;">صافي: 0.00 $</div>
         </div>
+        
+        <div class="change-calc-box">
+            <div class="calc-header">
+                <i class="fas fa-calculator"></i>
+                <span>حاسبة الباقي التلقائية</span>
+            </div>
+            
+            <div class="calc-body-scroll">
+                <div class="calc-row input-row">
+                    <label>المستلم من الزبون ($):</label>
+                    <input type="number" id="cash-received-usd" placeholder="0.00" step="0.01" oninput="calculateChangeUSD()">
+                </div>
 
-        <div style="text-align: center; font-size: 0.8rem; color: #999; margin-top: 20px;">
-            <i class="fas fa-calendar-alt"></i> تاريخ العملية: <span id="current-time"></span>
+                <div class="calc-row result-row usd-highlight">
+                    <span class="lbl">المتبقي بالدولار:</span>
+                    <span id="change-due-usd" class="val">$0.00</span>
+                </div>
+
+                <div class="calc-row result-row lbp-highlight">
+                    <span class="lbl">المتبقي باللبناني:</span>
+                    <span id="change-due-lbp" class="val">0 ل.ل</span>
+                </div>
+                
+                <p class="calc-note">💡 يتم التقريب تلقائياً لأقرب 500 ليرة.</p>
+            </div>
         </div>
+    </div>
+</div>
+
+<style>
+/* تخصيص وتفعيل شريط التمرير للوحة الكبرى بالكامل وتأمين مظهر ناعم */
+.billing-panel::-webkit-scrollbar {
+    width: 6px;
+}
+.billing-panel::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+.billing-panel::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+.billing-panel::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* الحاوية الرئيسية للحاسبة */
+.change-calc-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-top: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+    border-top: 3px solid #2ecc71;
+    font-family: 'Cairo', sans-serif;
+    overflow: hidden;
+}
+
+/* الهيدر الثابت */
+.calc-header {
+    background: #f8fafc;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.calc-header i {
+    color: #2ecc71;
+}
+
+/* تم تعديلها لتصبح مرنة وتتبع السكرول الرئيسي للـ div الكبير دون تضارب */
+.calc-body-scroll {
+    max-height: none; 
+    overflow-y: visible;
+    padding: 10px;
+}
+
+/* تنسيق الأسطر بالداخل */
+.calc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.input-row label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 600;
+}
+.input-row input {
+    width: 50%;
+    padding: 5px 8px;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: center;
+    color: #1e293b;
+}
+.input-row input:focus {
+    border-color: #2ecc71;
+    outline: none;
+}
+
+/* تنسيق خانات النتائج */
+.result-row {
+    background: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border-right: 4px solid #cbd5e1;
+    width: 100%; /* ضمان التمدد الصحيح بالداخل */
+    box-sizing: border-box;
+}
+.usd-highlight { border-right-color: #2ecc71; }
+.lbp-highlight { border-right-color: #e74c3c; }
+
+.result-row .lbl {
+    font-size: 0.8rem;
+    color: #475569;
+}
+.result-row .val {
+    font-size: 1rem;
+    font-weight: 900;
+}
+#change-due-usd { color: #2ecc71; }
+#change-due-lbp { color: #e74c3c; }
+
+.calc-note {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-align: center;
+    margin: 4px 0 0 0;
+}
+</style>
+        
     </div>
 </div>
 <div id="reviewInvoicesModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 15px;">
@@ -1611,6 +1903,68 @@ async function searchInvoicesByDate() {
     } catch (error) {
         console.error("خطأ أثناء البحث بالتاريخ:", error);
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--primary); font-weight:bold;">❌ حدث خطأ أثناء جلب الفواتير: ${error.message}<br><small>تأكد من وجود الـ Composite Index في الـ Firestore إن تطلب الأمر.</small></td></tr>`;
+    }
+}
+function calculateChangeUSD() {
+    // 1. جلب العنصر الذي يحتوي على المجموع الصافي بالدولار
+    const finalUsdTextElem = document.getElementById('final-usd-text');
+    if (!finalUsdTextElem) return;
+    
+    // 2. استخراج الرقم الصافي فقط من الجملة (حذف النصوص والرموز)
+    const rawText = finalUsdTextElem.innerText;
+    const match = rawText.match(/[\d.]+/); 
+    const invoiceTotalUSD = match ? parseFloat(match[0]) : 0;
+    
+    // 3. جلب المبلغ الذي أدخلته في خانة المستلم من الزبون
+    const cashInput = document.getElementById('cash-received-usd');
+    const cashReceivedUSD = parseFloat(cashInput.value) || 0;
+    
+    // جلب عناصر العرض والعناوين من الواجهة
+    const changeUsdElem = document.getElementById('change-due-usd');
+    const changeLbpElem = document.getElementById('change-due-lbp');
+    
+    const usdLabel = changeUsdElem.previousElementSibling;
+    const lbpLabel = changeLbpElem.previousElementSibling;
+    
+    // الحصول على سعر الصرف الحالي من نظامك
+    const currentRate = typeof exchangeRate !== 'undefined' ? exchangeRate : 90000;
+
+    // حالة صفرية: إذا لم يتم كتابة أي رقم في الخانة
+    if (cashInput.value.trim() === "") {
+        if(usdLabel) usdLabel.innerText = "المتبقي بالدولار:";
+        if(lbpLabel) lbpLabel.innerText = "المتبقي باللبناني:";
+        changeUsdElem.style.color = "#2ecc71";
+        changeLbpElem.style.color = "#e74c3c";
+        changeUsdElem.innerText = "$0.00";
+        changeLbpElem.innerText = "0 ل.ل";
+        return;
+    }
+
+    // 4. الحساب البرمجي الذكي
+    if (cashReceivedUSD >= invoiceTotalUSD) {
+        // الحالة الأولى: الزبون دفع مبلغاً أكبر أو مساوياً (حساب الباقي المستحق له)
+        const remainingUSD = cashReceivedUSD - invoiceTotalUSD;
+        const remainingLBP = Math.round((remainingUSD * currentRate) / 500) * 500;
+        
+        if(usdLabel) usdLabel.innerText = "المتبقي بالدولار:";
+        if(lbpLabel) lbpLabel.innerText = "المتبقي باللبناني:";
+        changeUsdElem.style.color = "#2ecc71";
+        changeLbpElem.style.color = "#e74c3c";
+        
+        changeUsdElem.innerText = `$${remainingUSD.toFixed(2)}`;
+        changeLbpElem.innerText = `${remainingLBP.toLocaleString('ar-LB')} ل.ل`;
+    } else {
+        // الحالة الثانية: الزبون دفع مبلغاً أقل (حساب النقص المطلوب تحصيله منه)
+        const deficitUSD = invoiceTotalUSD - cashReceivedUSD;
+        const deficitLBP = Math.round((deficitUSD * currentRate) / 500) * 500;
+        
+        if(usdLabel) usdLabel.innerText = "المطلوب تحصيله ($):";
+        if(lbpLabel) lbpLabel.innerText = "المطلوب تحصيله (ل.ل):";
+        changeUsdElem.style.color = "#e67e22"; /* لون برتقالي للتنبيه بالنقص */
+        changeLbpElem.style.color = "#e67e22";
+        
+        changeUsdElem.innerText = `$${deficitUSD.toFixed(2)}`;
+        changeLbpElem.innerText = `${deficitLBP.toLocaleString('ar-LB')} ل.ل`;
     }
 }
 window.addEventListener('load', () => {

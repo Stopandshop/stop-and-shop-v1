@@ -911,7 +911,9 @@ let products = [];
     const p = products.find(i => String(i.barcode) === String(query) || i.name === query);
     
     if (p) {
-        const exist = cart.find(c => c.id === p.id);
+        // التعديل الذكي: نطابق داخل السلة باستخدام الـ id أو الـ barcode لضمان عمل المنتجات المستوردة من الملف
+        const exist = cart.find(c => c.id === p.id || (c.barcode && p.barcode && String(c.barcode) === String(p.barcode)));
+        
         if (exist) {
             // تصحيح: منع تخطي الكمية المتاحة عند ضرب الباركود مجدداً للمنتج الموجود مسبقاً
             if (p.stock !== undefined && exist.qty >= p.stock) {
@@ -919,16 +921,16 @@ let products = [];
                 document.getElementById('barcode-input').value = '';
                 return;
             }
-            if (exist.qty < p.stock) {
+            if (p.stock === undefined || exist.qty < p.stock) {
                 exist.qty++;
                 // تنبيه بسيط في الخلفية عند اقتراب نفاذ المخزون
-                if (p.stock - exist.qty <= 3) console.warn(`تنبيه: مخزون ${p.name} منخفض جداً!`);
+                if (p.stock !== undefined && p.stock - exist.qty <= 3) console.warn(`تنبيه: مخزون ${p.name} منخفض جداً!`);
             }
             else alert("لا يوجد كمية كافية!");
         } else {
-            if (p.stock > 0) {
+            if (p.stock === undefined || p.stock > 0) {
                 cart.push({ ...p, qty: 1 });
-                if (p.stock - 1 <= 3) console.warn(`تنبيه: مخزون ${p.name} منخفض جداً!`);
+                if (p.stock !== undefined && p.stock - 1 <= 3) console.warn(`تنبيه: مخزون ${p.name} منخفض جداً!`);
             }
             else alert("نفذ المخزون!");
         }
@@ -1068,7 +1070,10 @@ function renderCart() {
 
             // تحديث المخزون
             cart.forEach(item => {
-                const ref = db.collection("products").doc(item.id);
+                // التعديل الذكي لحل المشكلة نهائياً: تحديد معرف المستند الصحيح (الباركود للمرفوع من الملف، أو الـ ID العادي)
+                const targetDocId = item.barcode ? item.barcode : item.id;
+                const ref = db.collection("products").doc(targetDocId);
+                
                 batch.update(ref, { stock: firebase.firestore.FieldValue.increment(-item.qty) });
             });
 
@@ -1106,7 +1111,6 @@ function renderCart() {
     updateUI(); 
     if(!localStorage.getItem('emp_name')) loginSystem(); 
 };
-
     let barcodeTimeout; // مؤقت لمنع الإضافة الفورية قبل اكتمال الرقم
 
 document.getElementById('barcode-input').addEventListener('input', (e) => {
@@ -1122,6 +1126,7 @@ document.getElementById('barcode-input').addEventListener('input', (e) => {
         const match = products.find(p => String(p.barcode) === val || p.name === val);
         
         if (match) {
+            // نمرر الباركود أو الاسم المكتوب مباشرة لتقوم الدالة بمعالجته بشكل صحيح
             addProduct(val); 
             e.target.value = ''; // مسح الخانة بعد الإضافة التلقائية
         }

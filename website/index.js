@@ -108,13 +108,48 @@ function displayProducts(productsList) {
     if (!container) return;
     container.innerHTML = ""; 
 
-    productsList.forEach(product => {
+    // 🔥 التعديل القاتل والمضمون: فرز المصفوفة في بداية الدالة مباشرة لضمان ظهورها في الأول حتى عند البحث والتصفية!
+    const sortedProducts = [...productsList].sort((a, b) => {
+        // فحص وجود حقل باركود للمنتج المرفوع من الملف
+        const aIsImported = a.barcode ? 1 : 0;
+        const bIsImported = b.barcode ? 1 : 0;
+        
+        // إذا كان أحدهما مرفوعاً من ملف والآخر يدوياً، يظهر المرفوع من الملف أولاً بالصدارة
+        if (bIsImported !== aIsImported) {
+            return bIsImported - aIsImported;
+        }
+        
+        // إذا تساويا (كلاهما من ملف أو كلاهما يدوي)، نرتب تلقائياً حسب الوقت الأحدث لضمان التنظيم
+        const aTime = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : (typeof a.createdAt === 'number' ? a.createdAt : 0)) : 0;
+        const bTime = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : (typeof b.createdAt === 'number' ? b.createdAt : 0)) : 0;
+        return bTime - aTime;
+    });
+
+    // القراءة والتحرك الآن يتم من المصفوفة المرتبة والمفرزة بالكامل sortedProducts
+    sortedProducts.forEach(product => {
         const priceLBP = (parseFloat(product.price) || 0) * exchangeRate;
         
-        // --- منطق الملصقات والمخزن ---
+        // --- منطق الملصقات والمخزن الآمن ---
         const now = Date.now();
         const threeDays = 3 * 24 * 60 * 60 * 1000;
-        const isNew = product.createdAt && (now - product.createdAt) < threeDays;
+        
+        // معالجة ذكية جداً لتاريخ createdAt ليدعم جميع صيغ Firebase دون حدوث NaN أو تعليق
+        let productTime = null;
+        if (product.createdAt) {
+            if (product.createdAt.seconds) {
+                productTime = product.createdAt.seconds * 1000; // صيغة Firestore Timestamp
+            } else if (typeof product.createdAt === 'number' || product.createdAt instanceof Date) {
+                productTime = new Date(product.createdAt).getTime(); // صيغة رقمية أو كائن تاريخ
+            }
+        }
+        
+        // المنتج يعتبر جديد إذا كان تاريخه ضمن آخر 3 أيام، وفي حال لم يتوفر التاريخ بعد نعتبره جديداً طالما أنه مستورد من الملف حديثاً
+        let isNew = false;
+        if (productTime) {
+            isNew = (now - productTime) < threeDays;
+        } else if (product.barcode) {
+            isNew = true; // حماية طوارئ: إذا رفعنا الملف وتأخر السيرفر في توليد الوقت، يظهر كجديد فوراً
+        }
         
         // --- الإضافة الجديدة: فحص هل يوجد عرض (Offer) ---
         const hasOffer = product.oldPrice && parseFloat(product.oldPrice) > parseFloat(product.price);
@@ -130,6 +165,7 @@ function displayProducts(productsList) {
             // إذا كان هناك عرض، تظهر علامة "عرض خاص"
             badgeHTML = `<span class="product-badge" style="background:#e74c3c; color:white;">عرض خاص</span>`;
         } else if (isNew) {
+            // تظهر علامة جديد باللون المعتمد لديك لمدة 3 أيام
             badgeHTML = `<span class="product-badge badge-new">جديد</span>`;
         }
 
@@ -199,6 +235,21 @@ function searchProducts() {
         return name.includes(term) || cat.includes(term) || barcode === term;
     });
 
+    // 🔥 تأمين البحث: فرز النتيجة المفلترة فوراً ليظهر المنتج المستورد من الملف (الذي يملك باركود) بالصدارة أولاً
+    filtered.sort((a, b) => {
+        const aIsImported = a.barcode ? 1 : 0;
+        const bIsImported = b.barcode ? 1 : 0;
+        
+        if (bIsImported !== aIsImported) {
+            return bIsImported - aIsImported; // المرفوع من الملف أولاً
+        }
+        
+        // إذا تساويا في النوع، نرتب حسب الوقت الأحدث
+        const aTime = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : (typeof a.createdAt === 'number' ? a.createdAt : 0)) : 0;
+        const bTime = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : (typeof b.createdAt === 'number' ? b.createdAt : 0)) : 0;
+        return bTime - aTime;
+    });
+
     displayProducts(filtered);
 }
 
@@ -211,13 +262,27 @@ function filterByCategory(category, btn) {
     const cleanCategory = category.trim();
     
     // تعديل السطر ليكون أكثر مرونة في البحث
-    const filtered = (cleanCategory === 'الكل') 
+    let filtered = (cleanCategory === 'الكل') 
         ? products 
         : products.filter(p => p.category && p.category.toString().includes(cleanCategory));
         
+    // 🔥 تأمين الأقسام: فرز النتيجة المفلترة فوراً ليقشر المنتج المستورد من الملف إلى المقدمة داخل القسم المحدد
+    filtered.sort((a, b) => {
+        const aIsImported = a.barcode ? 1 : 0;
+        const bIsImported = b.barcode ? 1 : 0;
+        
+        if (bIsImported !== aIsImported) {
+            return bIsImported - aIsImported; // المرفوع من الملف أولاً
+        }
+        
+        // إذا تساويا في النوع، نرتب حسب الوقت الأحدث
+        const aTime = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : (typeof a.createdAt === 'number' ? a.createdAt : 0)) : 0;
+        const bTime = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : (typeof b.createdAt === 'number' ? b.createdAt : 0)) : 0;
+        return bTime - aTime;
+    });
+
     displayProducts(filtered);
 }
-
 /// 6. نظام السلة
 async function addToCart(productId) {
     // --- إضافة السطر التالي لجلب الكمية المختارة من الواجهة ---
@@ -225,11 +290,14 @@ async function addToCart(productId) {
     const chosenQuantity = qtyInput ? parseInt(qtyInput.value) : 1;
 
     // --- [تعديل ذكي للباركود]: البحث عن المنتج سواء أرسلنا ID أو باركود ---
-    let product = products.find(p => p.id === productId || p.barcode === productId);
+    let product = products.find(p => String(p.id) === String(productId) || String(p.barcode) === String(productId));
     
     if (product) {
         // تحديث الـ productId الحقيقي في حال تم العثور عليه عن طريق الباركود لضمان عمل العمليات التالية
         const realProductId = product.id;
+
+        // الحل الجذري والأكيد: نحدد الاسم الفعلي للمستند في السيرفر ليتوافق تماماً مع آلية الحذف والتعديل
+        const targetDocId = product.barcode ? product.barcode : realProductId;
 
         // 1. البحث عن المنتج في القائمة الكبيرة (موجود مسبقاً في السطر أعلاه)
         
@@ -243,16 +311,17 @@ async function addToCart(productId) {
             // 2. التأكد من أن السلة مصفوفة
             if (!Array.isArray(cart)) cart = [];
 
-            // 3. البحث إذا كان المنتج موجوداً مسبقاً في السلة
-            const existingItem = cart.find(item => item.id === realProductId);
+            // 3. البحث إذا كان المنتج موجوداً مسبقاً في السلة (نطابق بالـ id أو بالـ barcode لضمان عدم التكرار)
+            const existingItem = cart.find(item => String(item.id) === String(realProductId) || (item.barcode && product.barcode && String(item.barcode) === String(product.barcode)));
 
             if (existingItem) {
                 // --- تعديل السطر التالي ليضيف الكمية المختارة بدلاً من 1 فقط ---
-                existingItem.quantity += chosenQuantity; 
+                if (existingItem.quantity !== undefined) existingItem.quantity += chosenQuantity; 
+                if (existingItem.qty !== undefined) existingItem.qty += chosenQuantity;
+                if (existingItem.quantity === undefined) existingItem.quantity = (existingItem.qty || 1) + chosenQuantity;
             } else {
-                // إضافة المنتج لأول مرة مع خاصية الكمية
-                // --- تعديل السطر التالي ليأخذ الكمية المختارة ---
-                cart.push({ ...product, quantity: chosenQuantity });
+                // إضافة المنتج لأول مرة مع خاصية الكمية بالاسمين (quantity و qty) معاً لمنع تعليق كبسة الـ X والعدادات
+                cart.push({ ...product, quantity: chosenQuantity, qty: chosenQuantity });
             }
 
             // 4. تحديث الواجهة والبيانات
@@ -274,7 +343,8 @@ async function addToCart(productId) {
             // --- تحديث المخزن في Firebase عند الإضافة الناجحة ---
             try {
                 const newStock = product.stock - chosenQuantity;
-                await db.collection("products").doc(realProductId).update({
+                // تم تعديل المستند هنا ليستخدم targetDocId المضمون والذكي
+                await db.collection("products").doc(targetDocId).update({
                     stock: newStock,
                     isOutOfStock: newStock <= 0
                 });
@@ -322,8 +392,11 @@ function renderCartItems() {
     // -----------------------------------------------------------------------
 
     cart.forEach((item, index) => {
+        // توحيد قراءة حقل الكمية الذكي ليدعم التسميتين (quantity أو qty) لمنع تضارب المنتجات المرفوعة
+        const currentQty = item.quantity || item.qty || 1;
+
         // حساب إجمالي السعر بناءً على الكمية المختارة
-        const itemTotal = item.price * (item.quantity || 1); 
+        const itemTotal = item.price * currentQty; 
         totalUsd += itemTotal;
 
         list.innerHTML += `
@@ -331,13 +404,13 @@ function renderCartItems() {
                 <div style="flex: 2;">
                     <span style="font-weight: bold;">${item.name}</span>
                     <div style="font-size: 0.8rem; color: #666;">
-                        $${item.price.toFixed(2)} × ${item.quantity || 1}
+                        $${item.price.toFixed(2)} × ${currentQty}
                     </div>
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 5px; margin: 0 10px;">
                     <button onclick="changeQuantity(${index}, 1)" style="width:25px; height:25px; border-radius:50%; border:1px solid #ddd; background:white; cursor:pointer;">+</button>
-                    <span style="min-width: 20px; text-align: center; font-weight: bold;">${item.quantity || 1}</span>
+                    <span style="min-width: 20px; text-align: center; font-weight: bold;">${currentQty}</span>
                     <button onclick="changeQuantity(${index}, -1)" style="width:25px; height:25px; border-radius:50%; border:1px solid #ddd; background:white; cursor:pointer;">-</button>
                 </div>
 
@@ -361,8 +434,15 @@ function renderCartItems() {
 
 // أضف هذه الدالة تحت دالة renderCartItems لكي تعمل الأزرار
 function changeQuantity(index, delta) {
-    if (cart[index].quantity + delta > 0) {
-        cart[index].quantity += delta;
+    // التحقق الذكي من الكمية لدعم التسميتين (quantity أو qty) لضمان التوافق التام
+    const currentQty = cart[index].quantity !== undefined ? cart[index].quantity : (cart[index].qty || 1);
+
+    if (currentQty + delta > 0) {
+        if (cart[index].quantity !== undefined) cart[index].quantity += delta;
+        if (cart[index].qty !== undefined) cart[index].qty += delta;
+        
+        // تأكيد تحديث التسميتين معاً لضمان عدم حدوث تضارب في أي مكان آخر
+        if (cart[index].quantity === undefined) cart[index].quantity = currentQty + delta;
     } else {
         // إذا نقصت الكمية عن 1 يتم حذف المنتج
         removeFromCart(index);
@@ -373,6 +453,7 @@ function changeQuantity(index, delta) {
     renderCartItems();
     if (typeof updateCartCount === "function") updateCartCount();
 }
+
 async function removeFromCart(index) {
     // 1. الحصول على بيانات المنتج المراد حذفه من السلة
     const itemToRemove = cart[index];
@@ -381,16 +462,22 @@ async function removeFromCart(index) {
         try {
             const db = firebase.firestore();
             
+            // قراءة كمية الحذف بدقة سواء كانت مسجلة بـ quantity أو qty لمنع الـ NaN
+            const qtyToRemove = itemToRemove.quantity !== undefined ? itemToRemove.quantity : (itemToRemove.qty || 1);
+
+            // الحل الذكي: تحديد المعرف الفعلي الصحيح للمستند في الفايربيس (الباركود للمرفوع من الملف، أو الـ ID العادي)
+            const targetDocId = itemToRemove.barcode ? itemToRemove.barcode : itemToRemove.id;
+            
             // 2. تحديث المخزن في Firebase (الزيادة الحقيقية في السيرفر)
             // بما أنك تستخدم onSnapshot، فإن Firebase سيرسل التحديث الجديد للمصفوفة تلقائياً
-            await db.collection("products").doc(itemToRemove.id).update({
-                stock: firebase.firestore.FieldValue.increment(itemToRemove.quantity),
+            await db.collection("products").doc(targetDocId).update({
+                stock: firebase.firestore.FieldValue.increment(qtyToRemove),
                 isOutOfStock: false
             });
 
             // 3. تحديث مصفوفة المنتجات المحلية (products)
             // ملاحظة: قمنا بتعطيل العملية الحسابية هنا لأن onSnapshot سيقوم بجلب القيمة الصحيحة فوراً من Firebase
-            const localProduct = products.find(p => p.id === itemToRemove.id);
+            const localProduct = products.find(p => String(p.id) === String(itemToRemove.id) || (p.barcode && itemToRemove.barcode && String(p.barcode) === String(itemToRemove.barcode)));
             if (localProduct) {
                 // نترك القيمة ليتم تحديثها عبر onSnapshot لضمان عدم التكرار (4 بدلاً من 2)
                 localProduct.isOutOfStock = false;
@@ -407,12 +494,23 @@ async function removeFromCart(index) {
             
             // 6. تحديث عرض المنتجات (UI) ليعكس الكمية الصحيحة
             // في حالة onSnapshot، الواجهة ستتحدث تلقائياً، ولكن استدعاءها هنا يضمن السلاسة
-            displayProducts(products); 
+            if (typeof displayProducts === "function") {
+                displayProducts(products); 
+            } else if (typeof renderProducts === "function") {
+                renderProducts(products);
+            }
 
-            console.log("تمت إعادة الكمية بدقة: تم استرجاع " + itemToRemove.quantity);
+            console.log("تمت إعادة الكمية بدقة: تم استرجاع " + qtyToRemove);
 
         } catch (error) {
             console.error("خطأ أثناء الحذف:", error);
+            
+            // حل احتياطي طوارئ: إذا فشل تحديث السيرفر لأي سبب، نقوم بحذف العنصر محلياً من السلة لتستمر الواجهة بالعمل دون تعليق الكاشير
+            cart.splice(index, 1);
+            saveCartToStorage();
+            updateCartCount();
+            renderCartItems();
+            updateRewardProgress();
         }
     }
 }
@@ -803,6 +901,9 @@ async function saveProduct() {
     // --- سطر إضافي لضمان تحديث النسبة في الواجهة عند الحفظ ---
     if (typeof calculateProfit === "function") calculateProfit();
 
+    // نحدد الـ ID الفعلي المستهدف؛ إن قمت بتغيير الباركود يدوياً أثناء التعديل نعتمد الباركود الجديد كمستند، وإلا نستخدم المعرف القديم المحفوظ
+    const targetDocId = barcode ? barcode : (id ? id : `product_${Date.now()}`);
+
     const data = { 
         name, 
         price, 
@@ -817,17 +918,20 @@ async function saveProduct() {
         lastUpdated: Date.now() 
     };
 
-    // إضافة تاريخ الإنشاء فقط عند الإضافة لأول مرة
+    // إضافة تاريخ الإنشاء فقط عند الإضافة لأول مرة (أي في حال عدم وجود id سابق)
     if (!id) {
         data.createdAt = Date.now();
+        // لكي نضيف حقل id العادي داخل بيانات المستند ليطابق صيغة ملف الـ CSV
+        data.id = targetDocId.replace('product_', '');
     }
 
     try {
+        // تم استبدال أمر .update بأمر .set المتكامل مع خاصية الدمج { merge: true } ليعمل على المنتجات المرفوعة من ملف يدوياً فوراً
+        await db.collection("products").doc(targetDocId).set(data, { merge: true });
+        
         if (id) {
-            await db.collection("products").doc(id).update(data);
             alert("تم تحديث بيانات المنتج بنجاح! ✅");
         } else {
-            await db.collection("products").add(data);
             alert("تمت إضافة المنتج الجديد بنجاح! ✨");
         }
 
@@ -947,7 +1051,10 @@ function requestNotificationPermission() {
 function editProduct(id) {
     const product = products.find(p => p.id === id);
     if (!product) return;
-    document.getElementById('edit-product-id').value = product.id;
+    
+    // الحل الأكيد: تخزين معرف المستند الحقيقي (سواء كان باركود أو ID عادي) لضمان عدم ضياعه عند الحفظ
+    document.getElementById('edit-product-id').value = product.barcode ? product.barcode : product.id;
+    
     document.getElementById('new-name').value = product.name;
     document.getElementById('new-price').value = product.price;
     document.getElementById('new-category').value = product.category;
@@ -1829,31 +1936,33 @@ function updateOffersBanner(productsList) {
     const offerProducts = productsList.filter(p => p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price) && !p.isOutOfStock);
 
     if (offerProducts.length > 0) {
-        bannerSection.style.display = 'block';
-        slider.innerHTML = '';
-
-        offerProducts.forEach(product => {
-            const discount = Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100);
-            
-            slider.innerHTML += `
-                <div class="banner-item">
-                    <img src="${product.image}">
-                    <div style="flex-grow: 1; text-align: right;">
-                        <span class="banner-discount-badge">خصم ${discount}%</span>
-                        <h4 style="margin: 5px 0; font-size: 0.9rem;">${product.name}</h4>
-                        <div style="display: flex; gap: 8px; align-items: baseline;">
-                            <span style="color: #27ae60; font-weight: bold; font-size: 1.1rem;">$${product.price}</span>
-                            <span style="text-decoration: line-through; color: #888; font-size: 0.8rem;">$${product.oldPrice}</span>
+        if(bannerSection) bannerSection.style.display = 'block';
+        if(slider) {
+            slider.innerHTML = '';
+            offerProducts.forEach(product => {
+                const discount = Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100);
+                
+                slider.innerHTML += `
+                    <div class="banner-item">
+                        <img src="${product.image}">
+                        <div style="flex-grow: 1; text-align: right;">
+                            <span class="banner-discount-badge">خصم ${discount}%</span>
+                            <h4 style="margin: 5px 0; font-size: 0.9rem;">${product.name}</h4>
+                            <div style="display: flex; gap: 8px; align-items: baseline;">
+                                <span style="color: #27ae60; font-weight: bold; font-size: 1.1rem;">$${product.price}</span>
+                                <span style="text-decoration: line-through; color: #888; font-size: 0.8rem;">$${product.oldPrice}</span>
+                            </div>
+                            <button onclick="addToCart('${product.id}')" style="background:#27ae60; color:white; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; width:100%; margin-top:5px;">أضف للعرض</button>
                         </div>
-                        <button onclick="addToCart('${product.id}')" style="background:#27ae60; color:white; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; width:100%; margin-top:5px;">أضف للعرض</button>
                     </div>
-                </div>
-            `;
-        });
+                `;
+            });
+        }
     } else {
-        bannerSection.style.display = 'none';
+        if(bannerSection) bannerSection.style.display = 'none';
     }
 }
+
 function updateShopStatus() {
     const statusText = document.getElementById('shop-status-text');
     const body = document.body; // للتحكم في خلفية الموقع
@@ -1869,7 +1978,6 @@ function updateShopStatus() {
 
     if (hour >= openingHour && hour < closingHour) {
         // --- حالة المتجر: مفتوح ---
-        // تحسين: إضافة عد تنازلي بسيط إذا اقترب موعد الإغلاق (أقل من ساعة)
         if (hour === closingHour - 1) {
             statusText.innerText = `مفتوح (يغلق خلال ${60 - minutes} دقيقة) ⏳`;
             statusText.style.color = "#f39c12"; // لون برتقالي للتنبيه
@@ -1884,34 +1992,29 @@ function updateShopStatus() {
         
     } else {
         // --- حالة المتجر: مغلق ---
-        // تحسين: إخبار الزبون متى سيفتح المتجر
         let waitHours = (hour < openingHour) ? (openingHour - hour) : (24 - hour + openingHour);
         statusText.innerText = `مغلق الآن ❌ (يفتح بعد ${waitHours} ساعة)`;
         
         statusText.style.color = "#e74c3c"; // أحمر واضح
         
-        // تطبيق "الوضع الليلي" أو التعتيم البصري
-        // هذا يعطي إيحاء للزبون أن المتجر في حالة راحة
         body.style.transition = "all 0.5s ease"; // انتقال ناعم للألوان
         body.style.backgroundColor = "#f4f4f4"; // خلفية رمادية فاتحة
-        
-        // اختياري: إضافة فئة CSS إذا كنت تريد تحكم أكبر بالألوان
-        // body.classList.add('shop-closed-mode');
     }
 }
 
 // تشغيل الدالة عند تحميل الصفحة
 window.addEventListener('DOMContentLoaded', updateShopStatus);
 
-// تحديث الحالة كل دقيقة للتأكد من دقة الوقت إذا ترك الزبون الصفحة مفتوحة
+// تحديث الحالة كل دقيقة
 setInterval(updateShopStatus, 60000);
+
 function repeatLastOrder() {
     const lastOrder = localStorage.getItem('last_order');
     if (lastOrder) {
         cart = JSON.parse(lastOrder);
-        updateCartCount();
-        renderCartItems();
-        updateRewardProgress();
+        if(typeof updateCartCount === "function") updateCartCount();
+        if(typeof renderCartItems === "function") renderCartItems();
+        if(typeof updateRewardProgress === "function") updateRewardProgress();
         alert("تمت إضافة منتجات آخر طلب إلى سلتك!");
     } else {
         alert("لا يوجد طلبات سابقة مسجلة.");
@@ -1919,25 +2022,25 @@ function repeatLastOrder() {
 }
 
 function closeSuccessModal() {
-    document.getElementById('success-modal').style.display = 'none';
-    location.reload(); // لإعادة تحديث الصفحة وتنظيف الواجهة
+    const modal = document.getElementById('success-modal');
+    if(modal) modal.style.display = 'none';
+    location.reload(); 
 }
+
 async function checkMyPoints() {
     const phoneInput = document.getElementById('check-phone-input');
     const resultDiv = document.getElementById('points-result');
 
-    // التأكد من إدخال رقم
     if (!phoneInput || !phoneInput.value.trim()) {
         alert("يرجى إدخال رقم الهاتف أولاً!");
         return;
     }
 
     const phone = phoneInput.value.trim();
-    resultDiv.style.color = "#2c3e50"; // لون محايد أثناء التحميل
+    resultDiv.style.color = "#2c3e50"; 
     resultDiv.innerText = "جاري الفحص... ⏳";
 
     try {
-        // البحث في مجموعة users (نفس المجموعة التي تستخدمها في دالة التحديث)
         const userRef = db.collection("users").doc(phone);
         const doc = await userRef.get();
 
@@ -1945,73 +2048,76 @@ async function checkMyPoints() {
             const userData = doc.data();
             const totalPoints = userData.points || 0;
             
-            // عرض النتيجة بنجاح
-            resultDiv.style.color = "#27ae60"; // اللون الأخضر
+            resultDiv.style.color = "#27ae60"; 
             resultDiv.innerHTML = `رصيدك الحالي هو: <span style="font-size: 28px;">${totalPoints}</span> نقطة 🏆`;
         } else {
-            // الرقم غير موجود
-            resultDiv.style.color = "#e74c3c"; // اللون الأحمر
+            resultDiv.style.color = "#e74c3c"; 
             resultDiv.innerText = "هذا الرقم غير مسجل في نظام النقاط لدينا.";
         }
+
+        // نقل السطر إلى هنا ليعمل تلقائياً وبأمان فور ظهور النتيجة للزبون
+        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
     } catch (error) {
         console.error("خطأ في جلب النقاط:", error);
         resultDiv.style.color = "#e74c3c";
         resultDiv.innerText = "حدث خطأ أثناء الاتصال. تأكد من الإنترنت.";
     }
 }
+
 function getLocation() {
     const status = document.getElementById('location-status');
     const addressInput = document.getElementById('customer-address');
     const locationUrlInput = document.getElementById('location-url');
 
     if (!navigator.geolocation) {
-        status.innerText = "متصفحك لا يدعم تحديد الموقع.";
+        if(status) status.innerText = "متصفحك لا يدعم تحديد الموقع.";
         return;
     }
 
-    status.innerText = "جاري تحديد موقعك... ⏳";
+    if(status) status.innerText = "جاري تحديد موقعك... ⏳";
 
     navigator.geolocation.getCurrentPosition((position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
         
-        // إنشاء رابط خرائط جوجل
         const mapLink = `https://www.google.com/maps?q=${lat},${lon}`;
-        locationUrlInput.value = mapLink;
+        if(locationUrlInput) locationUrlInput.value = mapLink;
         
-        status.style.color = "#27ae60";
-        status.innerText = "✅ تم تحديد الموقع بنجاح!";
-        addressInput.value = "تم تحديد الموقع عبر الخريطة 📍";
+        if(status) {
+            status.style.color = "#27ae60";
+            status.innerText = "✅ تم تحديد الموقع بنجاح!";
+        }
+        if(addressInput) addressInput.value = "تم تحديد الموقع عبر الخريطة 📍";
     }, (error) => {
-        status.style.color = "#e74c3c";
-        status.innerText = "فشل التحديد: يرجى إعطاء الإذن للموقع.";
+        if(status) {
+            status.style.color = "#e74c3c";
+            status.innerText = "فشل التحديد: يرجى إعطاء الإذن للموقع.";
+        }
     });
 }
-// ابحث عن الجزء المسؤول عن إظهار رسائل الخطأ واستبدله بهذا ليكون أكثر أماناً
+
 function updateStatus(msg, isError) {
     const statusEl = document.getElementById('status-msg');
-    // التحقق أولاً إذا كان العنصر موجوداً قبل محاولة تغيير الـ style
     if (statusEl) {
         statusEl.innerText = msg;
         statusEl.style.display = 'block';
         statusEl.style.color = isError ? 'red' : 'green';
     } else {
-        // إذا لم يجد العنصر، يكتفي بإظهار تنبيه عادي ولا يعطل الكود
         alert(msg);
     }
 }
+
 async function loadTodaySales() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    // --- الجزء المضاف: جلب الموظفين الموجودين حالياً فقط ---
     const staffSnapshot = await db.collection("staff").get();
     const activeStaff = [];
     staffSnapshot.forEach(doc => {
         const sData = doc.data();
         activeStaff.push(sData.name || sData.staff);
     });
-    // --------------------------------------------------
 
     db.collection("sales")
         .where("time", ">=", startOfDay)
@@ -2022,13 +2128,11 @@ async function loadTodaySales() {
 
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // جلب القيمة كرقم مباشرة بعد تحديث finishOrder
                 const saleAmount = parseFloat(data.totalUSD) || 0;
                 const employee = data.employee || "مدير الصالة";
 
                 totalUSD += saleAmount;
 
-                // التعديل: التحقق إذا كان الموظف لا يزال نشطاً قبل إضافته للجدول
                 if (activeStaff.includes(employee)) {
                     if (!staffStats[employee]) {
                         staffStats[employee] = { count: 0, total: 0 };
@@ -2038,33 +2142,35 @@ async function loadTodaySales() {
                 }
             });
 
-            // تحديث العناصر في الواجهة
-            document.getElementById('today-total-usd').innerText = "$ " + totalUSD.toFixed(2);
-            document.getElementById('today-orders-count').innerText = ordersCount;
+            const totalUsdEl = document.getElementById('today-total-usd');
+            const ordersCountEl = document.getElementById('today-orders-count');
+            if(totalUsdEl) totalUsdEl.innerText = "$ " + totalUSD.toFixed(2);
+            if(ordersCountEl) ordersCountEl.innerText = ordersCount;
 
             const tableBody = document.getElementById('staff-performance-body');
-            tableBody.innerHTML = '';
-            
-            for (const [name, stats] of Object.entries(staffStats)) {
-                tableBody.innerHTML += `
-                    <tr>
-                        <td>${name}</td>
-                        <td>${stats.count} فاتورة</td>
-                        <td class="total-cell">${stats.total.toFixed(2)} $</td>
-                        <td style="text-align: center;">
-                            <button onclick="deleteStaffMember('${name}')" 
-                                    style="background: #ff5252; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Segoe UI';">
-                                حذف الموظف
-                            </button>
-                        </td>
-                    </tr>
-                `;
+            if(tableBody) {
+                tableBody.innerHTML = '';
+                for (const [name, stats] of Object.entries(staffStats)) {
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${name}</td>
+                            <td>${stats.count} فاتورة</td>
+                            <td class="total-cell">${stats.total.toFixed(2)} $</td>
+                            <td style="text-align: center;">
+                                <button onclick="deleteStaffMember('${name}')" 
+                                        style="background: #ff5252; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Segoe UI';">
+                                    حذف الموظف
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
             }
         });
 }
 
-// تشغيل الدالة عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', loadTodaySales);
+
 async function deleteStaffMember(staffName) {
     if (confirm(`هل أنت متأكد من حذف الموظف "${staffName}" نهائياً؟`)) {
         try {
@@ -2084,25 +2190,20 @@ async function deleteStaffMember(staffName) {
             await batch.commit();
 
             alert("تم الحذف بنجاح ✅");
-            
-            // السطر الأهم: تحديث الصفحة ليختفي الاسم من الجدول فوراً
             location.reload(); 
 
         } catch (error) {
             alert("حدث خطأ: " + error.message);
         }
     }
-    // بعد نجاح عملية الحذف في Firebase
-await batch.commit();
-alert("تم حذف الموظف بنجاح ✅");
-
-// تحديث الصفحة لإعادة بناء الجدول من البيانات الجديدة
-location.reload();
 }
+
 async function addNewStaff() {
     const nameInput = document.getElementById('new-staff-name');
     const pinInput = document.getElementById('new-staff-pin');
     
+    if(!nameInput || !pinInput) return;
+
     const name = nameInput.value.trim();
     const pin = pinInput.value.trim();
 
@@ -2114,7 +2215,7 @@ async function addNewStaff() {
     try {
         await db.collection("staff").add({
             name: name,
-            pin: pin, // حفظ كلمة المرور
+            pin: pin, 
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -2128,16 +2229,14 @@ async function addNewStaff() {
         alert("خطأ: " + error.message);
     }
 }
+
 async function resetTodaySales() {
     if (confirm("هل أنت متأكد من تصفير مبيعات اليوم؟ لا يمكن التراجع عن هذه الخطوة!")) {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
         try {
-            // جلب مبيعات اليوم فقط
-            const snapshot = await db.collection("sales")
-                                    .where("time", ">=", startOfDay)
-                                    .get();
+            const snapshot = await db.collection("sales").where("time", ">=", startOfDay).get();
 
             if (snapshot.empty) {
                 alert("العدادات صفر بالفعل!");
@@ -2151,8 +2250,6 @@ async function resetTodaySales() {
 
             await batch.commit();
             alert("تم تصفير العدادات بنجاح. ابدأ يومك بالرزق الحلال! ✅");
-            
-            // تحديث الأرقام في الواجهة فوراً
             location.reload(); 
 
         } catch (error) {
@@ -2160,6 +2257,7 @@ async function resetTodaySales() {
         }
     }
 }
+
 async function saveProduct() {
     const id = document.getElementById('edit-product-id').value;
     const name = document.getElementById('new-name').value;
@@ -2178,7 +2276,6 @@ async function saveProduct() {
     const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
     const costPrice = parseFloat(document.getElementById('product-cost-input').value) || 0;
 
-    // جلب حقل السعر اللبناني من الفورم لرفعه
     const priceLBPInput = document.getElementById('new-price-lbp');
     const priceLBP = priceLBPInput ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
 
@@ -2189,7 +2286,7 @@ async function saveProduct() {
     const data = {
         name,
         price,
-        priceLBP, // 👈 أضفنا السعر اللبناني هنا ليتم حفظه في قاعدة البيانات مباشرة
+        priceLBP, 
         cost: costPrice, 
         category,
         image,
@@ -2232,15 +2329,14 @@ async function saveProduct() {
         alert("خطأ تقني: " + e.message);
     }
 }
-// دالة التحويل من دولار إلى ليرة (عند الكتابة في خانة الدولار)
+
 function convertToLBP() {
-    // نستخدم الأسماء التي وضعتها أنت في HTML
     const usdInput = document.getElementById('new-price'); 
     const lbpInput = document.getElementById('new-price-lbp');
     if (usdInput && lbpInput) {
         const val = parseFloat(usdInput.value) || 0;
         lbpInput.value = Math.round((val * exchangeRate) / 500) * 500;
-        calculateProfit(); // نحدث الربح تلقائياً
+        if(typeof calculateProfit === "function") calculateProfit(); 
     }
 }
 
@@ -2250,89 +2346,89 @@ function convertToUSD() {
     if (usdInput && lbpInput && exchangeRate > 0) {
         const val = parseFloat(lbpInput.value) || 0;
         usdInput.value = (val / exchangeRate).toFixed(2);
-        calculateProfit();
+        if(typeof calculateProfit === "function") calculateProfit();
     }
 }
 
-
-// دالة لتحديث عرض سعر الصرف في الواجهة
 function displayCurrentRate() {
     const rateElement = document.getElementById('admin-rate-display');
     if (rateElement) {
-        rateElement.innerText = "سعر الصرف الحالي: " + rate.toLocaleString() + " L.L";
+        // تصحيح: تم تغيير rate إلى exchangeRate ليتوافق مع كودك
+        rateElement.innerText = "سعر الصرف الحالي: " + exchangeRate.toLocaleString() + " L.L";
     }
 }
 
-// تشغيل العرض عند فتح الصفحة
 window.onload = function() {
     displayCurrentRate();
+    if(typeof updateShopStatus === "function") updateShopStatus(); 
+    if(typeof renderCartItems === "function") renderCartItems();  
 };
-// دالة لتغيير سعر الصرف الشامل
+
 function updateGlobalRate() {
-    // --- طلب السعرين من المستخدم مع الحفاظ على الأسعار الحالية كاقتراح ---
+    // تصحيح: استخدام exchangeRate بدلاً من rate لمنع التضارب
     let newRate = prompt("أدخل سعر صرف التسعير (للإدارة - مثلاً 90000):", exchangeRate);
     let newSellingRate = prompt("أدخل سعر صرف البيع (للزبون - مثلاً 89000):", localStorage.getItem('sellingRate') || 89000);
     
     if (newRate !== null && newRate !== "" && !isNaN(newRate)) {
-        rate = parseFloat(newRate);
+        exchangeRate = parseFloat(newRate); // تم التعديل هنا
         
-        // 1. حفظ السعر الجديد في ذاكرة المتصفح
-        localStorage.setItem('exchangeRate', rate);
+        localStorage.setItem('exchangeRate', exchangeRate);
         
-        // --- حفظ سعر البيع الجديد أيضاً في المتصفح لكي يقرأه الكاشير ---
         if (newSellingRate !== null && newSellingRate !== "" && !isNaN(newSellingRate)) {
             localStorage.setItem('sellingRate', parseFloat(newSellingRate));
         }
         
-        // 2. تحديث النص الظاهر في الأعلى
         const rateDisplay = document.getElementById('admin-rate-display');
         if (rateDisplay) {
-            rateDisplay.innerText = rate.toLocaleString() + " L.L";
+            rateDisplay.innerText = exchangeRate.toLocaleString() + " L.L";
         }
 
-        // --- الجزء المضاف لجعل السعر "يتحول" فوراً أمامك ---
         const usdInput = document.getElementById('new-price');
         const lbpInput = document.getElementById('new-price-lbp');
 
-        if (usdInput.value !== "") {
-            // إذا كنت كاتب سعر بالدولار، سيقوم بتحديث الليرة فوراً بناءً على الصرف الجديد
-            convertToLBP(); 
-        } else if (lbpInput.value !== "") {
-            // إذا كنت كاتب سعر بالليرة، سيقوم بتحديث الدولار فوراً
-            convertToUSD();
+        // التحقق من وجود الحقول في الصفحة قبل التشغيل لمنع توقف الكود
+        if (usdInput && lbpInput) {
+            if (usdInput.value !== "") {
+                convertToLBP(); 
+            } else if (lbpInput.value !== "") {
+                convertToUSD();
+            }
         }
-        // --------------------------------------------------
         
-        alert("تم تحديث الأسعار بنجاح ✅\nالتسعير: " + rate + " | البيع: " + newSellingRate);
+        alert("تم تحديث الأسعار بنجاح ✅\nالتسعير: " + exchangeRate + " | البيع: " + newSellingRate);
     }
 }
 
-// تأكد أن الصفحة تقرأ السعر المحفوظ عند التحميل
-// تأكد أن الصفحة تقرأ السعر المحفوظ عند التحميل
 window.addEventListener('load', () => {
     let savedRate = localStorage.getItem('exchangeRate');
     if (savedRate) {
-        exchangeRate = parseFloat(savedRate); // ✅ تم التصحيح إلى exchangeRate ليتوافق مع أعلى الملف
+        exchangeRate = parseFloat(savedRate); 
         
-        // التحقق من وجود العنصر قبل تحديثه لتجنب أخطاء الكونسول
         const rateDisplay = document.getElementById('admin-rate-display');
         if (rateDisplay) {
             rateDisplay.innerText = exchangeRate.toLocaleString() + " L.L";
         }
     }
 });
+
 function printProductLabel() {
-    const name = document.getElementById('new-name').value;
-    const priceUSD = document.getElementById('new-price').value;
-    const priceLBP = document.getElementById('new-price-lbp').value;
-    const barcode = document.getElementById('new-barcode').value;
+    const nameEl = document.getElementById('new-name');
+    const priceUSDEl = document.getElementById('new-price');
+    const priceLBPEl = document.getElementById('new-price-lbp');
+    const barcodeEl = document.getElementById('new-barcode');
+
+    if(!nameEl || !barcodeEl) return;
+
+    const name = nameEl.value;
+    const priceUSD = priceUSDEl ? priceUSDEl.value : "0";
+    const priceLBP = priceLBPEl ? priceLBPEl.value : "0";
+    const barcode = barcodeEl.value;
 
     if (!name || !barcode) {
         alert("يرجى إدخال اسم المنتج والباركود أولاً!");
         return;
     }
 
-    // تصميم الملصق
     const labelHTML = `
         <div style="width: 40mm; height: 30mm; padding: 2mm; box-sizing: border-box; text-align: center; font-family: Arial; direction: rtl; border: 1px solid #eee;">
             <div style="font-size: 10pt; font-weight: bold; white-space: nowrap; overflow: hidden; margin-bottom: 2mm;">
@@ -2351,7 +2447,6 @@ function printProductLabel() {
         </div>
     `;
 
-    // فتح نافذة طباعة جديدة للملصق فقط
     const printWindow = window.open('', '_blank', 'width=400,height=400');
     printWindow.document.write('<html><head><title>Print Label</title>');
     printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>');
@@ -2376,17 +2471,20 @@ function printProductLabel() {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
 }
+
 function calculateProfit() {
-    // تم تعديل المسمى ليطابق الـ HTML الخاص بك دون تغيير المنطق
-    const purchase = parseFloat(document.getElementById('product-cost-input').value) || 0;
-    const sale = parseFloat(document.getElementById('new-price').value) || 0;
+    const purchaseInput = document.getElementById('product-cost-input') || document.getElementById('purchase-price');
+    const saleInput = document.getElementById('new-price');
     const profitDisplay = document.getElementById('profit-margin');
+
+    if(!purchaseInput || !saleInput || !profitDisplay) return;
+
+    const purchase = parseFloat(purchaseInput.value) || 0;
+    const sale = parseFloat(saleInput.value) || 0;
 
     if (purchase > 0 && sale > 0) {
         const profitPercent = ((sale - purchase) / purchase) * 100;
         profitDisplay.value = profitPercent.toFixed(1) + "%";
-        
-        // إضافة لمسة جمالية لتلوين النسبة (اختياري)
         profitDisplay.style.color = profitPercent >= 0 ? "#2e7d32" : "#d32f2f";
     } else {
         profitDisplay.value = "0%";
@@ -2394,34 +2492,39 @@ function calculateProfit() {
 }
 
 function openPassModal() {
-    document.getElementById('passwordModal').style.display = 'flex';
-    document.getElementById('adminPassInput').focus();
+    const modal = document.getElementById('passwordModal');
+    const input = document.getElementById('adminPassInput');
+    if(modal) modal.style.display = 'flex';
+    if(input) input.focus();
 }
 
 function closePassModal() {
-    document.getElementById('passwordModal').style.display = 'none';
-    document.getElementById('adminPassInput').value = ''; // مسح الحقل عند الإغلاق
+    const modal = document.getElementById('passwordModal');
+    const input = document.getElementById('adminPassInput');
+    if(modal) modal.style.display = 'none';
+    if(input) input.value = ''; 
 }
 
 function checkAdminPassword() {
-    const enteredPass = document.getElementById('adminPassInput').value;
-    const correctPass = "2004"; // ضع كلمة المرور الخاصة بك هنا
+    const input = document.getElementById('adminPassInput');
+    if(!input) return;
+    const enteredPass = input.value;
+    const correctPass = "2004"; 
 
     if (enteredPass === correctPass) {
         window.location.href = "cashier.html";
     } else {
         alert("كلمة المرور خاطئة!");
-        document.getElementById('adminPassInput').value = '';
+        input.value = '';
     }
 }
 
-// السماح بالدخول عند الضغط على زر Enter في لوحة المفاتيح
 document.getElementById('adminPassInput')?.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
         checkAdminPassword();
     }
 });
-// دالة لجلب وعرض الجرد
+
 async function loadInventory() {
     const tbody = document.getElementById('inventory-table-body');
     if (!tbody) return;
@@ -2436,7 +2539,6 @@ async function loadInventory() {
             return;
         }
 
-        // 1. تحويل البيانات إلى مصفوفة (Array) لسهولة ترتيبها
         let productsList = [];
         snapshot.forEach(doc => {
             const data = doc.data();
@@ -2447,12 +2549,10 @@ async function loadInventory() {
             });
         });
 
-        // 2. الترتيب من الأقل كمية إلى الأكثر كمية
         productsList.sort((a, b) => a.stock - b.stock);
 
-        tbody.innerHTML = ''; // مسح رسالة التحميل
+        tbody.innerHTML = ''; 
 
-        // 3. عرض المنتجات المرتبة
         productsList.forEach(product => {
             const id = product.id;
             const stock = product.stock;
@@ -2482,9 +2582,11 @@ async function loadInventory() {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">خطأ في الترتيب: ${error.message}</td></tr>`;
     }
 }
+
 function searchInventory() {
     let input = document.getElementById('inventorySearch').value.toLowerCase();
     let table = document.getElementById('inventory-table-body');
+    if(!table) return;
     let rows = table.getElementsByTagName('tr');
 
     for (let i = 0; i < rows.length; i++) {
@@ -2496,9 +2598,9 @@ function searchInventory() {
     }
 }
 
-// دالة زيادة الكمية في المخزن
 async function updateStock(productId, currentStock) {
     const input = document.getElementById(`add-qty-${productId}`);
+    if(!input) return;
     const addedValue = parseInt(input.value);
 
     if (isNaN(addedValue) || addedValue <= 0) {
@@ -2513,20 +2615,12 @@ async function updateStock(productId, currentStock) {
         });
         alert("تم تحديث المخزن بنجاح");
         input.value = '';
-        loadInventory(); // تحديث الجدول
+        loadInventory(); 
     } catch (error) {
         alert("حدث خطأ أثناء التحديث");
     }
 }
 
-// تشغيل الجرد عند فتح الصفحة
-loadInventory();
-// تشغيل الجرد تلقائياً عند تحميل الصفحة
-document.addEventListener('DOMContentLoaded', () => {
-    loadInventory();
-});
-// دالة لتحديث سعر الصرف في قاعدة البيانات
-// أضفها في نهاية الملف تماماً
 async function updateGlobalExchangeRate(newRate) {
     if(!newRate) return;
     try {
@@ -2542,50 +2636,210 @@ async function updateGlobalExchangeRate(newRate) {
         alert("❌ فشل التحديث");
     }
 }
-window.addEventListener('load', () => {
-    loadProducts();      
-    loadSavedCart();     
-    checkFirstVisit();   
+
+// تشغيل المستمعات والتحميلات بأمان لجميع الصفحات
+// تشغيل المستمعات والتحميلات بأمان لجميع الصفحات
+document.addEventListener('DOMContentLoaded', () => {
+    loadInventory();
     
-    // ربط الخانات بالتحويل فوراً
     document.getElementById('new-price')?.addEventListener('input', convertToLBP);
     document.getElementById('new-price-lbp')?.addEventListener('input', convertToUSD);
     document.getElementById('purchase-price')?.addEventListener('input', calculateProfit);
-});
-// --- أضف هذا الجزء لضمان عمل التحويل التلقائي عند الكتابة ---
-document.addEventListener('DOMContentLoaded', () => {
-    // ربط خانة الدولار لتغير الليرة والربح
+    document.getElementById('product-cost-input')?.addEventListener('input', calculateProfit);
+
     const usdIn = document.getElementById('new-price');
     if (usdIn) {
         usdIn.addEventListener('input', () => {
-            convertToLBP();    // يحول لليرة فوراً
-            calculateProfit(); // يحسب الربح فوراً
+            // تصفير حقل نسبة العرض الخاص تلقائياً
+            const specialOfferInput = document.getElementById('special-offer-percentage');
+            if (specialOfferInput) specialOfferInput.value = "";
+
+            // تصفير حقل السعر قبل العرض (اختياري) تلقائياً
+            const oldPriceInput = document.getElementById('product-old-price');
+            if (oldPriceInput) oldPriceInput.value = "";
+
+            convertToLBP();    
+            calculateProfit(); 
         });
     }
 
-    // ربط خانة الليرة لتغير الدولار والربح
     const lbpIn = document.getElementById('new-price-lbp');
     if (lbpIn) {
         lbpIn.addEventListener('input', () => {
-            convertToUSD();    // يحول للدولار فوراً
-            calculateProfit(); // يحول الربح فوراً
-        });
-    }
+            // تصفير حقل نسبة العرض الخاص تلقائياً
+            const specialOfferInput = document.getElementById('special-offer-percentage');
+            if (specialOfferInput) specialOfferInput.value = "";
 
-    // ربط خانة سعر الشراء لتحديث الربح
-    const purchaseIn = document.getElementById('purchase-price');
-    if (purchaseIn) {
-        purchaseIn.addEventListener('input', calculateProfit);
+            // تصفير حقل السعر قبل العرض (اختياري) تلقائياً
+            const oldPriceInput = document.getElementById('product-old-price');
+            if (oldPriceInput) oldPriceInput.value = "";
+
+            convertToUSD();    
+            calculateProfit(); 
+        });
     }
 });
 function openFinancePage() {
     const pass = prompt("كلمة مرور الإدارة المالية:");
-    if (pass === "2004") { // غير كلمة السر كما تحب
+    if (pass === "2004") { 
         window.location.href = "finance.html";
     } else {
         alert("خطأ!");
     }
 }
+// 1. دالة التحكم في إظهار وإخفاء حقول اختيار الأرقام والفلترة تلقائياً
+// 1. دالة التحكم في إظهار وإخفاء حقول اختيار الأرقام والفلترة تلقائياً
+// ==========================================
+// قسم استيراد وتصفية المنتجات من ملف CSV إلى Firebase (نسخة مدمجة ومحمية بالكامل)
+// ==========================================
 
+// جعل الدالة تعريفية ثابتة ومباشرة على مستوى الـ window لضمان عدم حدوث خطأ Not Defined في الـ HTML
+window.toggleFilterInputs = function() {
+    const modeInput = document.querySelector('input[name="upload-mode"]:checked');
+    if (!modeInput) return;
+    
+    const mode = modeInput.value;
+    const container = document.getElementById('filter-inputs-container');
+    if (!container) return;
+    
+    const rangeDiv = document.getElementById('range-inputs-div');
+    const specificIdsInput = document.getElementById('filter-specific-ids');
+    const keywordInput = document.getElementById('filter-keyword');
+
+    container.style.display = 'flex';
+    
+    // إظهار الحقل المطلوب بناءً على اختيارك للأرقام
+    if (mode === 'all') {
+        container.style.display = 'none';
+    } else {
+        if (rangeDiv) rangeDiv.style.display = (mode === 'by-range') ? 'flex' : 'none';
+        if (specificIdsInput) specificIdsInput.style.display = (mode === 'by-specific-ids') ? 'block' : 'none';
+        if (keywordInput) keywordInput.style.display = (mode === 'by-keyword') ? 'block' : 'none';
+    }
+};
+
+// الدالة الأساسية والمحمية لقراءة ومعالجة الملف ورفعه لـ Firebase
+window.processAndUploadCSV = function() {
+    const fileInput = document.getElementById('csv-file-input');
+    const statusDiv = document.getElementById('upload-progress-status');
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert("الرجاء اختيار ملف CSV أولاً!");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    statusDiv.innerHTML = "⏳ جاري قراءة الملف وتصفية البيانات...";
+    statusDiv.style.color = "#f39c12";
+
+    reader.onload = async function(e) {
+        try {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/);
+            if (lines.length <= 1) {
+                alert("الملف لا يحتوي على بيانات صالحة!");
+                return;
+            }
+
+            // تحليل وقراءة السطر الأول (العناوين) بدقة
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+            const idIndex = headers.indexOf('id');
+            
+            let nameIndex = headers.indexOf('name');
+            if (nameIndex === -1) nameIndex = headers.findIndex(h => h.includes('name'));
+            
+            let priceIndex = headers.indexOf('price');
+            if (priceIndex === -1) priceIndex = headers.findIndex(h => h.includes('price'));
+            
+            const barcodeIndex = headers.indexOf('barcode');
+
+            // جلب خيار الفلترة والتحديد الحالي
+            const modeInput = document.querySelector('input[name="upload-mode"]:checked');
+            const mode = modeInput ? modeInput.value : 'all';
+            
+            const startId = parseInt(document.getElementById('filter-start-id')?.value) || 0;
+            const endId = parseInt(document.getElementById('filter-end-id')?.value) || Infinity;
+            const keyword = document.getElementById('filter-keyword')?.value.trim().toLowerCase() || "";
+            
+            const specificIdsText = document.getElementById('filter-specific-ids')?.value || "";
+            const specificIdsArray = specificIdsText.split(',').map(id => id.trim()).filter(id => id !== "");
+
+            let batchCount = 0;
+            let successCount = 0;
+            
+            // استخدام نظام الـ Batch المتوافق مع نسخة الـ Compat الحالية لديك في المتجر
+            let batch = firebase.firestore().batch(); 
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+
+                const columns = lines[i].split(',');
+                if (columns.length < 2) continue;
+
+                const id = columns[idIndex]?.trim();
+                const name = columns[nameIndex]?.trim();
+                const price = parseFloat(columns[priceIndex]?.trim()) || 0;
+                const barcode = columns[barcodeIndex]?.trim() || "";
+
+                if (!name || !id) continue;
+
+                // التصفية والتحقق الذكي من أرقام المنتجات المطلوبة
+                if (mode === 'by-range') {
+                    const numericId = parseInt(id);
+                    if (isNaN(numericId) || numericId < startId || numericId > endId) continue;
+                } else if (mode === 'by-specific-ids') {
+                    if (!specificIdsArray.includes(id)) continue; 
+                } else if (mode === 'by-keyword') {
+                    if (!name.toLowerCase().includes(keyword)) continue;
+                }
+
+                // إصلاح خطأ التحديث الذاتي الشامل:
+                // نضمن استخدام صيغة نصية فريدة وثابتة لمنع حدوث خطأ No document to update في مستندات Firebase الجديدة
+                const docId = barcode ? barcode : `product_${id}`;
+                const productRef = db.collection('products').doc(docId);
+
+                // حفظ وتحديث السعر والبيانات فوراً مع دمج التغييرات الآمنة
+                batch.set(productRef, {
+                    id: id,
+                    name: name,
+                    price: price,
+                    barcode: barcode,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                batchCount++;
+                successCount++;
+
+                // تقسيم الإرسال إلى دفعات آمنة لضمان السرعة القصوى وعدم تعليق الشاشة
+                if (batchCount >= 400) {
+                    statusDiv.innerHTML = `⏳ جاري رفع وتثبيت المنتجات... (${successCount} منتج)`;
+                    await batch.commit();
+                    batch = firebase.firestore().batch();
+                    batchCount = 0;
+                }
+            }
+
+            if (batchCount > 0) {
+                await batch.commit();
+            }
+
+            statusDiv.innerHTML = `✅ تم رفع وتحديث ${successCount} منتج بنجاح في Firebase!`;
+            statusDiv.style.color = "#27ae60";
+            alert(`🎉 نجح الأمر تماماً! تم استيراد وتحديث المنتجات المطلوبة في قاعدة البيانات بنجاح. العدد: ${successCount}`);
+            
+            if (typeof loadInventory === "function") loadInventory();
+            if (typeof loadProducts === "function") loadProducts();
+
+        } catch (err) {
+            console.error("خطأ أثناء المعالجة:", err);
+            statusDiv.innerHTML = "❌ حدث خطأ أثناء رفع البيانات، راجع الكونسول.";
+            statusDiv.style.color = "#e74c3c";
+        }
+    };
+
+    reader.readAsText(file, 'UTF-8');
+};
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -2213,8 +2213,10 @@ async function addNewStaff() {
     }
 
     try {
+        // الحفظ في كولكشن staff مع إضافة حقل username لتأمين قراءته في القائمة العلوية
         await db.collection("staff").add({
             name: name,
+            username: name, /* 🔥 السر هنا: هذا الحقل الذي تبحث عنه القائمة المنسدلة لتعرض الاسم */
             pin: pin, 
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -2225,11 +2227,72 @@ async function addNewStaff() {
         
         if(typeof loadTodaySales === "function") loadTodaySales();
         
+        // 🔄 إعادة تنشيط الصفحة تلقائياً بعد ثانية واحدة لكي تقرأ القائمة المنسدلة الاسم الجديد فوراً
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+        
     } catch (error) {
         alert("خطأ: " + error.message);
     }
 }
+// دالة ذكية لعرض الموظفين داخل الجدول بشكل تلقائي ومستمر
+// 1. دالة العرض المحدثة لتوليد زر الحذف لكل موظف تلقائياً
+function listenToStaffChanges() {
+    if (typeof db !== "undefined" && document.getElementById('staff-table-body')) {
+        db.collection("staff").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+            const tableBody = document.getElementById('staff-table-body');
+            let rowsHtml = "";
+            
+            if (snapshot.empty) {
+                tableBody.innerHTML = `<tr><td colspan="3" style="padding: 15px; text-align: center; color: #999;">لا يوجد موظفين مسجلين حالياً</td></tr>`;
+                return;
+            }
 
+            snapshot.forEach(doc => {
+                const staff = doc.data();
+                const docId = doc.id; // الحصول على معرف المستند الفرعي للحذف
+                const displayName = staff.name || staff.username || "بدون اسم";
+                const displayPin = staff.pin || "****";
+                
+                rowsHtml += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px; font-weight: bold; color: #333;">${displayName}</td>
+                        <td style="padding: 12px; color: #666; font-family: monospace;">${displayPin}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <button onclick="deleteStaff('${docId}', '${displayName}')" 
+                                    style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: 0.2s;">
+                                <i class="fa fa-trash"></i> حذف
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = rowsHtml;
+        }, error => {
+            console.error("خطأ أثناء جلب الموظفين للجدول:", error);
+        });
+    }
+}
+
+// 2. 🔥 دالة الحذف الذكية من قاعدة البيانات مباشرة 🔥
+async function deleteStaff(docId, staffName) {
+    if (confirm(`هل أنت متأكد من حذف الموظف (${staffName}) نهائياً؟`)) {
+        try {
+            await db.collection("staff").doc(docId).delete();
+            alert(`تم حذف الموظف ${staffName} بنجاح 🗑️`);
+        } catch (error) {
+            alert("خطأ أثناء الحذف: " + error.message);
+        }
+    }
+}
+
+// تشغيل التلقائي عند تحميل الصفحة
+document.addEventListener("DOMContentLoaded", listenToStaffChanges);
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    listenToStaffChanges();
+}
 async function resetTodaySales() {
     if (confirm("هل أنت متأكد من تصفير مبيعات اليوم؟ لا يمكن التراجع عن هذه الخطوة!")) {
         const startOfDay = new Date();

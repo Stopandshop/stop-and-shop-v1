@@ -282,18 +282,34 @@
     فتح نظام الكاشير
 </button>
     <h3 style="color: #2c3e50; margin-top: 0;">➕ إضافة كاشير جديد</h3>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <input type="text" id="new-staff-name" placeholder="اسم الموظف" 
-               style="flex: 2; min-width: 150px; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
-        
-        <input type="password" id="new-staff-pin" placeholder="كلمة المرور (أرقام)" 
-               style="flex: 1; min-width: 100px; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
-        
-        <button onclick="addNewStaff()" 
-                style="flex: 1; background: #4db6ac; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; min-width: 120px;">
-            حفظ البيانات
-        </button>
-    </div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+    <input type="text" id="new-staff-name" placeholder="اسم الموظف" 
+           style="flex: 2; min-width: 150px; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+    
+    <input type="password" id="new-staff-pin" placeholder="كلمة المرور (أرقام)" 
+           style="flex: 1; min-width: 100px; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+    
+    <button onclick="addNewStaff()" 
+            style="flex: 1; background: #4db6ac; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; min-width: 120px;">
+        حفظ البيانات
+    </button>
+</div>
+
+<div style="margin-top: 15px; border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: white;">
+    <table style="width: 100%; border-collapse: collapse; text-align: right; font-family: sans-serif;">
+        <thead>
+            <tr style="background-color: #2c3e50; color: white;">
+                <th style="padding: 12px; font-size: 0.9rem;">اسم الموظف</th>
+                <th style="padding: 12px; font-size: 0.9rem;">كلمة المرور (PIN)</th>
+                <th style="padding: 12px; font-size: 0.9rem; text-align: center;">إجراء</th> </tr>
+        </thead>
+        <tbody id="staff-table-body">
+            <tr>
+                <td colspan="3" style="padding: 15px; text-align: center; color: #999;">جاري تحميل الموظفين...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 </div>
             <div style="background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-top: 20px;">
     <h3 style="color:black;"><i class="fas fa-chart-line"></i> ملخص مبيعات اليوم</h3>
@@ -548,7 +564,27 @@ async function showMyPoints() {
             alert("يرجى إدخال سعر صحيح");
         }
     }
+    document.addEventListener("DOMContentLoaded", function() {
+    // 1. التحقق التلقائي المستمر من الموظف النشط حالياً في النظام
+    if (typeof db !== "undefined") {
+        db.collection("staff").orderBy("createdAt", "desc").limit(1).onSnapshot(snapshot => {
+            if (!snapshot.empty) {
+                const latestStaff = snapshot.docs[0].data();
+                const employeeDisplayElem = document.getElementById("employee-display");
+                
+                if (employeeDisplayElem) {
+                    // عرض الاسم المسجل في حقل name أو الحقول الأخرى لضمان عدم وجود فراغ
+                    const staffRealName = latestStaff.name || latestStaff.staffName || latestStaff.username || "موظف نشط";
+                    employeeDisplayElem.innerText = staffRealName;
+                }
+            }
+        }, error => {
+            console.log("استماع تلقائي لاسم الموظف النشط:", error);
+        });
+    }
+});
 </script>
+
 </div>
 
 <input type="hidden" id="edit-product-id">
@@ -636,7 +672,7 @@ async function showMyPoints() {
 <section id="products-container" class="products-grid"></section>
 </main>
 
-<div id="cart-popup" class="cart-popup" style="display: none;">
+<div id="cart-popup" class="cart-popup" style="display: none; max-height: 85vh; overflow-y: auto;">
     <div class="cart-content">
         <div class="cart-header">
             <h2>🛒 سلة مشترياتك</h2>

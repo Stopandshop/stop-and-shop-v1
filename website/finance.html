@@ -29,16 +29,64 @@
         /* تنسيق إضافي متناسق لخانات اختيار التاريخ المخصصة */
         .date-filter-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .custom-picker { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-family: 'Cairo'; font-size: 0.9rem; outline: none; }
+        
+        /* تنسيق أزرار الفصل الجديد للمبيعات والمصاريف */
+        .table-split-container { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 5px; }
+        .split-btn { padding: 6px 15px; border: 1px solid #ddd; background: #fff; border-radius: 20px; cursor: pointer; font-family: 'Cairo'; font-size: 0.85rem; font-weight: bold; transition: 0.2s; }
+        .split-btn.active { background: #2c3e50; color: #fff; border-color: #2c3e50; }
+        .split-btn.active.sales-only { background: #27ae60; border-color: #27ae60; }
+        .split-btn.active.exp-only { background: #e74c3c; border-color: #e74c3c; }
+
+        /* تنسيق قائمة اختيار العملة لتطابق عناصر الإدخال */
+        .currency-select { padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: 'Cairo'; font-weight: bold; background-color: #fff; cursor: pointer; }
     </style>
 </head>
 <body>
+<!-- أزرار التنقل المحمية بكلمة مرور -->
+<!-- أزرار التنقل -->
+<div style="max-width: 1000px; margin: 10px auto 0 auto; display: flex; gap: 12px; justify-content: flex-start; padding: 0 20px;">
+    <!-- زر الكاشير -->
+    <button onclick="openPasswordModal('cashier.html')" style="border: none; background: #e74c3c; color: white; padding: 10px 20px; border-radius: 8px; font-family: 'Cairo'; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <i class="fas fa-calculator"></i> صفحة الكاشير
+    </button>
+    
+    <!-- زر صفحة الويب -->
+    <button onclick="openPasswordModal('index.html')" style="border: none; background: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; font-family: 'Cairo'; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <i class="fas fa-globe"></i> صفحة الويب
+    </button>
+</div>
 
+<!-- النافذة المنبثقة المخفية لإدخال كلمة المرور بشكل آمن -->
+<div id="password-modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+    <div style="background: white; padding: 25px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-family: 'Cairo';">
+        <h3 style="margin-top: 0; color: #2c3e50;"><i class="fas fa-lock"></i> إدخال كلمة المرور</h3>
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">الرجاء إدخال رمز التحقق للدخول</p>
+        
+        <!-- حقل الإدخال من نوع password ليكون مخفياً -->
+        <input type="password" id="modal-password-input" placeholder="••••" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: 'Cairo'; text-align: center; font-size: 1.2rem;" onkeyup="if(event.key === 'Enter') submitPassword()">
+        
+        <div style="display: flex; gap: 10px;">
+            <button onclick="submitPassword()" style="flex: 1; background: #27ae60; color: white; border: none; padding: 8px; border-radius: 6px; font-family: 'Cairo'; font-weight: bold; cursor: pointer;">دخول</button>
+            <button onclick="closePasswordModal()" style="flex: 1; background: #ddd; color: #333; border: none; padding: 8px; border-radius: 6px; font-family: 'Cairo'; font-weight: bold; cursor: pointer;">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- أزرار التنقل المحمية بكلمة مرور -->
+    <div class="card">
+        <h2><i class="fas fa-plus-circle"></i> تسجيل مصروف / دفعة</h2>
 <div class="container">
     <div class="card">
         <h2><i class="fas fa-plus-circle"></i> تسجيل مصروف / دفعة</h2>
         <div style="display: flex; gap: 10px;">
-            <input type="text" id="exp-desc" placeholder="بيان الصرف (مثال: فاتورة كهرباء)">
-            <input type="number" id="exp-amount" placeholder="المبلغ $">
+            <input type="text" id="exp-desc" placeholder="بيان الصرف (مثال: فاتورة كهرباء)" style="flex: 2;">
+            <input type="number" id="exp-amount" placeholder="المبلغ" style="flex: 1;">
+            <!-- قائمة اختيار عملة المصروف المضافة -->
+            <select id="exp-currency" class="currency-select" style="flex: 0.5;">
+                <option value="USD">دولار $</option>
+                <option value="LBP">ل.ل</option>
+            </select>
         </div>
         <button class="btn-add" onclick="saveExpense()">حفظ وتسجيل المصروف</button>
     </div>
@@ -74,7 +122,17 @@
             </div>
         </div>
 
-        <h3><i class="fas fa-list"></i> تفاصيل العمليات الحالية في النطاق المحدد</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <h3><i class="fas fa-list"></i> تفاصيل العمليات الحالية في النطاق المحدد</h3>
+            
+            <!-- أزرار الفصل الجديدة لعرض المصاريف لحال والمبيعات لحال -->
+            <div class="table-split-container">
+                <button class="split-btn active" id="btn-show-all" onclick="filterTableDisplay('all')">الكل</button>
+                <button class="split-btn sales-only" id="btn-show-sales" onclick="filterTableDisplay('sales')">المبيعات فقط</button>
+                <button class="split-btn exp-only" id="btn-show-expenses" onclick="filterTableDisplay('expenses')">المصاريف فقط</button>
+            </div>
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -84,12 +142,17 @@
                 </tr>
             </thead>
             <tbody id="exp-body">
-                </tbody>
+            </tbody>
         </table>
     </div>
 </div>
 
 <script>
+    // متغير عالمي لحفظ الفلتر النشط للجدول (الكل، مبيعات، مصاريف)
+    let currentTableFilter = 'all';
+    // متغير عالمي لحفظ النطاق الزمني النشط الحالي حتى لا يضيع عند الفلترة
+    let currentActiveRange = 'day';
+
     // إعدادات Firebase الخاصة بـ Stop & Shop
     const firebaseConfig = {
         apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",
@@ -105,7 +168,6 @@
 
     // --- دالة تعديل سعر الصرف الشامل المصححة لمنع خطأ التعريف في صفحة المالية ---
     function updateGlobalRate() {
-        // جلب القيم الحالية بشكل آمن مباشرة لتفادي خطأ rate is not defined
         let currentRate = parseFloat(localStorage.getItem('exchangeRate')) || 90000;
         let currentSellingRate = localStorage.getItem('sellingRate') || 89000;
 
@@ -125,20 +187,32 @@
             }
             
             alert("تم تحديث الأسعار بنجاح ✅\nالتسعير: " + newRate + " | البيع: " + newSellingRate);
-            location.reload(); // إعادة التحميل لتحديث الحسابات المالية فوراً بالسعر الجديد
+            location.reload(); 
         }
     }
 
-    // دالة تسجيل المصاريف وحفظها في Firestore
+    // دالة تسجيل المصاريف وحفظها في Firestore (تم التعديل لدعم عملة الإدخال اللبنانية)
     async function saveExpense() {
         const desc = document.getElementById('exp-desc').value;
         const amount = parseFloat(document.getElementById('exp-amount').value);
+        const currency = document.getElementById('exp-currency').value;
+        
         if(!desc || isNaN(amount)) return alert("يرجى إدخال البيانات بشكل صحيح");
+
+        let currentExchangeRate = parseFloat(localStorage.getItem('exchangeRate')) || 90000;
+        let finalAmountInUSD = amount;
+        let originalText = "";
+
+        // إذا كانت عملة المدفوعات بالليرة اللبنانية، نقوم بتحويل قيمتها للدولار قبل الحفظ
+        if (currency === "LBP") {
+            finalAmountInUSD = amount / currentExchangeRate;
+            originalText = ` (${amount.toLocaleString()} ل.ل)`;
+        }
 
         try {
             await db.collection("expenses").add({
-                description: desc,
-                amount: amount,
+                description: desc + originalText, // إبقاء النص الأصلي محفوظاً للبيان
+                amount: finalAmountInUSD,
                 time: firebase.firestore.FieldValue.serverTimestamp()
             });
             document.getElementById('exp-desc').value = '';
@@ -163,18 +237,19 @@ async function loadData(range, btn) {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active-filter'));
         btn.classList.add('active-filter');
     }
+    
+    // حفظ النطاق الحالي في المتغير العالمي
+    currentActiveRange = range;
 
     const now = new Date();
     let startTime = new Date();
-    let endTime = new Date(); // إضافة وقت نهاية النطاق لضمان دقة الفلترة
+    let endTime = new Date(); 
     
-    // ضبط الحدود الزمنية بدقة لكل زر لمنع تداخل الحسابات ودعم الخيارات المخصصة
     if(range === 'day') {
         startTime.setHours(0, 0, 0, 0);
         endTime.setHours(23, 59, 59, 999);
     } 
     else if(range === 'custom-day') {
-        // استخراج اليوم المخصص المختار من الرزنامة
         const dateVal = document.getElementById('custom-date-picker').value;
         if(!dateVal) {
             alert("الرجاء اختيار تاريخ أولاً من خانة اليوم المخصص");
@@ -186,25 +261,24 @@ async function loadData(range, btn) {
     }
     else if(range === 'month') {
         startTime = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        endTime = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999); // نهاية الشهر الحالي
+        endTime = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999); 
     } 
     else if(range === 'custom-month') {
-        // استخراج الشهر المخصص المختار
-        const monthVal = document.getElementById('custom-month-picker').value; // الصيغة المستخرجة: "2026-05"
+        const monthVal = document.getElementById('custom-month-picker').value; 
         if(!monthVal) {
             alert("الرجاء اختيار الشهر أولاً من خانة الشهر المخصص");
             return;
         }
         const parts = monthVal.split('-');
         const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // الأشهر في جافا سكريبت تبدأ من 0
+        const month = parseInt(parts[1], 10) - 1; 
         
         startTime = new Date(year, month, 1, 0, 0, 0, 0);
-        endTime = new Date(year, month + 1, 0, 23, 59, 59, 999); // نهاية ذلك الشهر المختار
+        endTime = new Date(year, month + 1, 0, 23, 59, 59, 999); 
     }
     else if(range === 'year') {
         startTime = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-        endTime = new Date(now.getFullYear(), 12, 0, 23, 59, 59, 999); // نهاية السنة الحالية
+        endTime = new Date(now.getFullYear(), 12, 0, 23, 59, 59, 999); 
     }
 
     console.log(`=== فحص النطاق الزمني (${range}) ===`);
@@ -227,7 +301,6 @@ async function loadData(range, btn) {
             const data = doc.data();
             if (data && data.time) {
                 const salesDate = data.time.toDate();
-                // الفحص الدقيق: يجب أن يكون التاريخ بين البداية والنهاية تماماً
                 if (salesDate >= startTime && salesDate <= endTime) {
                     const amt = parseFloat(data.totalUSD || data.total_usd || data.total || 0);
                     totalSales += amt;
@@ -235,6 +308,7 @@ async function loadData(range, btn) {
                     let saleId = doc.id ? String(doc.id).substring(0, 6) : "كاشير";
 
                     allActivitiesArray.push({
+                        type: 'sale',
                         dateText: salesDate.toLocaleDateString('ar-LB'),
                         timestamp: salesDate.getTime(),
                         description: `فاتورة مبيعات الكاشير رقم (${saleId}) <span class="badge-pos">نقطة بيع</span>`,
@@ -267,10 +341,9 @@ async function loadData(range, btn) {
                 }
 
                 if (!orderDate || isNaN(orderDate.getTime())) {
-                    return; // تخطي أي مستند بدون تاريخ صالح
+                    return; 
                 }
 
-                // الفحص الدقيق: يجب أن يكون طلب الموقع ضمن حدود الزر المحددة
                 if (orderDate >= startTime && orderDate <= endTime) {
                     let rawAmt = parseFloat(data.total_price || data.totalPrice || data.total || 0);
                     if (rawAmt > 0) {
@@ -285,6 +358,7 @@ async function loadData(range, btn) {
                         let displayDate = orderDate.toLocaleDateString('ar-LB');
 
                         allActivitiesArray.push({
+                            type: 'sale',
                             dateText: displayDate,
                             timestamp: orderDate.getTime(),
                             description: `طلب من الموقع الإلكتروني رقم (${docIdText}) <span class="badge-web">أونلاين</span>`,
@@ -306,6 +380,7 @@ async function loadData(range, btn) {
                     const amt = parseFloat(data.amount || 0);
                     totalExp += amt;
                     allActivitiesArray.push({
+                        type: 'expense',
                         dateText: expDate.toLocaleDateString('ar-LB'),
                         timestamp: expDate.getTime(),
                         description: `${data.description || 'مصروف'} <span style="color:#e74c3c;">(مصروف)</span>`,
@@ -319,16 +394,56 @@ async function loadData(range, btn) {
         // ترتيب تنازلي (الأحدث أولاً)
         allActivitiesArray.sort((a, b) => b.timestamp - a.timestamp);
 
-        // حقن السجلات المفلترة داخل الجدول
+        // حقن السجلات المفلترة داخل الجدول بناءً على الفلتر المختار (الكل / المبيعات لحال / المصاريف لحال)
         if(tbody) {
+            tbody.innerHTML = ''; // تصفير الجدول أولاً
+            
+            let filteredSalesTotal = 0;
+            let filteredExpTotal = 0;
+
             allActivitiesArray.forEach(act => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${act.dateText}</td>
-                        <td>${act.description}</td>
-                        <td style="color:${act.color}; font-weight:bold;">${act.amountText}</td>
-                    </tr>`;
+                if (currentTableFilter === 'all' || 
+                   (currentTableFilter === 'sales' && act.type === 'sale') || 
+                   (currentTableFilter === 'expenses' && act.type === 'expense')) {
+                   
+                    // حساب إجمالي السطور المفلترة المعروضة حالياً في الجدول
+                    const numericAmount = parseFloat(act.amountText.replace(/[+\-\s$]/g, ''));
+                    if (act.type === 'sale') filteredSalesTotal += numericAmount;
+                    if (act.type === 'expense') filteredExpTotal += numericAmount;
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${act.dateText}</td>
+                            <td>${act.description}</td>
+                            <td style="color:${act.color}; font-weight:bold;">${act.amountText}</td>
+                        </tr>`;
+                }
             });
+
+            // تحويل المجاميع الحالية المفلترة داخل الجدول إلى الليرة اللبنانية مع تقريب ذكي لأقرب 500 ليرة
+            const salesTotalLBP = Math.round((filteredSalesTotal * currentExchangeRate) / 500) * 500;
+            const expTotalLBP = Math.round((filteredExpTotal * currentExchangeRate) / 500) * 500;
+            
+            const filteredNet = filteredSalesTotal - filteredExpTotal;
+            const netTotalLBP = Math.round((filteredNet * currentExchangeRate) / 500) * 500;
+            
+            const netColor = filteredNet >= 0 ? '#27ae60' : '#e74c3c';
+            const netSign = filteredNet >= 0 ? '+' : '-';
+
+            // 🔥 إضافة سطر المجموع النهائي في نهاية الجدول مباشرة مع دعم العملتين $ و L.L 🔥
+            tbody.innerHTML += `
+                <tr style="background-color: #f8f9fa; border-top: 3px double #2c3e50; font-weight: bold;">
+                    <td>---</td>
+                    <td style="color: #2c3e50; font-weight: bold; line-height: 1.7;">
+                        🧮 المجموع النهائي المعروض للجدول: <br>
+                        <span style="color: #27ae60;">(مبيعات: + ${filteredSalesTotal.toFixed(2)} $ / ${salesTotalLBP.toLocaleString()} ل.ل)</span> <br>
+                        <span style="color: #e74c3c;">(مصاريف: - ${filteredExpTotal.toFixed(2)} $ / ${expTotalLBP.toLocaleString()} ل.ل)</span>
+                    </td>
+                    <td style="color: ${netColor}; font-weight: 900; font-size: 1.05rem; border-left: 2px dashed #ccc; vertical-align: middle; line-height: 1.5;">
+                        <div>الصافي بالدولار: ${netSign} ${Math.abs(filteredNet).toFixed(2)} $</div>
+                        <div style="font-size: 0.85rem;">باللبناني: ${netSign} ${Math.abs(netTotalLBP).toLocaleString()} ل.ل</div>
+                    </td>
+                </tr>`;
         }
 
         // تحديث المجموع الشامل بدقة متناهية للنطاق المختار فقط
@@ -340,7 +455,7 @@ async function loadData(range, btn) {
 
         const card = document.getElementById('sales-card');
         if (card) {
-            card.style.transform = "scale(1.02)";
+            card.style.transform = "scale(1.01)";
             setTimeout(() => { card.style.transform = "scale(1)"; }, 250);
         }
 
@@ -348,6 +463,52 @@ async function loadData(range, btn) {
         console.error("خطأ أثناء معالجة الحسابات المحددة:", error);
     }
 }
+
+// دالة التحكم في فلترة وعرض الجدول لحال دون تصفير الحسابات الإجمالية الكبيرة
+function filterTableDisplay(filterType) {
+    currentTableFilter = filterType;
+    
+    // تحديث التصميم للأزرار النشطة
+    document.querySelectorAll('.split-btn').forEach(btn => btn.classList.remove('active'));
+    if(filterType === 'all') document.getElementById('btn-show-all').classList.add('active');
+    if(filterType === 'sales') document.getElementById('btn-show-sales').classList.add('active');
+    if(filterType === 'expenses') document.getElementById('btn-show-expenses').classList.add('active');
+    
+    // إعادة بناء الجدول بناءً على التصفية الجديدة مع الحفاظ على التواريخ المحددة
+    loadData(currentActiveRange);
+}
+// متغيرات عالمية مؤقتة لحفظ الصفحة المستهدفة
+let pendingTargetPage = '';
+
+// دالة فتح نافذة كلمة المرور
+function openPasswordModal(targetPage) {
+    pendingTargetPage = targetPage;
+    document.getElementById('password-modal').style.display = 'flex';
+    const inputField = document.getElementById('modal-password-input');
+    inputField.value = ''; // تصفير الحقل عند الفتح
+    inputField.focus(); // وضع مؤشر الكتابة تلقائياً داخل الحقل
+}
+
+// دالة إغلاق النافذة
+function closePasswordModal() {
+    document.getElementById('password-modal').style.display = 'none';
+    pendingTargetPage = '';
+}
+
+// دالة التحقق من كلمة المرور المكتوبة
+function submitPassword() {
+    const passwordInput = document.getElementById('modal-password-input').value;
+    
+    if (passwordInput === "2004") {
+        document.getElementById('password-modal').style.display = 'none';
+        window.location.href = pendingTargetPage;
+    } else {
+        alert("كلمة المرور غير صحيحة! لا يمكنك الدخول ❌");
+        document.getElementById('modal-password-input').value = '';
+        document.getElementById('modal-password-input').focus();
+    }
+}
+
     // تشغيل تلقائي عند فتح الصفحة لأول مرة لحساب مبيعات اليوم الحالي
     window.onload = () => loadData('day');
 </script>

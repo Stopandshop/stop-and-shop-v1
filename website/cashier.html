@@ -961,6 +961,9 @@ function renderCart() {
         return;
     }
 
+    // تحديد سعر الصرف قبل حلقة التكرار لاستخدامه في تسعير المنتجات الفردية بالليرة
+    const currentExchangeRate = typeof rate !== 'undefined' ? rate : 90000;
+
     // 3. بناء عناصر السلة وحساب المجموع
     cart.forEach((item, index) => {
         const itemTotal = item.price * item.qty;
@@ -977,13 +980,19 @@ function renderCart() {
         }
         // ------------------------------------------
 
+        // حساب سعر الوحدة والمجموع بالليرة اللبنانية لكل منتج على حدة (مع تقريب لأقرب 500 ليرة)
+        const itemPriceLBP = Math.round((item.price * currentExchangeRate) / 500) * 500;
+        const itemTotalLBP = Math.round((itemTotal * currentExchangeRate) / 500) * 500;
+
         container.innerHTML += `
             <div class="product-row">
                 <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
                     <img src="${productImg}" class="product-img-circle" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'">
                     <div>
                         <div style="font-weight: 700;">${item.name} ${stockStatusHTML}</div>
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">سعر الوحدة: ${item.price} $</div>
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">
+                            سعر الوحدة: ${item.price} $ <span style="color: #e74c3c; font-weight: bold; margin-right: 5px;">(${itemPriceLBP.toLocaleString()} ل.ل)</span>
+                        </div>
                     </div>
                 </div>
                 <div class="qty-box">
@@ -991,7 +1000,10 @@ function renderCart() {
                     <input type="number" class="qty-input-manual" value="${item.qty}" onchange="updateQtyManual(${index}, this.value)">
                     <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
                 </div>
-                <div style="width: 100px; text-align: left; font-weight: 900; color: var(--dark);">${itemTotal.toFixed(2)} $</div>
+                <div style="width: 120px; text-align: left; font-weight: 900; color: var(--dark); line-height: 1.3;">
+                    <div>${itemTotal.toFixed(2)} $</div>
+                    <div style="font-size: 0.8rem; color: #7f8c8d; font-weight: normal;">${itemTotalLBP.toLocaleString()} ل.ل</div>
+                </div>
             </div>`;
     });
 
@@ -1007,8 +1019,7 @@ function renderCart() {
 
     const rateLabel = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
     if (rateLabel) rateLabel.innerText = rateShow.toLocaleString();
-} 
-
+}
     // دالة تحديث الكمية يدوياً بالكتابة
     function updateQtyManual(i, val) {
         let newQty = parseInt(val);

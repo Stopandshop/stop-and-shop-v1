@@ -93,19 +93,36 @@
                 <button onclick="stopScanner()" style="margin-top:20px; padding:12px 25px; background:#c0392b; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">إغلاق الكاميرا</button>
             </div>
 
-            <div class="header-icons">
-                <div id="login-btn" class="user-account" onclick="toggleAdmin()">
+            <div class="header-icons" style="display: flex; gap: 10px; align-items: center; justify-content: flex-start;">
+                
+                <div id="login-btn" class="user-account" onclick="toggleAdmin()" style="margin: 0; cursor: pointer;">
                     <i class="fas fa-user-shield"></i> <span>دخول</span>
                 </div>
-                
-                <div class="cart-info" onclick="toggleCartPopup()">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span id="cart-count">0</span>
+
+        
+
+            </div>
+
+            <div id="secure-password-modal" style="display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+                <div style="background: #ffffff; padding: 25px; border-radius: 12px; width: 310px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.3); font-family: 'Cairo'; direction: rtl;">
+                    <h3 style="margin-top: 0; color: #2c3e50;"><i class="fas fa-lock"></i> دخول المسؤول</h3>
+                    <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 15px;">يرجى كتابة كلمة المرور السرية:</p>
+                    
+                    <input type="password" id="secure-admin-input" placeholder="••••••••" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #bdc3c7; border-radius: 6px; box-sizing: border-box; text-align: center; font-size: 1.2rem;" onkeyup="if(event.key === 'Enter') submitSecureAdmin()">
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="submitSecureAdmin()" style="flex: 1; background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-family: 'Cairo'; font-weight: bold; cursor: pointer;">تأكيد</button>
+                        <button onclick="closeSecureModal()" style="flex: 1; background: #7f8c8d; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-family: 'Cairo'; font-weight: bold; cursor: pointer;">إلغاء</button>
+                    </div>
                 </div>
             </div>
-            
+                            
+            <div class="cart-info" onclick="toggleCartPopup()">
+                <i class="fas fa-shopping-cart"></i>
+                <span id="cart-count">0</span>
+            </div>
         </div>
-    </header>
+</header>
 
     <main>
         <div id="admin-dashboard" style="display: none; background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
@@ -344,6 +361,14 @@
 <div id="inventory-section" class="admin-card">
     <h3 style="padding: 10px;"><i class="fas fa-boxes"></i> مراقبة الجرد والمخزن</h3>
     
+    <div style="padding: 0 10px 15px 10px;">
+        <div style="position: relative; display: flex; align-items: center;">
+            <i class="fas fa-search" style="position: absolute; right: 15px; color: #aaa;"></i>
+            <input type="text" id="inventory-search-input" onkeyup="searchInventoryTable()" placeholder="ابحث عن اسم الصنف هنا..." 
+                   style="width: 100%; padding: 12px 40px 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Cairo'; font-size: 0.95rem; box-sizing: border-box; outline: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);">
+        </div>
+    </div>
+    
     <div class="inventory-container">
         <table style="width: 100%; border-collapse: collapse; text-align: right;">
             <thead class="inventory-header">
@@ -355,29 +380,46 @@
                 </tr>
             </thead>
             <tbody id="inventory-table-body">
-                </tbody>
+            </tbody>
         </table>
     </div>
+</div>
+            <<div style="background: white; padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-family: 'Cairo';">
+    <h4 style="margin: 0 0 10px 0; color: #2c3e50;"><i class="fas fa-calendar-alt"></i> تحديد الفترة الزمنية للتقرير:</h4>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <div style="flex: 1; min-width: 140px;">
+            <label style="font-size: 0.85rem; color: #555;">من تاريخ:</label>
+            <input type="date" id="report-start-date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Cairo';">
+        </div>
+        <div style="flex: 1; min-width: 140px;">
+            <label style="font-size: 0.85rem; color: #555;">إلى تاريخ:</label>
+            <input type="date" id="report-end-date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Cairo';">
+        </div>
+        <button onclick="filterProfitByPeriod()" style="background: #2c3e50; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-family: 'Cairo'; font-weight: bold; cursor: pointer; margin-top: 18px; transition: 0.2s;">
+            <i class="fas fa-filter"></i> عرض التقرير
+        </button>
     </div>
-            <div id="reports-section" style="margin-top: 20px; background: #27ae60; color: white; padding: 20px; border-radius: 10px;">
-                <h3 style="text-align: center; border-bottom: 1px solid #fff; padding-bottom: 10px;">
-                    <i class="fas fa-file-invoice"></i> ملخص الأرباح للفترة المحددة
-                </h3>
-                <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center; flex-wrap: wrap; gap: 10px;">
-                    <div>
-                        <span style="display: block; font-size: 0.9rem;">عدد الطلبات</span>
-                        <strong id="report-order-count" style="font-size: 1.5rem;">0</strong>
-                    </div>
-                    <div>
-                        <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (USD)</span>
-                        <strong id="report-total-usd" style="font-size: 1.5rem;">0.00 $</strong>
-                    </div>
-                    <div>
-                        <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (LBP)</span>
-                        <strong id="report-total-lbp" style="font-size: 1.5rem;">0</strong>
-                    </div>
-                </div>
-            </div>
+</div>
+
+<div id="reports-section" style="margin-top: 20px; background: #27ae60; color: white; padding: 20px; border-radius: 10px;">
+    <h3 style="text-align: center; border-bottom: 1px solid #fff; padding-bottom: 10px;">
+        <i class="fas fa-file-invoice"></i> ملخص الأرباح للفترة المحددة
+    </h3>
+    <div style="display: flex; justify-content: space-around; margin-top: 15px; text-align: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+            <span style="display: block; font-size: 0.9rem;">عدد الطلبات</span>
+            <strong id="report-order-count" style="font-size: 1.5rem;">0</strong>
+        </div>
+        <div>
+            <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (USD)</span>
+            <strong id="report-total-usd" style="font-size: 1.5rem;">0.00 $</strong>
+        </div>
+        <div>
+            <span style="display: block; font-size: 0.9rem;">إجمالي المبيعات (LBP)</span>
+            <strong id="report-total-lbp" style="font-size: 1.5rem;">0</strong>
+        </div>
+    </div>
+</div>
         </div>
         
     <div id="reward-section" style="padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 10px; margin: 10px 0; text-align: center;">
@@ -530,6 +572,7 @@ async function showMyPoints() {
         <button onclick="filterByCategory('قسم الدخان', this)"><i class="fas fa-smoking"></i> قسم الدخان</button>
         <button onclick="filterByCategory('قسم البهارات', this)"><i class="fas fa-mortar-pestle"></i> قسم البهارات</button>
         <button onclick="filterByCategory('قسم الشامبو', this)"><i class="fas fa-pump-soap"></i> قسم الشامبو</button> 
+        <button onclick="filterByCategory('بلاستيك', this)"><i class="fas fa-box-open"></i> بلاستيك</button>
     </div>
     
             
@@ -644,6 +687,7 @@ async function showMyPoints() {
     <option value="قسم الدخان">
     <option value="قسم البهارات">
     <option value="قسم الشامبو">
+    <option value="بلاستيك">
 </datalist>
 
 <input type="text" id="new-image" placeholder="رابط الصورة">

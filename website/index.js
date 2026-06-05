@@ -996,6 +996,7 @@ async function hashPassword(string) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 🔥 الدالة المحدثة لفتح النافذة المخفية بدلاً من الـ prompt دون حذف أكوادك الأصلية 🔥
 function toggleAdmin() {
     const loginBtn = document.getElementById('login-btn');
     const dashboard = document.getElementById('admin-dashboard');
@@ -1009,22 +1010,42 @@ function toggleAdmin() {
         return;
     }
 
-    const password = prompt("أدخل كلمة مرور المسؤول:");
+    // بدلاً من الـ prompt، نقوم بإظهار النافذة المخفية الاحترافية
+    document.getElementById('secure-password-modal').style.display = 'flex';
+    document.getElementById('secure-admin-input').value = '';
+    document.getElementById('secure-admin-input').focus();
+}
+
+// دالة إغلاق النافذة عند الضغط على إلغاء
+function closeSecureModal() {
+    document.getElementById('secure-password-modal').style.display = 'none';
+}
+
+// دالة التحقق والمعالجة (تضم كافة أكوادك الأصلية الحالية للتشفير والفايربيس والإحصائيات)
+function submitSecureAdmin() {
+    const loginBtn = document.getElementById('login-btn');
+    const dashboard = document.getElementById('admin-dashboard');
+    const password = document.getElementById('secure-admin-input').value;
+    
     if (!password) return;
 
-    // تشفير الكلمة التي تدخلها الآن للمقارنة
+    // تشفير الكلمة التي تدخلها الآن للمقارنة (كودك الأصلي)
     const encodedPassword = btoa(password);
     
-    // هذا هو الكود المشفر لكلمة bassam1632004 (لا يمكن فهمه بالعين المجردة)
+    // هذا هو الكود المشفر لكلمة bassam1632004 (كودك الأصلي)
     const storedHash = "YmFzc2FtMTYzMjAwNA==";
 
     if (encodedPassword === storedHash) {
         isAdmin = true;
+        
+        // إغلاق نافذة كلمة المرور بعد النجاح
+        document.getElementById('secure-password-modal').style.display = 'none';
+        
         document.getElementById('add-product-form').style.display = 'block';
         dashboard.style.display = 'block'; 
         loginBtn.innerHTML = '<i class="fas fa-user-shield"></i> خروج';
         
-        // تفعيل الإشعارات والإحصائيات
+        // تفعيل الإشعارات والإحصائيات الأصلية الخاصة بك كاملة
         if ("Notification" in window) Notification.requestPermission();
         loadSalesStats(); 
         updateDashboardStats();
@@ -1034,6 +1055,8 @@ function toggleAdmin() {
         console.log("تم الدخول بنجاح");
     } else {
         alert("كلمة المرور خاطئة! تأكد من كتابة الأحرف الصغيرة.");
+        document.getElementById('secure-admin-input').value = '';
+        document.getElementById('secure-admin-input').focus();
     }
 }
 // تعريف الدالة خارجاً ليكون الكود أنظف
@@ -2904,5 +2927,92 @@ window.processAndUploadCSV = function() {
 
     reader.readAsText(file, 'UTF-8');
 };
+// 🔥 دالة البحث الفوري داخل جدول الجرد دون التأثير على جلب البيانات الأصلي 🔥
+function searchInventoryTable() {
+    // قراءة النص المكتوب في خانة البحث وتحويله للاحرف الصغيرة
+    const filter = document.getElementById("inventory-search-input").value.toLowerCase().trim();
+    const tbody = document.getElementById("inventory-table-body");
+    
+    if (!tbody) return;
+    
+    // الحصول على جميع السطور (rows) بداخل الـ tbody
+    const rows = tbody.getElementsByTagName("tr");
+    
+    for (let i = 0; i < rows.length; i++) {
+        // العمود الأول (index 0) هو المسؤول عن اسم الصنف
+        const itemCell = rows[i].getElementsByTagName("td")[0];
+        
+        if (itemCell) {
+            const itemName = itemCell.textContent || itemCell.innerText;
+            
+            // إذا كان اسم الصنف يحتوي على الكلمة المكتوبة يظهر، وإلا يختفي
+            if (itemName.toLowerCase().indexOf(filter) > -1) {
+                rows[i].style.display = "";
+            } else {
+                rows[i].style.display = "none";
+            }
+        }
+    }
+}
+// 🔥 دالة تصفية وحساب أرباح فترة معينة دون مساس بأكوادك السابقة 🔥
+async function filterProfitByPeriod() {
+    const startDateVal = document.getElementById("report-start-date").value;
+    const endDateVal = document.getElementById("report-end-date").value;
+
+    if (!startDateVal || !endDateVal) {
+        alert("الرجاء اختيار تاريخ البداية والنهاية أولاً 🗓️");
+        return;
+    }
+
+    // إعداد التوقيت لتبدأ من أول ثانية في اليوم الأول إلى آخر ثانية في اليوم الأخير
+    let startTimestamp = new Date(startDateVal);
+    startTimestamp.setHours(0, 0, 0, 0);
+
+    let endTimestamp = new Date(endDateVal);
+    endTimestamp.setHours(23, 59, 59, 999);
+
+    if (startTimestamp > endTimestamp) {
+        alert("خطأ: تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية!");
+        return;
+    }
+
+    // الحصول على سعر الصرف الحالي من الـ localStorage أو افتراضي 90,000 ليرة
+    let currentRate = parseFloat(localStorage.getItem('exchangeRate')) || 90000;
+
+    try {
+        // جلب مستندات المبيعات بالكامل لتصفيتها زمنياً بدقة
+        const salesSnap = await db.collection("sales").get();
+        
+        let totalUSD = 0;
+        let orderCount = 0;
+
+        salesSnap.forEach(doc => {
+            const data = doc.data();
+            if (data && data.time) {
+                // تحويل الـ Timestamp الخاص بـ Firebase إلى تاريخ JS للمقارنة
+                const invoiceDate = data.time.toDate();
+
+                // التحقق إذا كان تاريخ الفاتورة يقع داخل الفترة المحددة
+                if (invoiceDate >= startTimestamp && invoiceDate <= endTimestamp) {
+                    const amt = parseFloat(data.totalUSD || data.total_usd || data.total || 0);
+                    totalUSD += amt;
+                    orderCount++;
+                }
+            }
+        });
+
+        // حساب المبيعات بالليرة اللبنانية مع تقريب لأقرب 500 ليرة
+        const totalLBP = Math.round((totalUSD * currentRate) / 500) * 500;
+
+        // تحديث أرقام الكارت الأخضر في الشاشة فوراً
+        document.getElementById("report-order-count").innerText = orderCount;
+        document.getElementById("report-total-usd").innerText = totalUSD.toFixed(2) + " $";
+        document.getElementById("report-total-lbp").innerText = totalLBP.toLocaleString('ar-LB') + " ل.ل";
+
+    } catch (error) {
+        console.error("خطأ أثناء احتساب تقرير الفترة المحددة:", error);
+        alert("حدث خطأ أثناء جلب البيانات: " + error.message);
+    }
+}
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

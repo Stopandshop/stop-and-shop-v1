@@ -2765,12 +2765,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+// 🔥 تحديث الدالة لفتح النافذة السرية بدلاً من الـ prompt دون حذف أكوادك الأصلية 🔥
 function openFinancePage() {
-    const pass = prompt("كلمة مرور الإدارة المالية:");
+    document.getElementById('finance-password-modal').style.display = 'flex';
+    document.getElementById('finance-admin-input').value = '';
+    document.getElementById('finance-admin-input').focus();
+}
+
+// دالة إغلاق نافذة المالية عند الضغط على إلغاء
+function closeFinanceModal() {
+    document.getElementById('finance-password-modal').style.display = 'none';
+}
+
+// دالة التحقق الآمنة والمعالجة المضافة لتشغيل الكود السري الخاص بك
+function submitFinancePassword() {
+    const pass = document.getElementById('finance-admin-input').value;
+    
+    // شرط التحقق الأصلي الخاص بك (لم يتغير منه حرف)
     if (pass === "2004") { 
+        document.getElementById('finance-password-modal').style.display = 'none';
         window.location.href = "finance.html";
     } else {
         alert("خطأ!");
+        document.getElementById('finance-admin-input').value = '';
+        document.getElementById('finance-admin-input').focus();
     }
 }
 // 1. دالة التحكم في إظهار وإخفاء حقول اختيار الأرقام والفلترة تلقائياً

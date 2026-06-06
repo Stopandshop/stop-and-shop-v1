@@ -1315,33 +1315,36 @@ window.addEventListener('load', () => {
 });
 // 1. دالة لجلب البيانات من Firebase وعرضها في الجدول
 function loadSalesHistory() {
-    const list = document.getElementById('admin-orders-list');
-    if (!list) return;
+    // إضافة .limit(50) تجلب فقط آخر 50 فاتورة لحماية الحصة اليومية من النفاد
+    db.collection("orders").orderBy("time", "desc").limit(50).onSnapshot(snapshot => {
+        const salesBody = document.getElementById('sales-history-body');
+        if (!salesBody) return;
+        
+        salesBody.innerHTML = ''; 
 
-    db.collection("orders").orderBy("timestamp", "desc").limit(20).get().then((querySnapshot) => {
-        list.innerHTML = ""; 
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            // تحويل Timestamp إلى تاريخ مقروء للفلترة
-            const dateObj = data.date ? data.date.toDate() : new Date();
-            const dateStr = dateObj.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        snapshot.forEach(doc => {
+            const order = doc.data();
+            const orderId = doc.id;
+            const total = parseFloat(order.totalUSD || order.total_usd || 0);
+            const orderDate = order.time ? order.time.toDate().toLocaleString('ar-EG') : 'غير محدد';
 
-            const row = document.createElement('tr');
-            row.style.borderBottom = "1px solid #455a64";
-            row.innerHTML = `
-                <td style="padding: 10px;">#${data.orderId || '---'}</td>
-                <td style="padding: 10px; font-weight: bold; color: #2ecc71;">$${(data.totalPrice || 0).toFixed(2)}</td>
-                <td style="padding: 10px;" data-date="${dateStr}">${dateStr}</td>
-                <td style="padding: 10px;">
-                    <button onclick='printArchiveOrder(${JSON.stringify(data)})' 
-                            style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                        <i class="fas fa-print"></i>
-                    </button>
-                </td>
+            salesBody.innerHTML += `
+                <tr class="order-row" data-id="${orderId}">
+                    <td>${orderId}</td>
+                    <td class="total-cell" style="color: #e74c3c; font-weight: bold;">${total.toFixed(2)} $</td>
+                    <td>${orderDate}</td>
+                    <td>
+                        <button onclick="printArchiveOrder('${orderId}')" style="background: #34495e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                            <i class="fas fa-print"></i> طباعة
+                        </button>
+                    </td>
+                </tr>
             `;
-            list.appendChild(row);
         });
-        updateReports(); // تحديث المجموع بعد التحميل
+        
+        if (typeof updateReports === "function") updateReports();
+    }, error => {
+        console.error("خطأ في جلب الفواتير: ", error);
     });
 }
 
@@ -1394,28 +1397,53 @@ function filterOrders() {
     let table = document.getElementById("ordersTable");
     let tr = table.getElementsByTagName("tr");
 
+    // تحويل التاريخ المختار إلى الصيغة الرقمية لتتطابق مع تركيبة الوقت في فواتيرك (مثال: 6/6/2026)
+    let formattedSelectedDate = "";
+    if (selectedDate !== "") {
+        let parts = selectedDate.split("-"); // تفكيك التاريخ القادم من الفلتر YYYY-MM-DD
+        if (parts.length === 3) {
+            let year = parseInt(parts[0], 10);
+            let month = parseInt(parts[1], 10);
+            let day = parseInt(parts[2], 10);
+            
+            // صياغة التاريخ بالشكل المتوافق مع طريقة عرض النصوص داخل جدول النظام لديك
+            formattedSelectedDate = `${month}/${day}/${year}`;
+        }
+    }
+
     for (let i = 1; i < tr.length; i++) {
-        let rowVisible = false;
         let tds = tr[i].getElementsByTagName("td");
         
-        // البحث عن النص في أي عمود (رقم الطلب أو السعر)
-        let idText = tds[0].textContent || tds[0].innerText;
-        let matchesSearch = idText.toUpperCase().indexOf(searchText) > -1;
-
-        // الفلترة حسب التاريخ (نفترض أن التاريخ في العمود الثالث index 2)
-        let matchesDate = true;
-        if (selectedDate !== "" && tds[2]) {
-            let rowDate = tds[2].getAttribute("data-date") || tds[2].innerText;
-            matchesDate = rowDate.includes(selectedDate);
+        // حماية برمجية: تخطي الأسطر الفارغة أو أسطر المجموع النهائي لضمان عدم حدوث خطأ تصفير
+        if (!tds || tds.length < 3 || tr[i].innerText.includes("المجموع النهائي")) {
+            continue;
         }
 
+        // 1. فحص مطابقة رقم الطلب (في العمود الأول index 0)
+        let idText = (tds[0].textContent || tds[0].innerText).toUpperCase();
+        let matchesSearch = idText.indexOf(searchText) > -1;
+
+        // 2. فحص مطابقة التاريخ (في العمود الثالث index 2)
+        let matchesDate = true;
+        if (selectedDate !== "" && tds[2]) {
+            let rowDate = tds[2].textContent || tds[2].innerText;
+            
+            // الفحص الذكي: يطابق النص مباشرة أو يطابق الصيغة المحلية المفككة (اليوم/الشهر/السنة)
+            matchesDate = rowDate.includes(selectedDate) || rowDate.includes(formattedSelectedDate);
+        }
+
+        // إظهار السطر فقط إذا تطابق البحث مع التاريخ معاً
         if (matchesSearch && matchesDate) {
             tr[i].style.display = "";
         } else {
             tr[i].style.display = "none";
         }
     }
-    updateReports();
+
+    // الحفاظ الكامل على دالة تحديث التقارير الأصلية الخاصة بك دون أي تعديل أو حذف
+    if (typeof updateReports === "function") {
+        updateReports();
+    }
 }
 
 // إعادة ضبط الفلاتر لإظهار كل الطلبات
@@ -2142,7 +2170,8 @@ async function loadTodaySales() {
         activeStaff.push(sData.name || sData.staff);
     });
 
-    db.collection("sales")
+    // تم توجيه الاستعلام إلى الكولكشن الصحيح المسؤول عن الفواتير والطلبات لملء الجدول
+    db.collection("orders")
         .where("time", ">=", startOfDay)
         .onSnapshot(snapshot => {
             let totalUSD = 0;
@@ -2189,10 +2218,13 @@ async function loadTodaySales() {
                     `;
                 }
             }
+            
+            // استدعاء دالة تحديث وعرض الأرشيف لكي تظهر الأسطر فوراً داخل الجدول الفارغ في الصورة
+            if (typeof loadSalesHistory === "function") {
+                loadSalesHistory();
+            }
         });
 }
-
-document.addEventListener('DOMContentLoaded', loadTodaySales);
 
 async function deleteStaffMember(staffName) {
     if (confirm(`هل أنت متأكد من حذف الموظف "${staffName}" نهائياً؟`)) {

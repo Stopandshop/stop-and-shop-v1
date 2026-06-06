@@ -219,40 +219,42 @@
 </div>
             
             <div style="margin-top: 30px; background: #34495e; padding: 20px; border-radius: 10px;">
-                <h3 style="text-align: center; color: #27ae60; margin-bottom: 15px;">
-                    <i class="fas fa-history"></i> سجل الفواتير الأخيرة
-                </h3>
+    <h3 style="text-align: center; color: #27ae60; margin-bottom: 15px;">
+        <i class="fas fa-history"></i> سجل الفواتير الأخيرة
+    </h3>
 
-                <div class="admin-controls" style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; color: #333;">
-                    
-                    <div class="search-box">
-                        <label style="display: block; font-weight: bold; margin-bottom: 5px;">🔍 بحث برقم الطلب:</label>
-                        <input type="text" id="orderSearch" onkeyup="filterOrders()" placeholder="مثلاً: SS1234..." 
-                               style="padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 200px;">
-                    </div>
+    <div class="admin-controls" style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; color: #333;">
+        
+        <div class="search-box">
+            <label style="display: block; font-weight: bold; margin-bottom: 5px;">🔍 بحث برقم الطلب:</label>
+            <input type="text" id="orderSearch" onkeyup="filterOrders()" placeholder="مثلاً: SS1234..." 
+                   style="padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 200px;">
+        </div>
 
-                    <div class="date-filter">
-                        <label style="display: block; font-weight: bold; margin-bottom: 5px;">📅 تصفية حسب التاريخ:</label>
-                        <input type="date" id="dateFilter" onchange="filterOrders()" 
-                               style="padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
-                    </div>
+        <div class="date-filter">
+            <label style="display: block; font-weight: bold; margin-bottom: 5px;">📅 تصفية حسب التاريخ:</label>
+            <input type="date" id="dateFilter" onchange="filterOrders()" 
+                   style="padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+        </div>
 
-                    <button onclick="resetFilters()" style="margin-top: 25px; padding: 10px 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">إعادة ضبط</button>
-                </div>
-            
-                <div style="max-height: 400px; overflow-y: auto; background: #34495e; border-radius: 10px; padding: 10px;">
-                    <table id="ordersTable" style="width: 100%; border-collapse: collapse; color: white; font-size: 0.85rem; text-align: center;">
-                        <thead>
-                            <tr style="border-bottom: 2px solid #27ae60; background: #2c3e50;">
-                                <th style="padding: 10px;">رقم الطلب</th>
-                                <th style="padding: 10px;">المبلغ</th>
-                                <th style="padding: 10px;">التاريخ</th> <th style="padding: 10px;">التحكم</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-orders-list">
-                            </tbody>
-                    </table>
-                </div>
+        <button onclick="resetFilters()" style="margin-top: 25px; padding: 10px 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">إعادة ضبط</button>
+    </div>
+
+    <div style="max-height: 400px; overflow-y: auto; background: #34495e; border-radius: 10px; padding: 10px;">
+        <table id="ordersTable" style="width: 100%; border-collapse: collapse; color: white; font-size: 0.85rem; text-align: center;">
+            <thead>
+                <tr style="border-bottom: 2px solid #27ae60; background: #2c3e50;">
+                    <th style="padding: 10px;">رقم الطلب</th>
+                    <th style="padding: 10px;">المبلغ</th>
+                    <th style="padding: 10px;">التاريخ</th> 
+                    <th style="padding: 10px;">التحكم</th>
+                </tr>
+            </thead>
+            <tbody id="admin-orders-list">
+            </tbody>
+        </table>
+    </div>
+
 
                 <div class="admin-section">
                     <div class="header-flex">
@@ -474,7 +476,6 @@
 </div>
 
 <script>
-// دوال إدارة زبائن الولاء والبحث
 function filterCustomers() {
     let input = document.getElementById("searchCustomer");
     let filter = input.value.toLowerCase();
@@ -490,7 +491,7 @@ function filterCustomers() {
 }
 
 function showManualAddForm() { document.getElementById('manual-points-modal').style.display = 'flex'; }
-function hideManualAddForm() { document.getElementById('manual-points-modal').style.display = 'none'; }
+function hideManualAddForm() { document.getElementById('manual-points-modal').style.none = 'none'; }
 
 async function confirmManualPoints() {
     const phone = document.getElementById('admin-phone').value;
@@ -539,7 +540,7 @@ async function showMyPoints() {
                     <svg id="barcode"></svg> 
                 </div>
                 
-                <p class="card-footer" style="font-size: 0.8rem; margin-top: 10px;">شكراً لثقتك بنا في مؤسسة نصور ✨</p>
+                <p class="card-footer" style="font-size: 0.8rem; margin-top: 10px;">شكراً لثقتك بنا في مؤسسة نصور التجارية ✨</p>
             </div>
         `;
 
@@ -556,74 +557,21 @@ async function showMyPoints() {
         display.innerHTML = '<p>عذراً، حدث خطأ أثناء جلب البيانات</p>';
     }
 }
-</script>
-        
-        <section class="controls">
-            <div class="section-title">الأقسام</div>
-            <div class="categories">
-                <button class="active" onclick="filterByCategory('الكل', this)">الكل</button>
-                <button onclick="filterByCategory('أجبان وألبان', this)"><i class="fas fa-cheese"></i> أجبان وألبان</button>
-                <button onclick="filterByCategory('مواد غذائية', this)"><i class="fas fa-utensils"></i>  مواد غذائية</button>
-                
-                <button onclick="filterByCategory('تشيبس', this)"><i class="fas fa-cookie"></i> تشيبس</button>
-                <button onclick="filterByCategory('مياه', this)"><i class="fas fa-tint"></i> مياه</button>
-                
-                <button onclick="filterByCategory('مكسرات', this)"><i class="fas fa-seedling"></i> مكسرات</button>
-                <button onclick="filterByCategory('مخبوزات', this)"><i class="fas fa-bread-slice"></i> مخبوزات</button>
-                <button onclick="filterByCategory('سكاكر', this)"><i class="fas fa-candy-cane"></i> سكاكر</button>
-                <button onclick="filterByCategory('معلبات', this)"><i class="fas fa-box"></i> معلبات</button>
-                <button onclick="filterByCategory('حبوب', this)"><i class="fas fa-wheat-awn"></i> حبوب</button>
-                <button onclick="filterByCategory('ادوات تنظيف', this)"><i class="fas fa-soap"></i> تنظيف</button>
-                <button onclick="filterByCategory('خرضوات', this)"><i class="fas fa-tools"></i> خرضوات</button>
-                <button onclick="filterByCategory('خاص للحلويات', this)"><i class="fas fa-birthday-cake"></i> حلويات</button>
-                <button onclick="filterByCategory('مشروبات', this)"><i class="fas fa-wine-glass-alt"></i> مشروبات</button>
-                <button onclick="filterByCategory('محارم', this)"><i class="fas fa-box-tissue"></i> محارم</button>
-                <button onclick="filterByCategory('حفاضات', this)"><i class="fas fa-baby"></i> حفاضات</button>
-                <button onclick="filterByCategory('بوظة', this)"><i class="fas fa-ice-cream"></i> بوظة</button>
-        <button onclick="filterByCategory('قسم السيدات', this)"><i class="fas fa-female"></i> قسم السيدات</button>
-        <button onclick="filterByCategory('زيوت', this)"><i class="fas fa-oil-can"></i> زيوت</button>
-        <button onclick="filterByCategory('سمنة', this)"><i class="fas fa-mortar-pestle"></i> سمنة</button>
-        <button onclick="filterByCategory('قسم الدايت', this)"><i class="fas fa-apple-alt"></i> قسم الدايت</button>
-        <button onclick="filterByCategory('قسم الدخان', this)"><i class="fas fa-smoking"></i> قسم الدخان</button>
-        <button onclick="filterByCategory('قسم البهارات', this)"><i class="fas fa-mortar-pestle"></i> قسم البهارات</button>
-        <button onclick="filterByCategory('قسم الشامبو', this)"><i class="fas fa-pump-soap"></i> قسم الشامبو</button> 
-        <button onclick="filterByCategory('بلاستيك', this)"><i class="fas fa-box-open"></i> بلاستيك</button>
-        <button onclick="filterByCategory('مجمدات', this)"><i class="fas fa-snowflake"></i> مجمدات</button>
-    </div>
-    
-            
-            <div id="add-product-form" class="admin-controls-panel" style="display: none;">
-   <h3 id="form-title">إدارة المنتج</h3>
-   <div style="background: #e0f2f1; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #4db6ac;">
-    <div id="admin-rate-control" style="background: #fff; padding: 20px; border-radius: 15px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-right: 5px solid #e74c3c;">
-    <h3 style="margin-top: 0; color: #2c3e50;"><i class="fas fa-money-bill-wave"></i> إدارة سعر الصرف</h3>
-    <p style="font-size: 0.9rem; color: #666;">تغيير السعر هنا سيؤدي لتحديثه فوراً لدى الكاشير</p>
-    
-    <div style="display: flex; gap: 10px; align-items: center;">
-        <input type="number" id="new-rate-input" placeholder="أدخل السعر (مثلاً 89000)" 
-               style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; flex: 1; font-size: 1rem;">
-        
-        <button onclick="updateRateFromUI()" 
-                style="background: #e74c3c; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold;">
-            تحديث الآن
-        </button>
-    </div>
-</div>
 
-<script>
-   function updateRateFromUI() {
-        const rateInput = document.getElementById('new-rate-input');
-        const rate = rateInput.value;
-        if (rate && rate > 0) {
-            if(confirm(`هل أنت متأكد من تغيير سعر الصرف إلى ${rate}؟`)) {
-                updateGlobalExchangeRate(rate);
-                rateInput.value = ''; // تنظيف الخانة بعد الإرسال
-            }
-        } else {
-            alert("يرجى إدخال سعر صحيح");
+function updateRateFromUI() {
+    const rateInput = document.getElementById('new-rate-input');
+    const rate = rateInput.value;
+    if (rate && rate > 0) {
+        if(confirm(`هل أنت متأكد من تغيير سعر الصرف إلى ${rate}؟`)) {
+            updateGlobalExchangeRate(rate);
+            rateInput.value = ''; // تنظيف الخانة بعد الإرسال
         }
+    } else {
+        alert("يرجى إدخال سعر صحيح");
     }
-    document.addEventListener("DOMContentLoaded", function() {
+}
+
+document.addEventListener("DOMContentLoaded", function() {
     // 1. التحقق التلقائي المستمر من الموظف النشط حالياً في النظام
     if (typeof db !== "undefined") {
         db.collection("staff").orderBy("createdAt", "desc").limit(1).onSnapshot(snapshot => {
@@ -643,95 +591,140 @@ async function showMyPoints() {
     }
 });
 </script>
-
-</div>
-
-<input type="hidden" id="edit-product-id">
-<input type="text" id="new-name" placeholder="اسم المنتج">
-
-<div id="admin-rate-display" style="font-size: 0.85rem; color: #2c3e50; font-weight: bold; margin-bottom: 10px;">
-    جاري تحميل سعر الصرف...
-</div>
-
-<div style="display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; color: #d32f2f; display: block; margin-bottom: 4px;">سعر الشراء ($)</label>
-        <input type="number" id="product-cost-input" step="0.01" placeholder="0.00 $" oninput="calculateProfit()" style="width: 100%;">
+        
+<section class="controls">
+    <div class="section-title">الأقسام</div>
+    <div class="categories">
+        <button class="active" onclick="filterByCategory('الكل', this)">الكل</button>
+        <button onclick="filterByCategory('أجبان وألبان', this)"><i class="fas fa-cheese"></i> أجبان وألبان</button>
+        <button onclick="filterByCategory('مواد غذائية', this)"><i class="fas fa-utensils"></i>  مواد غذائية</button>
+        <button onclick="filterByCategory('تشيبس', this)"><i class="fas fa-cookie"></i> تشيبس</button>
+        <button onclick="filterByCategory('مياه', this)"><i class="fas fa-tint"></i> مياه</button>
+        <button onclick="filterByCategory('مكسرات', this)"><i class="fas fa-seedling"></i> مكسرات</button>
+        <button onclick="filterByCategory('مخبوزات', this)"><i class="fas fa-bread-slice"></i> مخبوزات</button>
+        <button onclick="filterByCategory('سكاكر', this)"><i class="fas fa-candy-cane"></i> سكاكر</button>
+        <button onclick="filterByCategory('معلبات', this)"><i class="fas fa-box"></i> معلبات</button>
+        <button onclick="filterByCategory('حبوب', this)"><i class="fas fa-wheat-awn"></i> حبوب</button>
+        <button onclick="filterByCategory('ادوات تنظيف', this)"><i class="fas fa-soap"></i> تنظيف</button>
+        <button onclick="filterByCategory('خرضوات', this)"><i class="fas fa-tools"></i> خرضوات</button>
+        <button onclick="filterByCategory('خاص للحلويات', this)"><i class="fas fa-birthday-cake"></i> حلويات</button>
+        <button onclick="filterByCategory('مشروبات', this)"><i class="fas fa-wine-glass-alt"></i> مشروبات</button>
+        <button onclick="filterByCategory('محارم', this)"><i class="fas fa-box-tissue"></i> محارم</button>
+        <button onclick="filterByCategory('حفاضات', this)"><i class="fas fa-baby"></i> حفاضات</button>
+        <button onclick="filterByCategory('بوظة', this)"><i class="fas fa-ice-cream"></i> بوظة</button>
+        <button onclick="filterByCategory('قسم السيدات', this)"><i class="fas fa-female"></i> قسم السيدات</button>
+        <button onclick="filterByCategory('زيوت', this)"><i class="fas fa-oil-can"></i> زيوت</button>
+        <button onclick="filterByCategory('سمنة', this)"><i class="fas fa-mortar-pestle"></i> سمنة</button>
+        <button onclick="filterByCategory('قسم الدايت', this)"><i class="fas fa-apple-alt"></i> قسم الدايت</button>
+        <button onclick="filterByCategory('قسم الدخان', this)"><i class="fas fa-smoking"></i> قسم الدخان</button>
+        <button onclick="filterByCategory('قسم البهارات', this)"><i class="fas fa-mortar-pestle"></i> قسم البهارات</button>
+        <button onclick="filterByCategory('قسم الشامبو', this)"><i class="fas fa-pump-soap"></i> قسم الشامبو</button> 
+        <button onclick="filterByCategory('بلاستيك', this)"><i class="fas fa-box-open"></i> بلاستيك</button>
+        <button onclick="filterByCategory('مجمدات', this)"><i class="fas fa-snowflake"></i> مجمدات</button>
     </div>
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; color: #388e3c; display: block; margin-bottom: 4px;">نسبة الربح (%)</label>
-        <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32; width: 100%;">
-    </div>
-</div>
-
-<div style="display: flex; gap: 10px; margin-bottom: 10px;">
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالدولار ($)</label>
-        <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP()" onchange="convertToLBP()" style="width: 100%;">
-    </div>
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالليرة (L.L)</label>
-        <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD()" onchange="convertToUSD()" style="width: 100%;">
-    </div>
-</div>
-
-<input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
-<input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن">
-<input type="text" id="new-category" list="category-list" placeholder="اختر أو اكتب القسم">
-
-<datalist id="category-list">
-    <option value="أجبان وألبان">
-    <option value="مواد غذائية">
-    <option value="تشيبس">
-    <option value="مياه">
-    <option value="مكسرات">
-    <option value="مخبوزات">
-    <option value="سكاكر">
-    <option value="معلبات">
-    <option value="حبوب">
-    <option value="ادوات تنظيف">
-    <option value="خرضوات">
-    <option value="خاص للحلويات">
-    <option value="مشروبات">
-    <option value="محارم">
-    <option value="حفاضات">
-    <option value="بوظة">
-    <option value="قسم السيدات">
-    <option value="زيوت">
-    <option value="سمنة">
-    <option value="قسم الدايت">
-    <option value="قسم الدخان">
-    <option value="قسم البهارات">
-    <option value="قسم الشامبو">
-    <option value="بلاستيك">
-    <option value="مجمدات">
-</datalist>
-
-<input type="text" id="new-image" placeholder="رابط الصورة">
-
-<div style="margin: 15px 0; background: #f9f9f9; padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-        <input type="checkbox" id="out-of-stock-check" style="width: 18px; height: 18px; cursor: pointer;">
-        <label for="out-of-stock-check" style="cursor: pointer; font-weight: bold; color: #d32f2f;">
-            ⚠️ تحديد كـ "نفذ من المخزن"
-        </label>
-    </div>
-    <input type="number" id="product-old-price" placeholder="السعر قبل العرض (اختياري)">
-</div>
-
-<div class="admin-btns">
-    <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
-    <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
-    <button onclick="printProductLabel()" style="background: #2c3e50; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;">
-        <i class="fas fa-print"></i> طباعة ملصق Xprinter
-    </button>
-</div>
-
-<div id="label-print-area" style="display: none;"></div>
 </section>
 
+<div id="add-product-form" class="admin-controls-panel" style="display: none;">
+    <h3 id="form-title">إدارة المنتج</h3>
+    <div style="background: #e0f2f1; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #4db6ac;">
+        <div id="admin-rate-control" style="background: #fff; padding: 20px; border-radius: 15px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-right: 5px solid #e74c3c;">
+            <h3 style="margin-top: 0; color: #2c3e50;"><i class="fas fa-money-bill-wave"></i> إدارة سعر الصرف</h3>
+            <p style="font-size: 0.9rem; color: #666;">تغيير السعر هنا سيؤدي لتحديثه فوراً لدى الكاشير</p>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="number" id="new-rate-input" placeholder="أدخل السعر (مثلاً 89000)" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; flex: 1; font-size: 1rem;">
+                <button onclick="updateRateFromUI()" style="background: #e74c3c; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                    تحديث الآن
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="edit-product-id">
+    <input type="text" id="new-name" placeholder="اسم المنتج">
+
+    <div id="admin-rate-display" style="font-size: 0.85rem; color: #2c3e50; font-weight: bold; margin-bottom: 10px;">
+        جاري تحميل سعر الصرف...
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #d32f2f; display: block; margin-bottom: 4px;">سعر الشراء ($)</label>
+            <input type="number" id="product-cost-input" step="0.01" placeholder="0.00 $" oninput="calculateProfit()" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #388e3c; display: block; margin-bottom: 4px;">نسبة الربح (%)</label>
+            <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32; width: 100%;">
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالدولار ($)</label>
+            <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP()" onchange="convertToLBP()" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالليرة (L.L)</label>
+            <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD()" onchange="convertToUSD()" style="width: 100%;">
+        </div>
+    </div>
+
+    <input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
+    <input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن">
+    <input type="text" id="new-category" list="category-list" placeholder="اختر أو اكتب القسم">
+
+    <datalist id="category-list">
+        <option value="أجبان وألبان">
+        <option value="مواد غذائية">
+        <option value="تشيبس">
+        <option value="مياه">
+        <option value="مكسرات">
+        <option value="مخبوزات">
+        <option value="سكاكر">
+        <option value="معلبات">
+        <option value="حبوب">
+        <option value="ادوات تنظيف">
+        <option value="خرضوات">
+        <option value="خاص للحلويات">
+        <option value="مشروبات">
+        <option value="محارم">
+        <option value="حفاضات">
+        <option value="بوظة">
+        <option value="قسم السيدات">
+        <option value="زيوت">
+        <option value="سمنة">
+        <option value="قسم الدايت">
+        <option value="قسم الدخان">
+        <option value="قسم البهارات">
+        <option value="قسم الشامبو">
+        <option value="بلاستيك">
+        <option value="مجمدات">
+    </datalist>
+
+    <input type="text" id="new-image" placeholder="رابط الصورة">
+
+    <div style="margin: 15px 0; background: #f9f9f9; padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <input type="checkbox" id="out-of-stock-check" style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="out-of-stock-check" style="cursor: pointer; font-weight: bold; color: #d32f2f;">
+                ⚠️ تحديد كـ "نفذ من المخزن"
+            </label>
+        </div>
+        <input type="number" id="product-old-price" placeholder="السعر قبل العرض (اختياري)">
+    </div>
+
+    <div class="admin-btns">
+        <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
+        <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
+        <button onclick="printProductLabel()" style="background: #2c3e50; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;">
+            <i class="fas fa-print"></i> طباعة ملصق Xprinter
+        </button>
+    </div>
+
+    <div id="label-print-area" style="display: none;"></div>
+</div>
+
 <section id="products-container" class="products-grid"></section>
-</main>
 
 <div id="cart-popup" class="cart-popup" style="display: none; max-height: 85vh; overflow-y: auto;">
     <div class="cart-content">

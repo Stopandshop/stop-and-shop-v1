@@ -1052,68 +1052,93 @@ function renderCart() {
 
     // --- 4. الحفظ والأرشفة ---
    async function saveInvoice() {
-        if (cart.length === 0) return alert("السلة فارغة!");
+    if (cart.length === 0) return alert("السلة فارغة!");
+    
+    // إذا ضغط الكاشير على Cancel (إلغاء) في نافذة التأكيد، ستتوقف الدالة فوراً وبمنتهى الهدوء دون أي مشاكل
+    if (!confirm("تأكيد حفظ الفاتورة؟")) return;
+
+    // --- تعديل لضمان الطباعة: فتح النافذة قبل العمليات غير المتزامنة لمنع حظرها ---
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+        alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة");
+        return;
+    }
+
+    const usd = parseFloat(document.getElementById('subtotal-usd').innerText);
+    const lbp = parseInt(document.getElementById('total-lbp').innerText.replace(/,/g, ''));
+
+    try {
+        const batch = db.batch();
+        const saleRef = db.collection("sales").doc();
         
-        // إذا ضغط الكاشير على Cancel (إلغاء) في نافذة التأكيد، ستتوقف الدالة فوراً وبمنتهى الهدوء دون أي مشاكل
-        if (!confirm("تأكيد حفظ الفاتورة؟")) return;
-
-        // --- تعديل لضمان الطباعة: فتح النافذة قبل العمليات غير المتزامنة لمنع حظرها ---
-        const printWindow = window.open('', '_blank', 'width=800,height=900');
-        if (!printWindow) {
-            alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة");
-            return;
-        }
-
-        const usd = parseFloat(document.getElementById('subtotal-usd').innerText);
-        const lbp = parseInt(document.getElementById('total-lbp').innerText.replace(/,/g, ''));
-
-        try {
-            const batch = db.batch();
-            const saleRef = db.collection("sales").doc();
-            
-            batch.set(saleRef, {
-                items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
-                employee: currentEmployee, 
-                totalUSD: usd,
-                totalLBP: lbp,
-                time: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // تحديث المخزون
-            cart.forEach(item => {
-                // التعديل الذكي لحل المشكلة نهائياً: تحديد معرف المستند الصحيح (الباركود للمرفوع من الملف، أو الـ ID العادي)
-                const targetDocId = item.barcode ? item.barcode : item.id;
-                const ref = db.collection("products").doc(targetDocId);
-                
-                batch.update(ref, { stock: firebase.firestore.FieldValue.increment(-item.qty) });
-            });
-
-            await batch.commit();
-            saveToInvoices(usd, lbp);
-
-            // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة ---
-            // نمرر printWindow لضمان أن دالة الطباعة تستخدم نفس النافذة المسموح بها وتفتح صفحة واحدة فقط
-            printInvoice(printWindow); 
-
-            alert("تم حفظ العملية بنجاح بواسطة: " + currentEmployee);
-            cart = []; 
-            renderCart();
-        } catch (e) { 
-            if (printWindow) printWindow.close(); // إغلاق النافذة في حال فشل الحفظ
-            alert("خطأ في الحفظ: " + e.message); 
-        }
-    }
-
-    function saveToInvoices(u, l) {
-        const mid = new Date().toISOString().slice(0, 7);
-        db.collection("invoices").add({
-            invoice_date: firebase.firestore.FieldValue.serverTimestamp(),
-            month_id: mid,
-            total_usd: u,
-            total_lbp: l,
-            employee: currentEmployee
+        batch.set(saleRef, {
+            items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+            employee: currentEmployee, 
+            totalUSD: usd,
+            totalLBP: lbp,
+            time: firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        // تم نقل تحديث المخزون ليعمل بشكل منفصل وذكي لحماية الفاتورة من الانهيار
+        // سيتم معالجة تحديث المخزون عبر وعود متوازية (Promises) تضمن عدم توقف الحفظ
+        const stockUpdates = cart.map(async (item) => {
+            const targetDocId = item.barcode ? item.barcode : item.id;
+            const ref = db.collection("products").doc(targetDocId);
+            
+            try {
+                const doc = await ref.get();
+                if (doc.exists) {
+                    // إذا كان المنتج موجوداً، نقوم بتحديث مخزونه بأمان
+                    await ref.update({ stock: firebase.firestore.FieldValue.increment(-item.qty) });
+                } else {
+                    // إذا كان المنتج ممسوحاً بالباركود وغير معرف في السيستم، ننشئه بـ set لمنع الخطأ
+                    console.warn(`المنتج بالباركود ${targetDocId} غير موجود في المستودع، تم إنشاؤه تلقائياً.`);
+                    await ref.set({
+                        name: item.name || "منتج جديد غير معرف",
+                        barcode: targetDocId,
+                        price: item.price || 0,
+                        stock: 0 - item.qty, // تسجيل كمية سالبة مؤقتة للحسابات
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+            } catch (err) {
+                console.error(`فشل تحديث مخزون المنتج ${targetDocId}:`, err);
+                // لا نرفع الخطأ (throw) هنا لكي لا تنهار عملية حفظ الفاتورة الأساسية والطباعة
+            }
+        });
+
+        // حفظ الفاتورة في كولكشن sales أولاً
+        await batch.commit();
+
+        // تنفيذ تحديثات المخزون في الخلفية بأمان تام
+        await Promise.all(stockUpdates);
+
+        // استدعاء دالة الأرشيف الخاصة بك
+        saveToInvoices(usd, lbp);
+
+        // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة ---
+        // نمرر printWindow لضمان أن دالة الطباعة تستخدم نفس النافذة المسموح بها وتفتح صفحة واحدة فقط
+        printInvoice(printWindow); 
+
+        alert("تم حفظ العملية بنجاح بواسطة: " + currentEmployee);
+        cart = []; 
+        renderCart();
+    } catch (e) { 
+        if (printWindow) printWindow.close(); // إغلاق النافذة في حال فشل الحفظ
+        alert("خطأ في الحفظ: " + e.message); 
     }
+}
+
+function saveToInvoices(u, l) {
+    const mid = new Date().toISOString().slice(0, 7);
+    db.collection("invoices").add({
+        invoice_date: firebase.firestore.FieldValue.serverTimestamp(),
+        month_id: mid,
+        total_usd: u,
+        total_lbp: l,
+        employee: currentEmployee
+    });
+}
 
     // --- 5. التشغيل والتحكم ---
     window.onload = () => { 

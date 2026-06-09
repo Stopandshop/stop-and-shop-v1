@@ -1313,54 +1313,177 @@ window.addEventListener('load', () => {
         document.getElementById('welcome-modal').style.display = 'none';
     }
 });
-// 1. دالة لجلب البيانات من Firebase وعرضها في الجدول
 function loadSalesHistory() {
-    // إضافة .limit(50) تجلب فقط آخر 50 فاتورة لحماية الحصة اليومية من النفاد
-    db.collection("orders").orderBy("time", "desc").limit(50).onSnapshot(snapshot => {
-        const salesBody = document.getElementById('sales-history-body');
-        if (!salesBody) return;
+    // 1. جلب البيانات مع الترتيب التلقائي حسب التاريخ الأقرب (الأحدث أولاً)
+    db.collection("orders")
+      .orderBy("timestamp", "desc") // ترتيب تنازلي بناءً على التوقيت المخزن في الفايربيز
+      .limit(50)
+      .onSnapshot(snapshot => {
         
-        salesBody.innerHTML = ''; 
+        const ordersTable = document.getElementById('ordersTable') || document.getElementById('admin-orders-list');
+        if (!ordersTable) {
+            console.error("خطأ: لم يتم العثور على عنصر الجدول في الـ HTML");
+            return;
+        }
+        
+        let salesBody = ordersTable.getElementsByTagName('tbody')[0];
+        if (!salesBody) {
+            salesBody = ordersTable;
+        }
+        
+        salesBody.innerHTML = ''; // تفريغ الجدول بأمان لبنائه من جديد
+
+        if (snapshot.empty) {
+            salesBody.innerHTML = '<tr><td colspan="4" style="padding: 15px; text-align: center; color: #2c3e50 !important;">لا يوجد فواتير مسجلة حالياً</td></tr>';
+            return;
+        }
 
         snapshot.forEach(doc => {
             const order = doc.data();
-            const orderId = doc.id;
-            const total = parseFloat(order.totalUSD || order.total_usd || 0);
-            const orderDate = order.time ? order.time.toDate().toLocaleString('ar-EG') : 'غير محدد';
+            const rawId = doc.id; // المعرف الفريد للمستند للحذف والطباعة
+            
+            // قراءة حقل orderId الفعلي من داخل بيانات الفاتورة
+            const displayOrderId = order.orderId || order.id || rawId;
+            
+            // قراءة وتحويل التاريخ للعمود الثالث
+            let orderDate = 'غير محدد';
+            if (order.date) {
+                if (typeof order.date.toDate === 'function') {
+                    orderDate = order.date.toDate().toLocaleString('ar-EG', { 
+                        year: 'numeric', 
+                        month: 'numeric', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } else {
+                    orderDate = order.date;
+                }
+            }
+            
+            // قراءة حقل المبلغ
+            let total = 0;
+            if (order.total !== undefined) {
+                total = parseFloat(order.total) || 0;
+            } else if (order.items && Array.isArray(order.items)) {
+                order.items.forEach(item => {
+                    total += parseFloat(item.cost) || 0;
+                });
+            }
 
+            // بناء السطر مع إضافة زر الحذف بجانب زر الطباعة في حقل التحكم
             salesBody.innerHTML += `
-                <tr class="order-row" data-id="${orderId}">
-                    <td>${orderId}</td>
-                    <td class="total-cell" style="color: #e74c3c; font-weight: bold;">${total.toFixed(2)} $</td>
-                    <td>${orderDate}</td>
-                    <td>
-                        <button onclick="printArchiveOrder('${orderId}')" style="background: #34495e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                <tr class="order-row" data-id="${rawId}" style="display: table-row !important;">
+                    <td style="padding: 10px; color: #2c3e50 !important; font-weight: bold; text-align: center;">${displayOrderId}</td>
+                    <td class="total-cell" style="padding: 10px; color: #e74c3c !important; font-weight: bold; text-align: center;">$ ${total.toFixed(2)}</td>
+                    <td style="padding: 10px; color: #2c3e50 !important; font-weight: bold; text-align: center; direction: ltr;">${orderDate}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <button onclick="printArchiveOrder('${rawId}')" style="background: #34495e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">
                             <i class="fas fa-print"></i> طباعة
+                        </button>
+                        <button onclick="deleteOrder('${rawId}', '${displayOrderId}')" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                            <i class="fas fa-trash-alt"></i> حذف
                         </button>
                     </td>
                 </tr>
             `;
         });
         
-        if (typeof updateReports === "function") updateReports();
+        if (typeof updateReports === "function") {
+            updateReports();
+        }
     }, error => {
-        console.error("خطأ في جلب الفواتير: ", error);
+        console.error("خطأ أثناء جلب الفواتير من Firebase: ", error);
+        
+        // إذا ظهر خطأ الفهرسة (Index) في الـ Console، نقوم بالجلب بدونOrderBy كحماية احتياطية
+        fallbackLoadSalesHistory();
     });
 }
 
+// 2. دالة الحذف الذكية والأمنة المسؤولة عن زر الحذف الجديد
+function deleteOrder(documentId, orderNo) {
+    if (confirm(`هل أنت متأكد تماماً من رغبتك في حذف الفاتورة رقم (${orderNo}) نهائياً من النظام؟`)) {
+        db.collection("orders").doc(documentId).delete().then(() => {
+            alert(`تم حذف الفاتورة ${orderNo} بنجاح من قاعدة البيانات.`);
+        }).catch((error) => {
+            console.error("خطأ أثناء محاولة حذف المستند: ", error);
+            alert("عذراً، فشل حذف الفاتورة. تحقق من الصلاحيات.");
+        });
+    }
+}
+
+// دالة حماية احتياطية في حال لم تكن قد قمت بتفعيل الـ Index في حساب فايربيز الخاص بك بعد
+function fallbackLoadSalesHistory() {
+    db.collection("orders").limit(50).onSnapshot(snapshot => {
+        const ordersTable = document.getElementById('ordersTable') || document.getElementById('admin-orders-list');
+        let salesBody = ordersTable.getElementsByTagName('tbody')[0] || ordersTable;
+        salesBody.innerHTML = '';
+        
+        let localOrders = [];
+        snapshot.forEach(doc => {
+            localOrders.push({ id: doc.id, data: doc.data() });
+        });
+
+        // ترتيب مصفوفة البيانات يدوياً بالأكواد للـ timestamp الأحدث
+        localOrders.sort((a, b) => {
+            let tA = a.data.timestamp ? (a.data.timestamp.seconds || 0) : 0;
+            let tB = b.data.timestamp ? (b.data.timestamp.seconds || 0) : 0;
+            return tB - tA;
+        });
+
+        localOrders.forEach(item => {
+            const order = item.data;
+            const rawId = item.id;
+            const displayOrderId = order.orderId || order.id || rawId;
+            let orderDate = order.date ? (typeof order.date.toDate === 'function' ? order.date.toDate().toLocaleString('ar-EG') : order.date) : 'غير محدد';
+            let total = order.total !== undefined ? parseFloat(order.total) : 0;
+
+            salesBody.innerHTML += `
+                <tr class="order-row" data-id="${rawId}">
+                    <td style="padding: 10px; color: #2c3e50 !important; font-weight: bold; text-align: center;">${displayOrderId}</td>
+                    <td style="padding: 10px; color: #e74c3c !important; font-weight: bold; text-align: center;">$ ${total.toFixed(2)}</td>
+                    <td style="padding: 10px; color: #2c3e50 !important; font-weight: bold; text-align: center; direction: ltr;">${orderDate}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <button onclick="printArchiveOrder('${rawId}')" style="background: #34495e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">
+                            <i class="fas fa-print"></i> طباعة
+                        </button>
+                        <button onclick="deleteOrder('${rawId}', '${displayOrderId}')" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                            <i class="fas fa-trash-alt"></i> حذف
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    });
+}
 // 2. دالة وسيطة للطباعة (تستخدم دالتك الأصلية printInvoice)
-function printArchiveOrder(orderData) {
-    // حفظ السلة الحالية للزبون مؤقتاً لكي لا تضيع
-    const tempCart = [...cart]; 
-    
-    // استبدال السلة ببيانات الفاتورة القديمة ليقرأها كود الطباعة الخاص بك
-    cart = orderData.items; 
-    
-    // استدعاء دالة الطباعة الخاصة بك الموجودة في الكود
-    printInvoice(); 
-    
-    // إعادة سلة الزبون الحالية كما كانت
-    cart = tempCart;
+function printArchiveOrder(orderId) {
+    // جلب بيانات الفاتورة المحددة بدقة من السحاب لطباعتها فوراً
+    db.collection("orders").doc(orderId).get().then(doc => {
+        if (doc.exists) {
+            const orderData = doc.data();
+            
+            // حفظ السلة الحالية للزبون مؤقتاً لكي لا تضيع
+            const tempCart = [...cart]; 
+            
+            // استبدال السلة ببيانات الفاتورة القديمة ليقرأها كود الطباعة الخاص بك
+            cart = orderData.items; 
+            
+            // استدعاء دالة الطباعة الخاصة بك الموجودة في الكود
+            if (typeof printInvoice === "function") {
+                printInvoice(); 
+            } else {
+                alert("دالة printInvoice غير معرفة في هذا القسم");
+            }
+            
+            // إعادة سلة الزبون الحالية كما كانت بعد انتهاء الطباعة
+            cart = tempCart;
+        } else {
+            alert("تعذر العثور على الفاتورة لطباعتها");
+        }
+    }).catch(err => {
+        console.error("خطأ في جلب بيانات الطباعة:", err);
+    });
 }
 
 // 3. تحديث الجدول تلقائياً عند فتح لوحة التحكم
@@ -1393,28 +1516,38 @@ function searchOrders() {
 // دالة البحث المتقدمة في الفواتير
 function filterOrders() {
     let searchText = document.getElementById("orderSearch").value.toUpperCase();
-    let selectedDate = document.getElementById("dateFilter").value;
+    let selectedDate = document.getElementById("dateFilter").value; // الصيغة القادمة من الفلتر YYYY-MM-DD
     let table = document.getElementById("ordersTable");
+    if (!table) return;
+    
     let tr = table.getElementsByTagName("tr");
 
-    // تحويل التاريخ المختار إلى الصيغة الرقمية لتتطابق مع تركيبة الوقت في فواتيرك (مثال: 6/6/2026)
-    let formattedSelectedDate = "";
+    // دالة داخلية ذكية لتحويل الأرقام الإنجليزية إلى أرقام هندسية/عربية لضمان المطابقة
+    const toArabicDigits = (str) => {
+        return String(str).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+    };
+
+    let filterYear = "", filterMonth = "", filterDay = "";
+    let filterYearAr = "", filterMonthAr = "", filterDayAr = "";
+
     if (selectedDate !== "") {
-        let parts = selectedDate.split("-"); // تفكيك التاريخ القادم من الفلتر YYYY-MM-DD
+        let parts = selectedDate.split("-");
         if (parts.length === 3) {
-            let year = parseInt(parts[0], 10);
-            let month = parseInt(parts[1], 10);
-            let day = parseInt(parts[2], 10);
-            
-            // صياغة التاريخ بالشكل المتوافق مع طريقة عرض النصوص داخل جدول النظام لديك
-            formattedSelectedDate = `${month}/${day}/${year}`;
+            filterYear = parts[0];
+            filterMonth = String(parseInt(parts[1], 10)); // الشهر بدون أصفار حشو
+            filterDay = String(parseInt(parts[2], 10));   // اليوم بدون أصفار حشو
+
+            // تحويلهم للأرقام الهندية المقابلة
+            filterYearAr = toArabicDigits(filterYear);
+            filterMonthAr = toArabicDigits(filterMonth);
+            filterDayAr = toArabicDigits(filterDay);
         }
     }
 
     for (let i = 1; i < tr.length; i++) {
         let tds = tr[i].getElementsByTagName("td");
         
-        // حماية برمجية: تخطي الأسطر الفارغة أو أسطر المجموع النهائي لضمان عدم حدوث خطأ تصفير
+        // حماية برمجية: تخطي الأسطر الفارغة أو أسطر المجموع النهائي لضمان عدم حدوث خطأ
         if (!tds || tds.length < 3 || tr[i].innerText.includes("المجموع النهائي")) {
             continue;
         }
@@ -1428,8 +1561,14 @@ function filterOrders() {
         if (selectedDate !== "" && tds[2]) {
             let rowDate = tds[2].textContent || tds[2].innerText;
             
-            // الفحص الذكي: يطابق النص مباشرة أو يطابق الصيغة المحلية المفككة (اليوم/الشهر/السنة)
-            matchesDate = rowDate.includes(selectedDate) || rowDate.includes(formattedSelectedDate);
+            // فحص ذكي يبحث عن السنة والشهر واليوم بالصيغتين (العربية والإنجليزية) داخل نص الخلية
+            let includesYear = rowDate.includes(filterYear) || rowDate.includes(filterYearAr);
+            let includesMonth = rowDate.includes("/" + filterMonth + "/") || rowDate.includes("/" + filterMonthAr + "/") || 
+                                rowDate.includes(" " + filterMonth + " ") || rowDate.includes(" " + filterMonthAr + " ") ||
+                                rowDate.includes(filterMonth) || rowDate.includes(filterMonthAr);
+            let includesDay = rowDate.includes(filterDay) || rowDate.includes(filterDayAr);
+
+            matchesDate = (includesYear && includesMonth && includesDay);
         }
 
         // إظهار السطر فقط إذا تطابق البحث مع التاريخ معاً
@@ -1454,6 +1593,8 @@ function resetFilters() {
 }
 function updateReports() {
     let table = document.getElementById("ordersTable");
+    if (!table) return;
+    
     let tr = table.getElementsByTagName("tr");
     
     let totalUSD = 0;
@@ -1463,23 +1604,30 @@ function updateReports() {
     for (let i = 1; i < tr.length; i++) {
         // نحسب فقط الصفوف الظاهرة (التي اجتازت الفلتر)
         if (tr[i].style.display !== "none") {
-            let priceText = tr[i].getElementsByTagName("td")[1].innerText; // عمود المبلغ
-            let price = parseFloat(priceText.replace('$', '').trim());
-            
-            if (!isNaN(price)) {
-                totalUSD += price;
-                orderCount++;
+            let tds = tr[i].getElementsByTagName("td");
+            if (tds && tds[1]) {
+                let priceText = tds[1].innerText; // عمود المبلغ
+                let price = parseFloat(priceText.replace('$', '').trim());
+                
+                if (!isNaN(price)) {
+                    totalUSD += price;
+                    orderCount++;
+                }
             }
         }
     }
 
-    // تحديث الأرقام في الواجهة
-    document.getElementById("report-order-count").innerText = orderCount;
-    document.getElementById("report-total-usd").innerText = totalUSD.toFixed(2) + " $";
-    document.getElementById("report-total-lbp").innerText = (totalUSD * rate).toLocaleString() + " ل.ل";
-    window.addEventListener('load', () => {
-    // تنبيه لمستخدمي الأندرويد و Chrome
-   window.addEventListener('load', () => {
+    // تحديث الأرقام في الواجهة بحماية برمجية (في حال كانت العناصر غير موجودة بالشاشة الحالية)
+    const elCount = document.getElementById("report-order-count");
+    const elUsd = document.getElementById("report-total-usd");
+    const elLbp = document.getElementById("report-total-lbp");
+
+    if (elCount) elCount.innerText = orderCount;
+    if (elUsd) elUsd.innerText = totalUSD.toFixed(2) + " $";
+    if (elLbp) elLbp.innerText = (totalUSD * rate).toLocaleString() + " ل.ل";
+}
+// فصل دالة الـ Load بشكل مستقل تماماً لمنع تداخل الأقواس وحل المشكلة
+window.addEventListener('load', () => {
     // --- تسجيل الـ Service Worker ---
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
@@ -1487,12 +1635,14 @@ function updateReports() {
         .catch(err => console.log('Service Worker: Error ❌', err));
     }
 
-    // --- الدوال الأصلية الخاصة بك ---
-    loadProducts();      // جلب المنتجات
-    loadSavedCart();     // استرجاع السلة
-    checkFirstVisit();   // فحص الترحيب
-    loadSalesStats();    // تحميل إحصائيات المبيعات
-});
+    // --- الدوال الأصلية الخاصة بك المجمعة بانتظام ---
+    if (typeof loadProducts === "function") loadProducts();      // جلب المنتجات
+    if (typeof loadSavedCart === "function") loadSavedCart();     // استرجاع السلة
+    if (typeof checkFirstVisit === "function") checkFirstVisit();   // فحص الترحيب
+    if (typeof loadSalesStats === "function") loadSalesStats();    // تحميل إحصائيات المبيعات
+    
+    // تشغيل دالة جلب فواتير الأرشيف فور فتح الصفحة لتظهر مباشرة للعين
+    loadSalesHistory();
 
     // تنبيه مخصص لمستخدمي الأيفون (لأن Safari لا يدعم التثبيت التلقائي)
     const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.navigator.standalone;
@@ -1502,9 +1652,8 @@ function updateReports() {
         }, 6000);
     }
 });
-}
-let deferredPrompt;
 
+let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
     // منع المتصفح من إظهار التنبيه الافتراضي فوراً
     e.preventDefault();
@@ -1512,7 +1661,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
     // إظهار رسالة مخصصة للزبون بعد 3 ثوانٍ من دخول الموقع
     setTimeout(() => {
-        showInstallBanner();
+        if (typeof showInstallBanner === "function") showInstallBanner();
     }, 3000);
 });
 
@@ -2170,8 +2319,8 @@ async function loadTodaySales() {
         activeStaff.push(sData.name || sData.staff);
     });
 
-    // تم توجيه الاستعلام إلى الكولكشن الصحيح المسؤول عن الفواتير والطلبات لملء الجدول
-    db.collection("orders")
+    // تم التعديل الجوهري للتوجيه إلى كولكشن المبيعات الفعلي "sales" وحقل التوقيت "time"
+    db.collection("sales")
         .where("time", ">=", startOfDay)
         .onSnapshot(snapshot => {
             let totalUSD = 0;
@@ -2180,12 +2329,14 @@ async function loadTodaySales() {
 
             snapshot.forEach(doc => {
                 const data = doc.data();
-                const saleAmount = parseFloat(data.totalUSD) || 0;
+                // قراءة حقل المبلغ الصحيح (totalUSD) أو المبلغ البديل المتاح في المستند
+                const saleAmount = parseFloat(data.totalUSD) || parseFloat(data.total) || 0;
                 const employee = data.employee || "مدير الصالة";
 
                 totalUSD += saleAmount;
 
-                if (activeStaff.includes(employee)) {
+                // التعديل الذكي: نجمع ونعرض الموظف سواء كان مسجلاً في الـ staff أو باشر البيع مباشرة
+                if (activeStaff.includes(employee) || employee) {
                     if (!staffStats[employee]) {
                         staffStats[employee] = { count: 0, total: 0 };
                     }
@@ -2205,12 +2356,12 @@ async function loadTodaySales() {
                 for (const [name, stats] of Object.entries(staffStats)) {
                     tableBody.innerHTML += `
                         <tr>
-                            <td>${name}</td>
+                            <td style="font-weight: bold; color: #2c3e50;">${name}</td>
                             <td>${stats.count} فاتورة</td>
-                            <td class="total-cell">${stats.total.toFixed(2)} $</td>
+                            <td class="total-cell" style="font-weight: bold; color: #27ae60;">${stats.total.toFixed(2)} $</td>
                             <td style="text-align: center;">
                                 <button onclick="deleteStaffMember('${name}')" 
-                                        style="background: #ff5252; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Segoe UI';">
+                                        style="background: #ff5252; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Segoe UI'; font-weight: bold;">
                                     حذف الموظف
                                 </button>
                             </td>
@@ -2354,19 +2505,39 @@ async function resetTodaySales() {
         startOfDay.setHours(0, 0, 0, 0);
 
         try {
-            const snapshot = await db.collection("sales").where("time", ">=", startOfDay).get();
+            // تحويل التاريخ إلى صيغة طابع زمني رسمي لـ Firebase لضمان دقة استعلام الفلتر
+            const firebaseQueryDate = firebase.firestore.Timestamp.fromDate(startOfDay);
+            
+            // الاستعلام الصحيح والمباشر من كولكشن sales وحقل time
+            const snapshot = await db.collection("sales").where("time", ">=", firebaseQueryDate).get();
 
             if (snapshot.empty) {
                 alert("العدادات صفر بالفعل!");
                 return;
             }
 
-            const batch = db.batch();
+            // معالجة ذكية لحماية الـ Batch من تخطي حاجز الـ 500 مستند
+            let batch = db.batch();
+            let count = 0;
+            const promises = [];
+
             snapshot.forEach(doc => {
                 batch.delete(doc.ref);
+                count++;
+
+                if (count === 400) {
+                    promises.push(batch.commit());
+                    batch = db.batch();
+                    count = 0;
+                }
             });
 
-            await batch.commit();
+            if (count > 0) {
+                promises.push(batch.commit());
+            }
+
+            await Promise.all(promises);
+
             alert("تم تصفير العدادات بنجاح. ابدأ يومك بالرزق الحلال! ✅");
             location.reload(); 
 
@@ -2375,7 +2546,6 @@ async function resetTodaySales() {
         }
     }
 }
-
 async function saveProduct() {
     const id = document.getElementById('edit-product-id').value;
     const name = document.getElementById('new-name').value;
@@ -3064,5 +3234,101 @@ async function filterProfitByPeriod() {
         alert("حدث خطأ أثناء جلب البيانات: " + error.message);
     }
 }
+// ==========================================
+// دالة جلب ملخص مبيعات اليوم وأداء الموظفين من Firebase
+// ==========================================
+async function loadTodayStaffPerformance() {
+    try {
+        // 1. تحديد بداية ونهاية اليوم الحالي بالكامل
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // 2. جلب فواتير اليوم من مجموعة الفواتير (تأكد من مطابقة اسم الـ Collection لديك مثلاً 'sales' أو 'orders')
+        // سنعتمد هنا على اسم الـ Collection الشائع في ملفك وهو 'sales' أو 'orders'
+        const salesSnap = await db.collection('sales').get(); 
+
+        let todayTotalUSD = 0;
+        let todayOrdersCount = 0;
+        let lastEmployeeName = "غير محدد";
+        
+        // كائن (Object) لتجميع أداء كل موظف على حدة
+        const staffData = {};
+
+        salesSnap.forEach(doc => {
+            const data = doc.data();
+            if (data && data.time) {
+                const invoiceDate = data.time.toDate(); // تحويل التوقيت
+
+                // فحص إذا كانت الفاتورة تابعة لليوم الحالي
+                if (invoiceDate >= startOfDay && invoiceDate <= endOfDay) {
+                    // جلب اسم الموظف من الفاتورة (يدعم الحقول المحتملة: cashierName أو employee أو staff)
+                    const empName = data.cashierName || data.employee || data.staff || "موظف عام";
+                    const amt = parseFloat(data.totalUSD || data.total_usd || data.total || 0);
+
+                    // تحديث الإجمالي العام لليوم
+                    todayTotalUSD += amt;
+                    todayOrdersCount++;
+                    lastEmployeeName = empName; // آخر موظف قام بعملية بيع
+
+                    // تجميع البيانات لكل موظف بشكل منفصل
+                    if (!staffData[empName]) {
+                        staffData[empName] = { orders: 0, total: 0 };
+                    }
+                    staffData[empName].orders += 1;
+                    staffData[empName].total += amt;
+                }
+            }
+        });
+
+        // 3. تحديث العناصر العلوية في الواجهة (ملخص اليوم)
+        if (document.getElementById("today-employee-name")) {
+            document.getElementById("today-employee-name").innerText = lastEmployeeName;
+        }
+        if (document.getElementById("today-total-usd")) {
+            document.getElementById("today-total-usd").innerText = todayTotalUSD.toFixed(2) + " $";
+        }
+        if (document.getElementById("today-orders-count")) {
+            document.getElementById("today-orders-count").innerText = todayOrdersCount;
+        }
+
+        // 4. بناء وتحديث جدول "أداء الموظفين" بالبيانات الحية
+        const performanceBody = document.getElementById("staff-performance-body");
+        if (performanceBody) {
+            performanceBody.innerHTML = ""; // تصفير الجدول قبل التعبئة
+
+            // تحويل كائن الموظفين إلى أسطر داخل الجدول
+            Object.keys(staffData).forEach(worker => {
+                const row = `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 10px; color: black; font-weight: bold;">👤 ${worker}</td>
+                        <td style="padding: 10px; text-align: center; color: black;">${staffData[worker].orders}</td>
+                        <td style="padding: 10px; text-align: center; color: #27ae60; font-weight: bold;">${staffData[worker].total.toFixed(2)} $</td>
+                    </tr>
+                `;
+                performanceBody.innerHTML += row;
+            });
+
+            // إذا لم تكن هناك مبيعات اليوم
+            if (Object.keys(staffData).length === 0) {
+                performanceBody.innerHTML = `<tr><td colspan="3" style="padding: 15px; text-align: center; color: #999;">لا توجد مبيعات مسجلة للموظفين اليوم بعد.</td></tr>`;
+            }
+        }
+
+    } catch (error) {
+        console.error("خطأ أثناء جلب أداء الموظفين:", error);
+    }
+}
+
+// تشغيل الدالة تلقائياً عند تحميل الصفحة لضمان عرض البيانات فوراً
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof loadTodayStaffPerformance === "function") {
+        loadTodayStaffPerformance();
+        // إعادة التشغيل كل دقيقة لتحديث الأرقام حية
+        setInterval(loadTodayStaffPerformance, 60000); 
+    }
+});
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

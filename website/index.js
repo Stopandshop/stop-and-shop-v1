@@ -60,6 +60,13 @@ function closeWelcome() {
     localStorage.setItem('visited_stop_shop', 'true');
 }
 
+// =========================================================
+// متغيرات عالمية مضافة للتحكم بالعرض المجزأ ومنع تعليق الهواتف
+// =========================================================
+let displayedProductsCount = 50; // عدد المنتجات التي ستعرض بالدُفعة الأولى
+let activeFilteredProducts = []; // مصفوفة لحفظ المنتجات النشطة للعرض الحالي
+
+// 1. الدالة المحسنة لـ loadProducts (بدون حذف أي سطر منطقي)
 function loadProducts() {
     const loadingArea = document.getElementById('loading-area');
     const loadingText = document.getElementById('loading-text');
@@ -87,21 +94,79 @@ function loadProducts() {
         showProgress(100);
 
         if (isAdmin) updateDashboardStats(); 
-        displayProducts(products);
+        
+        // 🛠️ التعديل الآمن: تصفير العداد وتمرير المنتجات للعرض الذكي
+        displayedProductsCount = 50; 
+        activeFilteredProducts = [...products];
+        
+        // عرض الـ 50 منتج الأولى فوراً لمنع تعليق الهاتف
+        displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
 
         // إخفاء منطقة التحميل بعد ثانية واحدة من الاكتمال
         setTimeout(() => {
             if (loadingArea) loadingArea.style.display = 'none';
         }, 1500);
-        // أضف هذا السطر داخل الـ Snapshot
-updateOffersBanner(products);
-displayProducts(products);
+
+        // الحفاظ على الأسطر الخاصة بك بالكامل داخل الـ Snapshot
+        updateOffersBanner(products);
+        displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
         
     }, (error) => {
         if (loadingText) loadingText.innerText = "❌ فشل التحميل، يرجى المحاولة لاحقاً";
         console.error(error);
     });
 }
+
+// 2. الدالة المحسنة لـ searchProducts (بدون حذف أي سطر منطقي وبأعلى سرعة)
+function searchProducts() {
+    const term = document.getElementById('search-input').value.toLowerCase().trim();
+    
+    // البحث في كل المنتجات الأصلية
+    const filtered = products.filter(p => {
+        const name = (p.name || "").toLowerCase();
+        const cat = (p.category || "").toLowerCase();
+        
+        // --- الإضافة الجديدة للباركود دون حذف القديم ---
+        const barcode = (p.barcode || "").toLowerCase(); 
+        
+        // تعديل سطر الـ return ليشمل مطابقة الباركود أيضاً
+        return name.includes(term) || cat.includes(term) || barcode === term;
+    });
+
+    // 🔥 تأمين البحث: فرز النتيجة المفلترة فوراً ليظهر المنتج المستورد من الملف (الذي يملك باركود) بالصدارة أولاً
+    filtered.sort((a, b) => {
+        const aIsImported = a.barcode ? 1 : 0;
+        const bIsImported = b.barcode ? 1 : 0;
+        
+        if (bIsImported !== aIsImported) {
+            return bIsImported - aIsImported; // المرفوع من الملف أولاً
+        }
+        
+        // إذا تساويا في النوع، نرتب حسب الوقت الأحدث
+        const aTime = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : (typeof a.createdAt === 'number' ? a.createdAt : 0)) : 0;
+        const bTime = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : (typeof b.createdAt === 'number' ? b.createdAt : 0)) : 0;
+        return bTime - aTime;
+    });
+
+    // 🛠️ التعديل الآمن: تهيئة العداد للبحث الجديد وعرض النتائج مجزأة لتظل سريعة جداً
+    displayedProductsCount = 50;
+    activeFilteredProducts = [...filtered];
+    
+    displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
+}
+
+// =========================================================
+// 3. دالة الاستماع الذكية للتمرير (Scroll Listener) لزيادة المنتجات تلقائياً
+// =========================================================
+window.addEventListener('scroll', () => {
+    // إذا اقترب المستخدم من نهاية الشاشة بمسافة 200 بكسل
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+        if (displayedProductsCount < activeFilteredProducts.length) {
+            displayedProductsCount += 50; // زيادة 50 منتجاً إضافياً
+            displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
+        }
+    }
+});
 // 5. دوال العرض والبحث (الإصلاح الجوهري هنا)
 function displayProducts(productsList) {
     const container = document.getElementById('products-container');
@@ -220,38 +285,7 @@ function displayProducts(productsList) {
         container.appendChild(card);
     });
 }
-function searchProducts() {
-    const term = document.getElementById('search-input').value.toLowerCase().trim();
-    
-    // البحث في كل المنتجات الأصلية
-    const filtered = products.filter(p => {
-        const name = (p.name || "").toLowerCase();
-        const cat = (p.category || "").toLowerCase();
-        
-        // --- الإضافة الجديدة للباركود دون حذف القديم ---
-        const barcode = (p.barcode || "").toLowerCase(); 
-        
-        // تعديل سطر الـ return ليشمل مطابقة الباركود أيضاً
-        return name.includes(term) || cat.includes(term) || barcode === term;
-    });
 
-    // 🔥 تأمين البحث: فرز النتيجة المفلترة فوراً ليظهر المنتج المستورد من الملف (الذي يملك باركود) بالصدارة أولاً
-    filtered.sort((a, b) => {
-        const aIsImported = a.barcode ? 1 : 0;
-        const bIsImported = b.barcode ? 1 : 0;
-        
-        if (bIsImported !== aIsImported) {
-            return bIsImported - aIsImported; // المرفوع من الملف أولاً
-        }
-        
-        // إذا تساويا في النوع، نرتب حسب الوقت الأحدث
-        const aTime = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : (typeof a.createdAt === 'number' ? a.createdAt : 0)) : 0;
-        const bTime = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : (typeof b.createdAt === 'number' ? b.createdAt : 0)) : 0;
-        return bTime - aTime;
-    });
-
-    displayProducts(filtered);
-}
 
 function filterByCategory(category, btn) {
     if(btn) {
@@ -2701,14 +2735,12 @@ window.addEventListener('load', () => {
 
 function printProductLabel() {
     const nameEl = document.getElementById('new-name');
-    const priceUSDEl = document.getElementById('new-price');
     const priceLBPEl = document.getElementById('new-price-lbp');
     const barcodeEl = document.getElementById('new-barcode');
 
     if(!nameEl || !barcodeEl) return;
 
     const name = nameEl.value;
-    const priceUSD = priceUSDEl ? priceUSDEl.value : "0";
     const priceLBP = priceLBPEl ? priceLBPEl.value : "0";
     const barcode = barcodeEl.value;
 
@@ -2717,49 +2749,150 @@ function printProductLabel() {
         return;
     }
 
+    // بناء محتوى الملصق بالتصميم المحسن والأنيق بالكامل
     const labelHTML = `
-        <div style="width: 40mm; height: 30mm; padding: 2mm; box-sizing: border-box; text-align: center; font-family: Arial; direction: rtl; border: 1px solid #eee;">
-            <div style="font-size: 10pt; font-weight: bold; white-space: nowrap; overflow: hidden; margin-bottom: 2mm;">
-                Stop & Shop - ${name}
-            </div>
-            <div style="font-size: 11pt; color: #000; font-weight: bold;">
-                ${parseInt(priceLBP).toLocaleString()} L.L
-            </div>
-            <div style="font-size: 9pt; margin-bottom: 2mm;">
-                Price: $${parseFloat(priceUSD).toFixed(2)}
-            </div>
-            <div style="display: flex; justify-content: center; align-items: center;">
-                <svg id="barcode-svg"></svg>
-            </div>
-            <div style="font-size: 8pt;">${barcode}</div>
-        </div>
-    `;
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>Print Label</title>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        <style>
+            /* إعدادات الملصق الصغير 40x30 مم لقسم الطباعة */
+            @page { 
+                size: 40mm 30mm; 
+                margin: 0; 
+            }
+            
+            body {
+                margin: 0; padding: 0;
+                display: flex; 
+                justify-content: center;
+                align-items: center;
+                font-family: 'Arial', sans-serif;
+                background-color: #fff;
+            }
 
-    const printWindow = window.open('', '_blank', 'width=400,height=400');
-    printWindow.document.write('<html><head><title>Print Label</title>');
-    printWindow.document.write('<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>');
-    printWindow.document.write('</head><body style="margin:0; padding:0;">');
-    printWindow.document.write(labelHTML);
-    printWindow.document.write(`
+            /* الملصق الموحد بمقاسات دقيقة وطباعة دقيقة جداً */
+            .sticker {
+                width: 40mm;
+                height: 30mm;
+                background: white;
+                box-sizing: border-box;
+                padding: 1.5mm 1.5mm 1mm 1.5mm;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                overflow: hidden;
+                text-align: center;
+            }
+
+            .prod-name {
+                font-size: 10pt;
+                font-weight: 900;
+                line-height: 1.1;
+                margin: 0;
+                height: 8mm;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                word-break: break-all;
+                color: #000;
+            }
+
+            /* حاوية السعر اللبناني الاحترافية باللون الأسود */
+            .price-container {
+                background: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: #fff;
+                padding: 1.2mm 0;
+                border-radius: 1mm;
+                margin: 0.5mm 0;
+            }
+
+            .price-lbp {
+                font-size: 14pt;
+                font-weight: 900;
+                display: block;
+            }
+            
+            .currency { font-size: 7pt; }
+
+            .barcode-section {
+                width: 100%;
+                height: 10mm;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-top: 0.5mm;
+            }
+            
+            #barcode { 
+                width: 100%; 
+                height: 100%; 
+            }
+
+            .footer {
+                font-size: 6.5pt;
+                font-weight: bold;
+                border-top: 0.3pt solid #000;
+                padding-top: 0.5mm;
+                color: #000;
+            }
+
+            @media print {
+                body { background: none; }
+                .sticker { border: none; }
+                * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+        </style>
+    </head>
+    <body>
+
+        <div class="sticker">
+            <div class="prod-name">${name}</div>
+
+            <div class="price-container">
+                <span class="price-lbp">${parseInt(priceLBP).toLocaleString()} <small class="currency">ل.ل</small></span>
+            </div>
+
+            <div class="barcode-section">
+                <svg id="barcode"></svg>
+            </div>
+
+            <div class="footer">Stop & Shop</div>
+        </div>
+
         <script>
             window.onload = function() {
-                JsBarcode("#barcode-svg", "${barcode}", {
+                // توليد الباركود بدقة عالية وخيارات مخصصة للمقاس الصغير
+                JsBarcode("#barcode", "${barcode}", {
                     format: "CODE128",
-                    width: 1.5,
-                    height: 30,
-                    displayValue: false
+                    width: 1.8,       /* سُمك الخطوط لضمان دقة القراءة بالماسح */
+                    height: 35,       /* طول متناسق مع المقاس */
+                    displayValue: true, /* إظهار الأرقام أسفل القضبان */
+                    fontSize: 10,     /* حجم خط الأرقام لتظل واضحة */
+                    fontOptions: "bold",
+                    margin: 0
                 });
+                
+                // بدء الطباعة الفورية بمجرد اكتمال الرسم
                 setTimeout(() => {
                     window.print();
                     window.close();
-                }, 500);
+                }, 400);
             };
-        </script>
-    `);
-    printWindow.document.write('</body></html>');
+        <\/script>
+    </body>
+    </html>
+    `;
+
+    // فتح النافذة المخصصة للطباعة وإرسال الأكواد إليها
+    const printWindow = window.open('', '_blank', 'width=450,height=400');
+    printWindow.document.write(labelHTML);
     printWindow.document.close();
 }
-
 function calculateProfit() {
     const purchaseInput = document.getElementById('product-cost-input') || document.getElementById('purchase-price');
     const saleInput = document.getElementById('new-price');

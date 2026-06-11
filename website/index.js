@@ -63,10 +63,10 @@ function closeWelcome() {
 // =========================================================
 // متغيرات عالمية مضافة للتحكم بالعرض المجزأ ومنع تعليق الهواتف
 // =========================================================
-let displayedProductsCount = 50; // عدد المنتجات التي ستعرض بالدُفعة الأولى
-let activeFilteredProducts = []; // مصفوفة لحفظ المنتجات النشطة للعرض الحالي
+let displayedProductsCount = 50; 
+let activeFilteredProducts = []; 
 
-// 1. الدالة المحسنة لـ loadProducts (بدون حذف أي سطر منطقي)
+// 1. دالة loadProducts المحدثة للتزامن الكامل مع الحذف
 function loadProducts() {
     const loadingArea = document.getElementById('loading-area');
     const loadingText = document.getElementById('loading-text');
@@ -95,11 +95,15 @@ function loadProducts() {
 
         if (isAdmin) updateDashboardStats(); 
         
-        // 🛠️ التعديل الآمن: تصفير العداد وتمرير المنتجات للعرض الذكي
-        displayedProductsCount = 50; 
+        // 🛠️ الحل الجذري: عند أي تحديث حي من السيرفر (كالحذف)، نقوم بتحديث المصفوفة النشطة فوراً
         activeFilteredProducts = [...products];
         
-        // عرض الـ 50 منتج الأولى فوراً لمنع تعليق الهاتف
+        // إذا كان عدد المنتجات المعروضة أكبر من المتاح بعد الحذف، نضبطه على المتاح
+        if (displayedProductsCount > activeFilteredProducts.length) {
+            displayedProductsCount = Math.max(50, activeFilteredProducts.length);
+        }
+        
+        // عرض المنتجات بناءً على العداد الحالي بدقة ليعكس الحذف فورا
         displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
 
         // إخفاء منطقة التحميل بعد ثانية واحدة من الاكتمال
@@ -107,9 +111,8 @@ function loadProducts() {
             if (loadingArea) loadingArea.style.display = 'none';
         }, 1500);
 
-        // الحفاظ على الأسطر الخاصة بك بالكامل داخل الـ Snapshot
+        // الحفاظ على الأسطر والوظائف الخاصة بك بالكامل داخل الـ Snapshot
         updateOffersBanner(products);
-        displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
         
     }, (error) => {
         if (loadingText) loadingText.innerText = "❌ فشل التحميل، يرجى المحاولة لاحقاً";
@@ -148,7 +151,7 @@ function searchProducts() {
         return bTime - aTime;
     });
 
-    // 🛠️ التعديل الآمن: تهيئة العداد للبحث الجديد وعرض النتائج مجزأة لتظل سريعة جداً
+    // 🛠️ تهيئة العداد للبحث الجديد وعرض النتائج مجزأة لتظل سريعة جداً
     displayedProductsCount = 50;
     activeFilteredProducts = [...filtered];
     
@@ -156,13 +159,12 @@ function searchProducts() {
 }
 
 // =========================================================
-// 3. دالة الاستماع الذكية للتمرير (Scroll Listener) لزيادة المنتجات تلقائياً
+// 3. دالة الاستماع للتمرير (Scroll Listener) لزيادة المنتجات تلقائياً
 // =========================================================
 window.addEventListener('scroll', () => {
-    // إذا اقترب المستخدم من نهاية الشاشة بمسافة 200 بكسل
     if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
         if (displayedProductsCount < activeFilteredProducts.length) {
-            displayedProductsCount += 50; // زيادة 50 منتجاً إضافياً
+            displayedProductsCount += 50; // زيادة 50 منتجاً إضافياً عند النزول لقاع الصفحة
             displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
         }
     }
@@ -173,7 +175,7 @@ function displayProducts(productsList) {
     if (!container) return;
     container.innerHTML = ""; 
 
-    // 🔥 التعديل القاتل والمضمون: فرز المصفوفة في بداية الدالة مباشرة لضمان ظهورها في الأول حتى عند البحث والتصفية!
+    // 🔥 التعديل القاتل والمضمون: فرز مصفوفة العرض المقدمة مباشرة لضمان الصدارة للملفات المستوردة
     const sortedProducts = [...productsList].sort((a, b) => {
         // فحص وجود حقل باركود للمنتج المرفوع من الملف
         const aIsImported = a.barcode ? 1 : 0;
@@ -285,7 +287,6 @@ function displayProducts(productsList) {
         container.appendChild(card);
     });
 }
-
 
 function filterByCategory(category, btn) {
     if(btn) {
@@ -997,17 +998,34 @@ async function saveProduct() {
         alert("خطأ تقني: " + e.message);
     }
 }
+// دالة حذف المنتج المحسنة والمعالجة لملفات الـ CSV المستوردة
 async function deleteProduct(id) {
     if (confirm("حذف المنتج نهائياً؟")) {
         try {
-            // 1. الحذف من قاعدة البيانات
-            await db.collection("products").doc(id).delete();
+            // 🛠️ الفحص الذكي: البحث عن المنتج في المصفوفة لمعرفة ما إذا كان يملك باركود أم لا
+            const targetProduct = products.find(p => p.id === id);
             
-            // 2. تحديث المصفوفة المحلية لحذف المنتج منها فوراً
+            // تحديد الـ Document ID الحقيقي للسيرفر بناءً على طريقة رفعه في الـ CSV
+            let docId = id; 
+            if (targetProduct) {
+                docId = targetProduct.barcode ? targetProduct.barcode : `product_${targetProduct.id}`;
+            }
+
+            // 1. الحذف الفعلي من قاعدة بيانات Firebase باستخدام المعرّف الصحيح (docId)
+            await db.collection("products").doc(docId).delete();
+            
+            // 2. تحديث المصفوفات المحلية فوراً لضمان الاستجابة السريعة على الشاشة
             products = products.filter(p => p.id !== id);
+            if (typeof activeFilteredProducts !== 'undefined') {
+                activeFilteredProducts = activeFilteredProducts.filter(p => p.id !== id);
+            }
             
-            // 3. إعادة عرض المنتجات المتبقية لتحديث الشاشة تلقائياً
-            displayProducts(products);
+            // 3. إعادة عرض المنتجات المتبقية بناءً على العداد الحالي
+            if (typeof activeFilteredProducts !== 'undefined' && typeof displayedProductsCount !== 'undefined') {
+                displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
+            } else {
+                displayProducts(products);
+            }
             
             // 4. تحديث إحصائيات لوحة التحكم إذا كنت المسؤول
             if (isAdmin && typeof updateDashboardStats === "function") {
@@ -1040,7 +1058,22 @@ function toggleAdmin() {
         document.getElementById('add-product-form').style.display = 'none';
         dashboard.style.display = 'none'; 
         loginBtn.innerHTML = '<i class="fas fa-user"></i> دخول';
-        displayProducts(products);
+        
+        // 🛠️ تعديل أمان وسرعة: إزالة أزرار "عرض المزيد" الخاصة بالمخزن عند الخروج لتخفيف الوزن
+        const existingAdminBtn = document.getElementById('admin-load-more-btn');
+        if (existingAdminBtn) existingAdminBtn.remove();
+        
+        // تفريغ محتوى جدول المخزن تماماً من الذاكرة لمنع ثقل المتصفح بعد الخروج
+        const tbody = document.getElementById('inventory-table-body');
+        if (tbody) tbody.innerHTML = '';
+
+        // إعادة تصفير عداد الشاشة الرئيسية وعرض المنتجات بالتجزئة الآمنة (50 منتج فقط فورا)
+        displayedProductsCount = 50;
+        if (typeof activeFilteredProducts !== 'undefined' && activeFilteredProducts.length > 0) {
+            displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
+        } else {
+            displayProducts(products.slice(0, displayedProductsCount));
+        }
         return;
     }
 
@@ -1083,7 +1116,23 @@ function submitSecureAdmin() {
         if ("Notification" in window) Notification.requestPermission();
         loadSalesStats(); 
         updateDashboardStats();
-        displayProducts(products); 
+        
+        // 🛠️ تعديل أمان وسرعة: تصفير عداد الواجهة الرئيسية عند الدخول وتطبيق التجزئة الذكية
+        displayedProductsCount = 50;
+        if (typeof adminDisplayedCount !== 'undefined') adminDisplayedCount = 50;
+
+        if (typeof activeFilteredProducts !== 'undefined' && activeFilteredProducts.length > 0) {
+            displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
+        } else {
+            activeFilteredProducts = [...products];
+            displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
+        }
+
+        // تشغيل المخزن بالتجزئة السريعة 50 سطر فقط بدلاً من تعليق المتصفح
+        if (typeof loadInventory === 'function') {
+            loadInventory();
+        }
+
         watchNewOrders();
         
         console.log("تم الدخول بنجاح");
@@ -1093,6 +1142,7 @@ function submitSecureAdmin() {
         document.getElementById('secure-admin-input').focus();
     }
 }
+
 // تعريف الدالة خارجاً ليكون الكود أنظف
 function requestNotificationPermission() {
     if ("Notification" in window) { // التأكد أن المتصفح يدعم الإشعارات
@@ -2946,6 +2996,14 @@ document.getElementById('adminPassInput')?.addEventListener('keypress', function
     }
 });
 
+// =========================================================
+// متغيرات عالمية مضافة للتحكم بالعرض السريع بصفحة الـ Admin
+// =========================================================
+let adminDisplayedCount = 50; // عرض 50 منتجاً فقط كدفعة أولى لمنع التعليق
+let adminOriginalProducts = []; // حفظ نسخة من كافة بضائع المستودع للبحث السريع
+let adminFilteredProducts = []; // حفظ نسخة للبضائع التي تمت تصفيتها
+
+// 1. دالة جلب وترتيب بضائع المخزن المحسنة (صاروخية ولا تعلق)
 async function loadInventory() {
     const tbody = document.getElementById('inventory-table-body');
     if (!tbody) return;
@@ -2970,33 +3028,16 @@ async function loadInventory() {
             });
         });
 
+        // ترتيب المنتجات حسب النواقص لتظهر في الصدارة
         productsList.sort((a, b) => a.stock - b.stock);
 
-        tbody.innerHTML = ''; 
+        // الحفاظ على المتغيرات العالمية للتحكم السريع
+        adminOriginalProducts = [...productsList];
+        adminFilteredProducts = [...productsList];
+        adminDisplayedCount = 50; // تصفير العداد عند كل تحميل جديد
 
-        productsList.forEach(product => {
-            const id = product.id;
-            const stock = product.stock;
-            
-            const statusClass = stock <= 5 ? 'stock-low' : 'stock-ok';
-            const statusText = stock <= 0 ? '❌ نافذ' : (stock <= 5 ? '📉 منخفض' : '✅ متوفر');
-
-            const row = `
-                <tr style="border-bottom: 1px solid #eee; background: ${stock <= 5 ? '#fff5f5' : 'transparent'};">
-                    <td style="padding: 15px; font-weight: bold;">${product.name || 'بدون اسم'}</td>
-                    <td style="padding: 15px; text-align: center;"><span class="${statusClass}">${stock}</span></td>
-                    <td style="padding: 15px; text-align: center;">${statusText}</td>
-                    <td style="padding: 15px; text-align: center;">
-                        <div style="display: flex; gap: 5px; justify-content: center;">
-                            <input type="number" id="add-qty-${id}" placeholder="+" style="width: 60px; padding: 6px; border-radius: 6px; border: 1px solid #ddd; text-align: center;">
-                            <button onclick="updateStock('${id}', ${stock})" style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>`;
-            tbody.insertAdjacentHTML('beforeend', row);
-        });
+        // استدعاء الدالة الفرعية لرسم الجدول مجزأً
+        renderInventoryTable();
 
     } catch (error) {
         console.error("Sorting Error:", error);
@@ -3004,21 +3045,90 @@ async function loadInventory() {
     }
 }
 
-function searchInventory() {
-    let input = document.getElementById('inventorySearch').value.toLowerCase();
-    let table = document.getElementById('inventory-table-body');
-    if(!table) return;
-    let rows = table.getElementsByTagName('tr');
+// 2. دالة فرعية تم عزلها لرسم أسطر الجدول بالتجزئة الذكية (بدون حذف أي منطق خاص بك)
+function renderInventoryTable() {
+    const tbody = document.getElementById('inventory-table-body');
+    if (!tbody) return;
 
-    for (let i = 0; i < rows.length; i++) {
-        let nameCell = rows[i].getElementsByTagName('td')[0];
-        if (nameCell) {
-            let txtValue = nameCell.textContent || nameCell.innerText;
-            rows[i].style.display = txtValue.toLowerCase().indexOf(input) > -1 ? "" : "none";
-        }
+    tbody.innerHTML = ''; 
+
+    // أخذ الشريحة المطلوبة فقط بناءً على العداد الحالي (50، 100، 150...)
+    const sliceToDisplay = adminFilteredProducts.slice(0, adminDisplayedCount);
+
+    if (sliceToDisplay.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#999;">لم يتم العثور على نتائج مطابقة للبحث.</td></tr>';
+        removeAdminMoreBtn();
+        return;
+    }
+
+    sliceToDisplay.forEach(product => {
+        const id = product.id;
+        const stock = product.stock;
+        
+        const statusClass = stock <= 5 ? 'stock-low' : 'stock-ok';
+        const statusText = stock <= 0 ? '❌ نافذ' : (stock <= 5 ? '📉 منخفض' : '✅ متوفر');
+
+        const row = `
+            <tr style="border-bottom: 1px solid #eee; background: ${stock <= 5 ? '#fff5f5' : 'transparent'};">
+                <td style="padding: 15px; font-weight: bold;">${product.name || 'بدون اسم'}</td>
+                <td style="padding: 15px; text-align: center;"><span class="${statusClass}">${stock}</span></td>
+                <td style="padding: 15px; text-align: center;">${statusText}</td>
+                <td style="padding: 15px; text-align: center;">
+                    <div style="display: flex; gap: 5px; justify-content: center;">
+                        <input type="number" id="add-qty-${id}" placeholder="+" style="width: 60px; padding: 6px; border-radius: 6px; border: 1px solid #ddd; text-align: center;">
+                        <button onclick="updateStock('${id}', ${stock})" style="background: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+
+    // التحكم بظهور وإخفاء زر "عرض المزيد" بأسفل الجدول تلقائياً
+    handleAdminMoreButton();
+}
+
+// 3. دالة البحث الاحترافية السريعة جداً (تبحث في الذاكرة بدلاً من تعليق العناصر)
+function searchInventory() {
+    let input = document.getElementById('inventorySearch').value.toLowerCase().trim();
+    
+    // البحث الفوري في المصفوفة الأصلية المخزنة بالذاكرة 
+    adminFilteredProducts = adminOriginalProducts.filter(product => {
+        const name = (product.name || "").toLowerCase();
+        const barcode = (product.barcode || "").toLowerCase();
+        const cat = (product.category || "").toLowerCase();
+        return name.includes(input) || barcode === input || cat.includes(input);
+    });
+
+    // عند البحث نقوم بإعادة تصفير عداد المشاهدة لعرض أول 50 نتيجة مطابقة بسرعة فائقة
+    adminDisplayedCount = 50;
+    renderInventoryTable();
+}
+
+// 4. دالة إدارة زر "عرض المزيد" المضافة لحماية الشاشة
+function handleAdminMoreButton() {
+    removeAdminMoreBtn(); // مسح القديم أولاً لمنع التكرار
+
+    if (adminDisplayedCount < adminFilteredProducts.length) {
+        const table = document.querySelector('.inventory-container') || document.getElementById('inventory-table-body').parentElement;
+        const btn = document.createElement('button');
+        btn.id = 'admin-load-more-btn';
+        btn.innerHTML = `<i class="fas fa-plus-circle"></i> عرض المزيد من المنتجات (${adminFilteredProducts.length - adminDisplayedCount} صنف متبقي)`;
+        btn.style = "width: 94%; margin: 15px 3%; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: 'Tajawal', sans-serif; display: block; text-align: center;";
+        
+        btn.onclick = function() {
+            adminDisplayedCount += 50; // زيادة 50 منتجاً إضافياً عند الضغط
+            renderInventoryTable();
+        };
+        table.after(btn);
     }
 }
 
+function removeAdminMoreBtn() {
+    const existingBtn = document.getElementById('admin-load-more-btn');
+    if (existingBtn) existingBtn.remove();
+}
 async function updateStock(productId, currentStock) {
     const input = document.getElementById(`add-qty-${productId}`);
     if(!input) return;

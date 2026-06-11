@@ -625,9 +625,9 @@
         </div>
         
         <div style="display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center;">
-            <span>الخصم المطبق ($):</span>
-            <input type="number" id="discount-val" value="0" oninput="renderCart()" style="width: 70px; padding: 8px; border-radius: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
-        </div>
+    <span>الخصم المطبق (%):</span>
+    <input type="number" id="discount-val" value="0" min="0" max="100" oninput="renderCart()" style="width: 70px; padding: 8px; border-radius: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
+</div>
 
         <div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; border-top: 1px solid #f0f0f0; padding-top: 15px;">
             <span>نقاط الولاء المكتسبة:</span>
@@ -941,7 +941,9 @@ let products = [];
 function renderCart() {
     const container = document.getElementById('cart-container');
     const discountInput = document.getElementById('discount-val');
-    const discount = parseFloat(discountInput?.value || 0);
+    
+    // قراءة النسبة المئوية للخصم (مثال: 5 تعني 5%)
+    const discountPercent = parseFloat(discountInput?.value || 0);
     
     // 1. تحديث اسم الموظف في الواجهة
     const empDisplay = document.getElementById('employee-display') || document.getElementById('employee-name-display');
@@ -1007,8 +1009,10 @@ function renderCart() {
             </div>`;
     });
 
-    // تكملة الحسابات المالية (كما كانت في كودك السابق)
-    const finalUSD = Math.max(0, subtotal - discount);
+    // 🛠️ الحساب البرمي الجديد: احتساب قيمة الخصم بناءً على النسبة المئوية المطروحة من المجموع المالي
+    const discountAmount = subtotal * (discountPercent / 100);
+    const finalUSD = Math.max(0, subtotal - discountAmount);
+
     const rateCalc = typeof rate !== 'undefined' ? rate : 90000; 
     const rateShow = typeof sellingRate !== 'undefined' ? sellingRate : 89000; 
     const lbp = Math.round((finalUSD * rateCalc) / 500) * 500;

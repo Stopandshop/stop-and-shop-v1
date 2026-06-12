@@ -727,6 +727,7 @@ async function checkout() {
         window.currentWhatsAppUrl = finalUrl; 
 
         if (payment === "عن طريق Whish Money") {
+            // 🛠️ الترتيب الصحيح لمنع التعليق: أولاً نظهر المودال للزبون على الواجهة ونعرض الرقم
             const modal = document.getElementById('whish-payment-modal');
             if(modal) modal.style.display = 'flex';
             
@@ -738,7 +739,12 @@ async function checkout() {
                 });
             }
 
-            // 🛠️ الإصلاح السحري والمطور للويش: تحويل فوري للواتساب حتى لو كان الدفع ويش، لكي تصلك الرسالة مباشرة
+            // 🛠️ ثانياً: نفتح تطبيق Whish تلقائياً للزبون بناءً على الدالة الخاصة بك بملفك
+            if (typeof processWhishAndOpen === "function") {
+                processWhishAndOpen();
+            }
+
+            // 🛠️ ثالثاً: نؤخر تحويل الواتساب أجزاء من الثانية لكي يكتمل فتح تطبيق الويش أولاً وتظهر البيانات
             setTimeout(() => {
                 if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
                     window.location.href = finalUrl; 
@@ -748,12 +754,7 @@ async function checkout() {
                         window.location.href = finalUrl;
                     }
                 }
-                
-                // 🛠️ تشغيل الدالة المسؤولة عن توجيه المستخدم لفتح تطبيق Whish تلقائياً بعد ثانية ونصف
-                if (typeof processWhishAndOpen === "function") {
-                    setTimeout(() => { processWhishAndOpen(); }, 1500);
-                }
-            }, 800);
+            }, 1200);
 
         } else {
             setTimeout(() => {

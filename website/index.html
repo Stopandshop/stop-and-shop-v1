@@ -288,7 +288,7 @@
                         <input type="number" id="admin-amount" placeholder="المبلغ بالدولار $">
                         <div class="modal-buttons">
                             <button onclick="confirmManualPoints()" class="confirm-btn">تأكيد الإضافة</button>
-                            <button onclick="hideManualAddForm()" class="cancel-btn">إلغاء</button>
+                            <button type="button" onclick="document.getElementById('manual-points-modal').style.display='none'" class="cancel-btn">إلغاء</button>
                         </div>
                     </div>
                 </div>
@@ -648,26 +648,32 @@ document.addEventListener("DOMContentLoaded", function() {
     </div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-        <div style="flex: 1;">
-            <label style="font-size: 0.75rem; color: #d32f2f; display: block; margin-bottom: 4px;">سعر الشراء ($)</label>
-            <input type="number" id="product-cost-input" step="0.01" placeholder="0.00 $" oninput="calculateProfit()" style="width: 100%;">
-        </div>
-        <div style="flex: 1;">
-            <label style="font-size: 0.75rem; color: #388e3c; display: block; margin-bottom: 4px;">نسبة الربح (%)</label>
-            <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32; width: 100%;">
-        </div>
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; color: #d32f2f; display: block; margin-bottom: 4px;">سعر الشراء ($)</label>
+        <input type="number" id="product-cost-input" step="0.01" placeholder="0.00 $" oninput="calculateProfit(); convertCostToLBP();" style="width: 100%;">
+    </div>
+    
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; color: #cc6600; display: block; margin-bottom: 4px;">سعر الشراء (L.L)</label>
+        <input type="number" id="product-cost-lbp-input" placeholder="0 ل.ل" oninput="convertCostToUSD();" style="width: 100%;">
     </div>
 
-    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-        <div style="flex: 1;">
-            <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالدولار ($)</label>
-            <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP()" onchange="convertToLBP()" style="width: 100%;">
-        </div>
-        <div style="flex: 1;">
-            <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالليرة (L.L)</label>
-            <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD()" onchange="convertToUSD()" style="width: 100%;">
-        </div>
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; color: #388e3c; display: block; margin-bottom: 4px;">نسبة الربح (%)</label>
+        <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32; width: 100%;">
     </div>
+</div>
+
+<div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالدولار ($)</label>
+        <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP()" onchange="convertToLBP()" style="width: 100%;">
+    </div>
+    <div style="flex: 1;">
+        <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالليرة (L.L)</label>
+        <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD()" onchange="convertToUSD()" style="width: 100%;">
+    </div>
+</div>
 
     <input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
     <input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن">

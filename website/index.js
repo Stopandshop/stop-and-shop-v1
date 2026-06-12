@@ -978,6 +978,15 @@ async function saveProduct() {
         }
         // -------------------------------------------------------
 
+        // 🛠️ الإصلاح السحري والخاص باللبناني لتصفير السعر ومنع تعليقه نهائياً:
+        const purchaseLbpInput = document.getElementById('product-cost-lbp-input');
+        if (purchaseLbpInput) {
+            purchaseLbpInput.value = '';
+        }
+        if (costPriceInput) {
+            costPriceInput.value = '';
+        }
+
         // --- استدعاء الفورم لتصفير كافة الخانات بما فيها سعر الشراء ---
         if (typeof resetForm === "function") resetForm();
 
@@ -985,6 +994,7 @@ async function saveProduct() {
         const modal = document.querySelector('.modal') || 
                       document.getElementById('edit-modal') || 
                       document.getElementById('product-modal') ||
+                      document.getElementById('unified-modal') ||
                       document.querySelector('[style*="display: block"]');
 
         if (modal && modal.style) {
@@ -1000,42 +1010,76 @@ async function saveProduct() {
 }
 // دالة حذف المنتج المحسنة والمعالجة لملفات الـ CSV المستوردة
 async function deleteProduct(id) {
-    if (confirm("حذف المنتج نهائياً؟")) {
+    if (confirm("هل أنت متأكد من حذف هذا المنتج نهائياً من قاعدة البيانات؟")) {
         try {
-            // 🛠️ الفحص الذكي: البحث عن المنتج في المصفوفة لمعرفة ما إذا كان يملك باركود أم لا
+            // 1. البحث عن تفاصيل المنتج داخل المصفوفة المحلية
             const targetProduct = products.find(p => p.id === id);
             
-            // تحديد الـ Document ID الحقيقي للسيرفر بناءً على طريقة رفعه في الـ CSV
-            let docId = id; 
-            if (targetProduct) {
-                docId = targetProduct.barcode ? targetProduct.barcode : `product_${targetProduct.id}`;
+            // تعيين معرّف افتراضي للمستند
+            let docId = id;
+            if (targetProduct && targetProduct.barcode) {
+                docId = targetProduct.barcode;
             }
 
-            // 1. الحذف الفعلي من قاعدة بيانات Firebase باستخدام المعرّف الصحيح (docId)
-            await db.collection("products").doc(docId).delete();
+            console.log("محاولة أولى: الحذف المباشر للمستند باستخدام ID:", docId);
             
-            // 2. تحديث المصفوفات المحلية فوراً لضمان الاستجابة السريعة على الشاشة
+            // محاولة الحذف المباشر (للمنتجات التي تتطابق أسماؤها مع الباركود أو الـ ID)
+            try {
+                await db.collection("products").doc(String(docId)).delete();
+            } catch (e) {
+                console.log("المحاولة المباشرة لم تحذف من السيرفر، الانتقال للفحص العميق...");
+            }
+
+            // 🔥 الضربة القاضية (البحث الشرطي في السيرفر لضمان عدم العودة بعد التحديث):
+            // إذا كان للمنتج باركود أو اسم، سنبحث عنه في السيرفر مباشرة لنجد المستند الحقيقي ونمسحه
+            if (targetProduct) {
+                let query = db.collection("products");
+                let hasQuery = false;
+
+                if (targetProduct.barcode && targetProduct.barcode.trim() !== "") {
+                    query = query.where("barcode", "==", targetProduct.barcode.trim());
+                    hasQuery = true;
+                } else if (targetProduct.name && targetProduct.name.trim() !== "") {
+                    query = query.where("name", "==", targetProduct.name.trim());
+                    hasQuery = true;
+                }
+
+                if (hasQuery) {
+                    const serverSnapshot = await query.get();
+                    if (!serverSnapshot.empty) {
+                        const batch = db.batch();
+                        serverSnapshot.forEach(doc => {
+                            console.log("تم العثور على المستند الحقيقي على السيرفر وحذفه:", doc.id);
+                            batch.delete(doc.ref);
+                        });
+                        // تنفيذ الحذف الجماعي الفعلي على السيرفر
+                        await batch.commit();
+                    }
+                }
+            }
+
+            // 2. التحديث الفوري للمصفوفات المحلية بداخل المتصفح (كودك الأصلي)
             products = products.filter(p => p.id !== id);
             if (typeof activeFilteredProducts !== 'undefined') {
                 activeFilteredProducts = activeFilteredProducts.filter(p => p.id !== id);
             }
             
-            // 3. إعادة عرض المنتجات المتبقية بناءً على العداد الحالي
+            // 3. إعادة رسم الشاشة بناءً على العداد الحالي (كودك الأصلي)
             if (typeof activeFilteredProducts !== 'undefined' && typeof displayedProductsCount !== 'undefined') {
                 displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
             } else {
                 displayProducts(products);
             }
             
-            // 4. تحديث إحصائيات لوحة التحكم إذا كنت المسؤول
+            // 4. تحديث الإحصائيات لوحة التحكم إذا كنت المسؤول (كودك الأصلي)
             if (isAdmin && typeof updateDashboardStats === "function") {
                 updateDashboardStats();
             }
             
-            alert("تم حذف المنتج بنجاح! 🗑️");
+            alert("تم حذف المنتج بنجاح وأبديّاً من قاعدة البيانات! 🗑️");
         } catch (error) {
-            console.error("خطأ أثناء الحذف:", error);
-            alert("فشل حذف المنتج: " + error.message);
+            console.error("خطأ أثناء الحذف الصارم:", error);
+            alert("فشل حذف المنتج من السيرفر: " + error.message);
         }
     }
 }
@@ -1188,6 +1232,12 @@ function editProduct(id) {
         document.getElementById('new-price-lbp').value = product.priceLBP || Math.round((product.price * exchangeRate) / 500) * 500;
     }
 
+    // 🛠️ الإضافة اللبنانية الذكية: جلب سعر الشراء بالليرة اللبنانية فوراً عند التعديل بناءً على التكلفة المتاحة
+    if (document.getElementById('product-cost-lbp-input')) {
+        const currentCost = product.cost || 0;
+        document.getElementById('product-cost-lbp-input').value = currentCost > 0 ? Math.round(currentCost * exchangeRate) : '';
+    }
+
     if (typeof calculateProfit === "function") calculateProfit();
 
     document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
@@ -1210,6 +1260,14 @@ function resetForm() {
     if(document.getElementById('profit-margin')) document.getElementById('profit-margin').value = "0%";
     if(document.getElementById('new-stock')) document.getElementById('new-stock').value = "";
 
+    // 🛠️ الضربة القاضية: تصفير خانة سعر الشراء بالليرة اللبنانية تماماً لمنع تعليق الرقم القديم
+    if(document.getElementById('product-cost-lbp-input')) {
+        document.getElementById('product-cost-lbp-input').value = "";
+    }
+    if(document.getElementById('purchase-price')) {
+        document.getElementById('purchase-price').value = "";
+    }
+
     // إعادة لون نسبة الربح للوضع الطبيعي (الأخضر)
     if(document.getElementById('profit-margin')) {
         document.getElementById('profit-margin').style.color = "#2e7d32";
@@ -1228,9 +1286,19 @@ function printInvoice(printWindow) {
         printWindow = window.open('', '_blank');
     }
 
-    const totalUsd = document.getElementById('total-usd').innerText;
-    const totalLbp = document.getElementById('total-lbp').innerText;
-    const paymentMethod = document.getElementById('payment-choice').value;
+    // 🛠️ الإصلاح الذكي والمقاوم للأرشيف والكاشير معاً:
+    // إذا كانت قيم الواجهة حية وموجودة نعتمدها، وإذا كنا نطبع من الأرشيف نقوم بحسابها تلقائياً بالاعتماد على السلة الحالية
+    let totalUsdVal = 0;
+    cart.forEach(item => { totalUsdVal += (parseFloat(item.price) * parseInt(item.quantity)); });
+
+    const totalUsdEl = document.getElementById('total-usd');
+    const totalLbpEl = document.getElementById('total-lbp');
+    
+    const totalUsd = totalUsdEl ? totalUsdEl.innerText : totalUsdVal.toFixed(2);
+    const totalLbp = totalLbpEl ? totalLbpEl.innerText : (Math.round((totalUsdVal * exchangeRate) / 500) * 500).toLocaleString();
+    
+    const paymentChoiceEl = document.getElementById('payment-choice');
+    const paymentMethod = paymentChoiceEl ? paymentChoiceEl.value : "نقداً";
     const date = new Date().toLocaleString('ar-LB');
     const points = Math.floor(parseFloat(totalUsd) / 5); // نظام النقاط الخاص بك
 
@@ -1267,11 +1335,24 @@ function printInvoice(printWindow) {
     `;
 
     cart.forEach(item => {
+        // 🛠️ حساب السعر اللبناني للمنتج الحالي لطباعته بأسلوب منسق ومريح للعين بجانب الدولار
+        const itemPriceUSD = parseFloat(item.price) || 0;
+        const itemTotalUSD = itemPriceUSD * parseInt(item.quantity);
+        
+        // استخراج القيمة اللبنانية المخزنة للمنتج أو حسابها حياً من السيرفر وتدويرها لأقرب 500 ليرة
+        const itemTotalLBP = item.priceLBP ? (item.priceLBP * parseInt(item.quantity)) : (Math.round((itemTotalUSD * exchangeRate) / 500) * 500);
+
         invoiceContent += `
             <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px 0; font-size: 14px;">${item.name}</td>
+                <td style="padding: 10px 0; font-size: 14px; line-height: 1.4;">
+                    <b>${item.name}</b>
+                </td>
                 <td style="text-align: center; padding: 10px 0;">${item.quantity}</td>
-                <td style="text-align: left; padding: 10px 0; font-weight: bold;">$${(item.price * item.quantity).toFixed(2)}</td>
+                <td style="text-align: left; padding: 10px 0; font-weight: bold; font-size: 13px; line-height: 1.4;">
+                    <span style="color: #c0392b;">$${itemTotalUSD.toFixed(2)}</span>
+                    <br>
+                    <small style="color: #555; font-weight: normal; font-size: 11px;">(${itemTotalLBP.toLocaleString()} ل.ل)</small>
+                </td>
             </tr>
         `;
     });
@@ -1283,11 +1364,11 @@ function printInvoice(printWindow) {
             <div style="border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; text-align: left; line-height: 1.8;">
                 <div style="display: flex; justify-content: space-between; font-size: 16px;">
                     <span>المجموع بالدولار:</span>
-                    <span style="font-weight: bold; color: #c0392b;">$${totalUsd}</span>
+                    <span style="font-weight: bold; color: #c0392b;">$${totalUsd.replace('$', '').trim()}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
                     <span>المجموع باللبناني:</span>
-                    <span style="font-weight: bold;">${totalLbp} L.L</span>
+                    <span style="font-weight: bold;">${totalLbp.replace('L.L', '').replace('ل.ل', '').trim()} L.L</span>
                 </div>
                 <div style="background: #fdf2f2; padding: 5px; border-radius: 5px; text-align: center; font-size: 13px;">
                     🎉 نقاطك المحصلة من هذه الفاتورة: <b>${points} نقطة</b>
@@ -1550,8 +1631,39 @@ function printArchiveOrder(orderId) {
             // حفظ السلة الحالية للزبون مؤقتاً لكي لا تضيع
             const tempCart = [...cart]; 
             
-            // استبدال السلة ببيانات الفاتورة القديمة ليقرأها كود الطباعة الخاص بك
-            cart = orderData.items; 
+            // تأمين وتخزين نصوص المجموع الحالية في الكاشير قبل استبدالها
+            const totalPriceEl = document.getElementById('totalPrice');
+            const finalPriceEl = document.getElementById('finalPrice'); // في حال وجود خصومات
+            const tempTotalText = totalPriceEl ? totalPriceEl.innerText : "";
+            const tempFinalText = finalPriceEl ? finalPriceEl.innerText : "";
+
+            // 🛠️ التحديث الذكي للّبناني: نقوم بتهيئة أسعار المواد بداخل السلة لتشمل السعر اللبناني بجانب كل منتج عند الطباعة
+            if (orderData.items && Array.isArray(orderData.items)) {
+                cart = orderData.items.map(item => {
+                    // حساب سعر القطعة بالليرة اللبنانية بناءً على السعر المحفوظ بالدولار وسعر الصرف
+                    const itemPriceUSD = parseFloat(item.price) || 0;
+                    const itemPriceLBP = item.priceLBP ? item.priceLBP : (Math.round((itemPriceUSD * exchangeRate) / 500) * 500);
+                    
+                    // نقوم بالتعديل على اسم المنتج أو النص المخصص للطباعة ليعرض السعر بالعملتين معاً داخل الجدول
+                    return {
+                        ...item,
+                        // إضافة السعر اللبناني منسقاً بجانب الاسم أو كخاصية تقرأها دالة الطباعة الخاصة بك
+                        displayPriceLBP: itemPriceLBP.toLocaleString() + " ل.ل"
+                    };
+                });
+            } else {
+                cart = orderData.items; 
+            }
+
+            // الإصلاح السحري: حقن المجموع الإجمالي المخزن بالفاتورة الأصلية داخل حقول الواجهة فوراً ليقرأها أمر الطباعة بدقة
+            if (totalPriceEl && orderData.totalPrice !== undefined) {
+                totalPriceEl.innerText = parseFloat(orderData.totalPrice).toFixed(2) + " $";
+            }
+            if (finalPriceEl && orderData.finalPrice !== undefined) {
+                finalPriceEl.innerText = parseFloat(orderData.finalPrice).toFixed(2) + " $";
+            } else if (totalPriceEl && orderData.totalPrice !== undefined && finalPriceEl) {
+                finalPriceEl.innerText = parseFloat(orderData.totalPrice).toFixed(2) + " $";
+            }
             
             // استدعاء دالة الطباعة الخاصة بك الموجودة في الكود
             if (typeof printInvoice === "function") {
@@ -1562,6 +1674,11 @@ function printArchiveOrder(orderId) {
             
             // إعادة سلة الزبون الحالية كما كانت بعد انتهاء الطباعة
             cart = tempCart;
+
+            // إعادة الحسابات الأصلية للكاشير النشط لكي لا تختلط حسابات الزبون الحالي مع الفاتورة المطبوعة
+            if (totalPriceEl) totalPriceEl.innerText = tempTotalText;
+            if (finalPriceEl) finalPriceEl.innerText = tempFinalText;
+
         } else {
             alert("تعذر العثور على الفاتورة لطباعتها");
         }
@@ -1683,7 +1800,9 @@ function updateReports() {
     
     let totalUSD = 0;
     let orderCount = 0;
-    const rate = 89000; // سعر الصرف في متجرك
+    
+    // 🛠️ تعديل ذكي: جعل سعر الصرف يقرأ القيمة الحية من متجرك (exchangeRate) بدلاً من التثبيت على 89000
+    const rate = (typeof exchangeRate !== 'undefined') ? exchangeRate : 89000; 
 
     for (let i = 1; i < tr.length; i++) {
         // نحسب فقط الصفوف الظاهرة (التي اجتازت الفلتر)
@@ -1710,7 +1829,8 @@ function updateReports() {
     if (elUsd) elUsd.innerText = totalUSD.toFixed(2) + " $";
     if (elLbp) elLbp.innerText = (totalUSD * rate).toLocaleString() + " ل.ل";
 }
-// فصل دالة الـ Load بشكل مستقل تماماً لمنع تداخل الأقواس وحل المشكلة
+
+// فصل دالة الـ Load بشكل مستقل تماماً لمنع تداخل الأقواس وحل المشكلة (أكوادك الأصلية بالكامل)
 window.addEventListener('load', () => {
     // --- تسجيل الـ Service Worker ---
     if ('serviceWorker' in navigator) {
@@ -1748,7 +1868,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
         if (typeof showInstallBanner === "function") showInstallBanner();
     }, 3000);
 });
-
 function showInstallBanner() {
     const banner = document.createElement('div');
     banner.style = "position:fixed; bottom:20px; left:20px; right:20px; background:#e74c3c; color:white; padding:15px; border-radius:12px; display:flex; justify-content:space-between; align-items:center; z-index:9999; box-shadow:0 5px 15px rgba(0,0,0,0.3); animation: slideUp 0.5s ease;";
@@ -2037,9 +2156,18 @@ function openLoginModal() {
 
 function closeModal() {
     document.getElementById('unified-modal').style.display = 'none';
-    // إعادة تعيين الواجهة عند الإغلاق
     document.getElementById('admin-action-section').style.display = 'none';
     document.getElementById('points-result').innerHTML = '';
+    
+    // 🛠️ التعديل الخاص باللبناني: تصفير خانات أسعار الشراء والبيع ونسبة الربح منعاً للتعليق
+    if (document.getElementById('product-cost-input')) document.getElementById('product-cost-input').value = '';
+    if (document.getElementById('product-cost-lbp-input')) document.getElementById('product-cost-lbp-input').value = '';
+    if (document.getElementById('new-price')) document.getElementById('new-price').value = '';
+    if (document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = '';
+    if (document.getElementById('profit-margin')) {
+        document.getElementById('profit-margin').value = '0%';
+        document.getElementById('profit-margin').style.color = '#388e3c';
+    }
 }
 
 // دالة فك قفل الإدارة داخل النافذة
@@ -2164,7 +2292,14 @@ loadCustomers();
 
 // دالات إظهار وإخفاء النافذة
 function showManualAddForm() { document.getElementById('manual-points-modal').style.display = 'flex'; }
-function hideManualAddForm() { document.getElementById('manual-points-modal').style.display = 'none'; }
+window.hideManualAddForm = function() { 
+    const modal = document.getElementById('manual-points-modal');
+    if (modal) {
+        modal.style.display = 'none'; 
+    } else {
+        console.error("لم يتم العثور على عنصر يحمل الـ ID: manual-points-modal");
+    }
+};
 function filterCustomers() {
     let input = document.getElementById("searchCustomer");
     let filter = input.value.toLowerCase();
@@ -2948,17 +3083,36 @@ function calculateProfit() {
     const saleInput = document.getElementById('new-price');
     const profitDisplay = document.getElementById('profit-margin');
 
+    // 🛠️ تأمين إضافي: جلب حقل سعر الشراء بالليرة الجديد لمنع حدوث تداخل أثناء الحساب اللحظي
+    const purchaseLbpInput = document.getElementById('product-cost-lbp-input');
+
     if(!purchaseInput || !saleInput || !profitDisplay) return;
 
+    // قراءة القيم وتحويلها إلى أرقام عشرية (كودك الأصلي)
     const purchase = parseFloat(purchaseInput.value) || 0;
     const sale = parseFloat(saleInput.value) || 0;
 
-    if (purchase > 0 && sale > 0) {
-        const profitPercent = ((sale - purchase) / purchase) * 100;
+    // إذا كان سعر الشراء بالدولار صفراً ولكن يوجد قيمة في حقل الليرة، نقوم بحساب النسبة بناءً عليها منعاً للـ NaN
+    let finalPurchase = purchase;
+    if (finalPurchase === 0 && purchaseLbpInput && typeof exchangeRate !== 'undefined') {
+        const purchaseLbp = parseFloat(purchaseLbpInput.value) || 0;
+        if (purchaseLbp > 0) {
+            finalPurchase = purchaseLbp / exchangeRate;
+        }
+    }
+
+    // تطبيق الشرط الخاص بك تماماً باستخدام القيمة المحققة آلياً
+    if (finalPurchase > 0 && sale > 0) {
+        // معادلتك الحسابية الأصلية بالكامل
+        const profitPercent = ((sale - finalPurchase) / finalPurchase) * 100;
+        
+        // طباعة النسبة وتلوينها بدقة صارمة (أكواد الألوان والـ % الخاصة بك بالكامل)
         profitDisplay.value = profitPercent.toFixed(1) + "%";
         profitDisplay.style.color = profitPercent >= 0 ? "#2e7d32" : "#d32f2f";
     } else {
+        // الحفاظ على حالة التصفير الأصلية لديك
         profitDisplay.value = "0%";
+        profitDisplay.style.color = "#388e3c"; // الحفاظ على اللون الأخضر الافتراضي للنسبة الصفرية
     }
 }
 
@@ -3141,17 +3295,25 @@ async function updateStock(productId, currentStock) {
 
     try {
         const newStock = currentStock + addedValue;
-        await db.collection("products").doc(productId).update({
+        
+        // 1. الحفظ الذكي والآمن في الفايربيس (كودك المحدث)
+        await db.collection("products").doc(productId).set({
             stock: newStock
-        });
+        }, { merge: true });
+        
         alert("تم تحديث المخزن بنجاح");
+        
+        // 🛠️ الإصلاح السحري: تصفير قيمة الخانة في الواجهة أولاً قبل إعادة بناء الجدول
         input.value = '';
+        document.getElementById(`add-qty-${productId}`).value = ''; 
+        
+        // 2. تحديث المخزن وإعادة رسم الجدول بالكميات الجديدة (كودك الأصلي)
         loadInventory(); 
+        
     } catch (error) {
         alert("حدث خطأ أثناء التحديث");
     }
 }
-
 async function updateGlobalExchangeRate(newRate) {
     if(!newRate) return;
     try {
@@ -3573,5 +3735,35 @@ window.addEventListener('DOMContentLoaded', () => {
         setInterval(loadTodayStaffPerformance, 60000); 
     }
 });
+// دالة تحويل سعر الشراء من دولار إلى ليرة لبنانية تلقائياً
+// دالة تحويل سعر الشراء من دولار إلى ليرة لبنانية تلقائياً
+function convertCostToLBP() {
+    const costUSDInput = document.getElementById('product-cost-input');
+    const costLBPInput = document.getElementById('product-cost-lbp-input');
+    if (!costUSDInput || !costLBPInput) return;
+
+    const costUSD = parseFloat(costUSDInput.value) || 0;
+    if (costUSD > 0) {
+        // حساب السعر بالليرة بناءً على سعر الصرف المتوفر بالنظام
+        costLBPInput.value = Math.round(costUSD * exchangeRate);
+    } else {
+        costLBPInput.value = ''; // تصفير الحقل إذا كانت القيمة صفر أو فارغة
+    }
+}
+
+// دالة تحويل سعر الشراء من ليرة لبنانية إلى دولار تلقائياً عند الكتابة بالليرة
+function convertCostToUSD() {
+    const costUSDInput = document.getElementById('product-cost-input');
+    const costLBPInput = document.getElementById('product-cost-lbp-input');
+    if (!costUSDInput || !costLBPInput) return;
+
+    const costLBP = parseFloat(costLBPInput.value) || 0;
+    if (costLBP > 0) {
+        // حساب السعر بالدولار وتدويره لمرتبتين عشريتين
+        costUSDInput.value = (costLBP / exchangeRate).toFixed(2);
+    } else {
+        costUSDInput.value = ''; // تصفير الحقل إذا كانت القيمة صفر أو فارغة
+    }
+}
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

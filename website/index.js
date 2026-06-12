@@ -737,6 +737,24 @@ async function checkout() {
                     console.error("فشل النسخ التلقائي: ", err);
                 });
             }
+
+            // 🛠️ الإصلاح السحري والمطور للويش: تحويل فوري للواتساب حتى لو كان الدفع ويش، لكي تصلك الرسالة مباشرة
+            setTimeout(() => {
+                if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                    window.location.href = finalUrl; 
+                } else {
+                    const newWindow = window.open(finalUrl, '_blank');
+                    if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                        window.location.href = finalUrl;
+                    }
+                }
+                
+                // 🛠️ تشغيل الدالة المسؤولة عن توجيه المستخدم لفتح تطبيق Whish تلقائياً بعد ثانية ونصف
+                if (typeof processWhishAndOpen === "function") {
+                    setTimeout(() => { processWhishAndOpen(); }, 1500);
+                }
+            }, 800);
+
         } else {
             setTimeout(() => {
                 if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {

@@ -726,8 +726,9 @@ async function checkout() {
         const finalUrl = `https://wa.me/96181479786?text=${encodeURIComponent(msg)}`;
         window.currentWhatsAppUrl = finalUrl; 
 
+        // 🛠️ الفحص الذكي لطريقة الدفع:
         if (payment === "عن طريق Whish Money") {
-            // 🛠️ الترتيب الصحيح لمنع التعليق: أولاً نظهر المودال للزبون على الواجهة ونعرض الرقم
+            // 1. إظهار المودال فوراً ليثبت على الشاشة ويظهر رقم المحفظة بوضوح دون تصفير السلة
             const modal = document.getElementById('whish-payment-modal');
             if(modal) modal.style.display = 'flex';
             
@@ -739,24 +740,55 @@ async function checkout() {
                 });
             }
 
-            // 🛠️ ثانياً: نفتح تطبيق Whish تلقائياً للزبون بناءً على الدالة الخاصة بك بملفك
-            if (typeof processWhishAndOpen === "function") {
-                processWhishAndOpen();
+            // تعديل دالة زر الويش بداخل المودال ديناميكياً لتشمل التوجيه المباشر بعد الضغط والتصفير
+            const whishBtn = document.querySelector('#whish-payment-modal button[onclick="processWhishAndOpen()"]');
+            if (whishBtn) {
+                whishBtn.setAttribute("onclick", `
+                    // نسخ الرقم احتياطياً عند الضغط
+                    const num = document.getElementById('whish-num-display') ? document.getElementById('whish-num-display').innerText : '81479786';
+                    navigator.clipboard.writeText(num);
+                    
+                    // فتح تطبيق الويش
+                    if (typeof processWhishAndOpen === "function") processWhishAndOpen();
+                    
+                    // تحويل الطلب فوراً إلى الواتساب
+                    setTimeout(() => {
+                        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                            window.location.href = "${finalUrl}"; 
+                        } else {
+                            window.open("${finalUrl}", '_blank');
+                        }
+                    }, 1000);
+                    
+                    // إغلاق مودال الويش وإظهار النجاح والتنظيف
+                    document.getElementById('whish-payment-modal').style.display = 'none';
+                    const successModal = document.getElementById('success-modal');
+                    if(successModal) successModal.style.display = 'flex';
+                `);
             }
 
-            // 🛠️ ثالثاً: نؤخر تحويل الواتساب أجزاء من الثانية لكي يكتمل فتح تطبيق الويش أولاً وتظهر البيانات
+            // تصفير وتنظيف الحقول النصية فقط استعداداً للطلب القادم، مع إبقاء السلة لحين ضغط الزر
+            localStorage.setItem('last_order', JSON.stringify(cart));
+            const successIdDisplay = document.getElementById('success-order-id');
+            if(successIdDisplay) successIdDisplay.innerText = "رقم الطلب: #" + orderId;
+
             setTimeout(() => {
-                if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                    window.location.href = finalUrl; 
-                } else {
-                    const newWindow = window.open(finalUrl, '_blank');
-                    if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-                        window.location.href = finalUrl;
-                    }
-                }
-            }, 1200);
+                cart = [];
+                updateCartCount();
+                renderCartItems();
+                updateRewardProgress();
+                localStorage.removeItem('stop_shop_cart');
+                if (document.getElementById('order-notes')) document.getElementById('order-notes').value = "";
+                if (document.getElementById('delivery-date')) document.getElementById('delivery-date').value = "";
+                if (document.getElementById('delivery-time')) document.getElementById('delivery-time').value = "";
+                if (document.getElementById('location-url')) document.getElementById('location-url').value = "";
+                if(checkoutBtn) checkoutBtn.innerText = "إتمام الطلب";
+            }, 500);
+
+            return; // إيقاف تنفيذ الأسطر التالية لمنع الفتح التلقائي المتعارض!
 
         } else {
+            // مسار الدفع العادي (نقداً عند التوصيل) يعمل تلقائياً كما كان تماماً
             setTimeout(() => {
                 if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
                     window.location.href = finalUrl; 
@@ -798,12 +830,23 @@ async function checkout() {
     }
 }
 function processWhishAndOpen() {
-    // إخفاء الواجهة
-    document.getElementById('whish-payment-modal').style.display = 'none';
+    // 🛠️ تم تعديل الترتيب: نقوم بنسخ الرقم المعروض أولاً لضمان بقائه في ذاكرة الهاتف قبل إخفاء الواجهة
+    const numDisplay = document.getElementById('whish-num-display');
+    if (numDisplay) {
+        const numberToCopy = numDisplay.innerText;
+        navigator.clipboard.writeText(numberToCopy).catch(err => {
+            console.error("فشل النسخ: ", err);
+        });
+    }
+
+    // إخفاء الواجهة (تم تأخيرها جزءاً من الثانية لضمان إتمام عمليات النسخ والقراءة بنجاح)
+    setTimeout(function() {
+        document.getElementById('whish-payment-modal').style.display = 'none';
+    }, 300);
 
     if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        // محاولة فتح التطبيق
-        window.location.href = "whish://";
+        // محاولة فتح التطبيق (🛠️ تم تصحيح الرابط إلى الرابط الرسمي المعتمد whishmoney:// ليفتح التطبيق فوراً)
+        window.location.href = "whishmoney://";
 
         // إذا لم يفتح التطبيق خلال ثانية واحدة، فهذا يعني أنه غير موجود
         // سنقوم بتحويله فوراً للواتساب لتجنب رسالة الخطأ في Safari

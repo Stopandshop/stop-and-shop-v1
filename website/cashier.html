@@ -960,6 +960,9 @@ function renderCart() {
         document.getElementById('subtotal-usd').innerText = "0.00 $";
         document.getElementById('total-lbp').innerText = "0 L.L";
         document.getElementById('final-usd-text').innerText = "صافي: 0.00 $";
+        // تحديث النقاط إلى 0 عند فراغ السلة
+        const pointsEarnedElem = document.getElementById('points-earned');
+        if (pointsEarnedElem) pointsEarnedElem.innerText = "0";
         return;
     }
 
@@ -1021,6 +1024,14 @@ function renderCart() {
     document.getElementById('total-lbp').innerText = lbp.toLocaleString() + " L.L";
     document.getElementById('final-usd-text').innerText = "صافي: " + (lbp / rateShow).toFixed(2) + " $";
 
+    // 🔥 تحديث نص نقاط الولاء المكتسبة حياً بناءً على القيمة الصافية بالدولار الفعلي (5$ = 1 نقطة)
+    const pointsEarned = Math.floor((lbp / rateShow));
+    const pointsEarnedFinal = Math.floor(pointsEarned / 5);
+    const pointsEarnedElem = document.getElementById('points-earned');
+    if (pointsEarnedElem) {
+        pointsEarnedElem.innerText = pointsEarnedFinal;
+    }
+
     const rateLabel = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
     if (rateLabel) rateLabel.innerText = rateShow.toLocaleString();
 }
@@ -1070,21 +1081,26 @@ function renderCart() {
 
     const usd = parseFloat(document.getElementById('subtotal-usd').innerText);
     const lbp = parseInt(document.getElementById('total-lbp').innerText.replace(/,/g, ''));
+    
+    // قراءة النقاط الحالية المعروضة في الشاشة لترحيلها وحفظها في السيرفر
+    const pointsEarnedElem = document.getElementById('points-earned');
+    const pointsToSave = pointsEarnedElem ? parseInt(pointsEarnedElem.innerText) : 0;
 
     try {
         const batch = db.batch();
         const saleRef = db.collection("sales").doc();
         
+        // 1. إعداد بيانات الفاتورة لحفظها في كولكشن المبيعات
         batch.set(saleRef, {
             items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
             employee: currentEmployee, 
             totalUSD: usd,
             totalLBP: lbp,
+            pointsEarned: pointsToSave, // حفظ النقاط بداخل الفاتورة في قاعدة البيانات
             time: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // تم نقل تحديث المخزون ليعمل بشكل منفصل وذكي لحماية الفاتورة من الانهيار
-        // سيتم معالجة تحديث المخزون عبر وعود متوازية (Promises) تضمن عدم توقف الحفظ
+        // 2. تحديث المخزون ليعمل بشكل منفصل وذكي لحماية الفاتورة من الانهيار
         const stockUpdates = cart.map(async (item) => {
             const targetDocId = item.barcode ? item.barcode : item.id;
             const ref = db.collection("products").doc(targetDocId);
@@ -1092,26 +1108,41 @@ function renderCart() {
             try {
                 const doc = await ref.get();
                 if (doc.exists) {
-                    // إذا كان المنتج موجوداً، نقوم بتحديث مخزونه بأمان
                     await ref.update({ stock: firebase.firestore.FieldValue.increment(-item.qty) });
                 } else {
-                    // إذا كان المنتج ممسوحاً بالباركود وغير معرف في السيستم، ننشئه بـ set لمنع الخطأ
                     console.warn(`المنتج بالباركود ${targetDocId} غير موجود في المستودع، تم إنشاؤه تلقائياً.`);
                     await ref.set({
                         name: item.name || "منتج جديد غير معرف",
                         barcode: targetDocId,
                         price: item.price || 0,
-                        stock: 0 - item.qty, // تسجيل كمية سالبة مؤقتة للحسابات
+                        stock: 0 - item.qty, 
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 }
             } catch (err) {
                 console.error(`فشل تحديث مخزون المنتج ${targetDocId}:`, err);
-                // لا نرفع الخطأ (throw) هنا لكي لا تنهار عملية حفظ الفاتورة الأساسية والطباعة
             }
         });
 
-        // حفظ الفاتورة في كولكشن sales أولاً
+        // 🛠️ التعديل الجديد: ربط النقاط برقم هاتف أو حساب الزبون في الـ Firestore 🛠️
+        // نقوم بجلب العنصر الذي يدخل فيه الكاشير رقم أو اسم الزبون (تأكد من مطابقة الـ ID مع واجهتك)
+        const customerInput = document.getElementById('customer-phone') || document.getElementById('customer-select') || document.getElementById('customer-phone-input');
+        
+        if (customerInput && customerInput.value.trim() !== "" && pointsToSave > 0) {
+            const customerPhoneOrId = customerInput.value.trim();
+            const customerRef = db.collection("customers").doc(customerPhoneOrId);
+            
+            // إضافة أمر تحديث النقاط تراكمياً للـ Batch (أقوى وأسرع وتتم مع حفظ الفاتورة معاً)
+            batch.set(customerRef, {
+                // increment تقوم بزيادة النقاط القديمة بالنقاط الجديدة تلقائياً دون مسح القديم
+                totalPoints: firebase.firestore.FieldValue.increment(pointsToSave),
+                lastPurchase: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }); // merge تضمن عدم مسح اسم الزبون أو بياناته الأخرى المتواجدة سابقاً
+            
+            console.log(`🎯 تم تجهيز إضافة ${pointsToSave} نقطة إلى حساب الرقم: ${customerPhoneOrId}`);
+        }
+
+        // حفظ الفاتورة وتحديث نقاط الزبون معاً في قاعدة البيانات بضغطة واحدة
         await batch.commit();
 
         // تنفيذ تحديثات المخزون في الخلفية بأمان تام
@@ -1121,10 +1152,13 @@ function renderCart() {
         saveToInvoices(usd, lbp);
 
         // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة ---
-        // نمرر printWindow لضمان أن دالة الطباعة تستخدم نفس النافذة المسموح بها وتفتح صفحة واحدة فقط
         printInvoice(printWindow); 
 
         alert("تم حفظ العملية بنجاح بواسطة: " + currentEmployee);
+        
+        // تفريغ حقل رقم الزبون بعد نجاح العملية للاستعداد للزبون التالي
+        if (customerInput) customerInput.value = '';
+        
         cart = []; 
         renderCart();
     } catch (e) { 
@@ -1565,17 +1599,26 @@ function changeExchangeRate() {
 }
 
 // دالة تحديث الإجماليات (مرتبطة بسعر الصرف من Firebase)
+// --- تحديث المجاميع وحساب النقاط تلقائياً ---
 function updateTotals() {
     let subtotalUSD = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const discount = parseFloat(document.getElementById('discount-val')?.value || 0);
     let finalUSD = Math.max(0, subtotalUSD - discount);
     
-    // استخدام السعر القادم من الداتابيس
+    // استخدام السعر القادم من الداتابيس وحساب اللبناني
     let totalLBP = finalUSD * currentRateFromDB;
     let roundedLBP = Math.round(totalLBP / 500) * 500;
 
+    // تحديث شاشة المبيعات بالدولار واللبناني
     if(document.getElementById('total-usd-val')) document.getElementById('total-usd-val').innerText = finalUSD.toFixed(2) + " $";
     if(document.getElementById('total-lbp-val')) document.getElementById('total-lbp-val').innerText = roundedLBP.toLocaleString() + " L.L";
+
+    // 🛠️ حساب نقاط الولاء وتحديث الشاشة فوراً (كل 5$ = 1 نقطة)
+    let calculatedPoints = Math.floor(finalUSD / 5);
+    const pointsEl = document.getElementById('points-earned');
+    if (pointsEl) {
+        pointsEl.innerText = calculatedPoints;
+    }
 }
 
 function displayExchangeRate() {
@@ -2047,7 +2090,8 @@ function calculateChangeUSD() {
     const lbpLabel = changeLbpElem.previousElementSibling;
     
     // الحصول على سعر الصرف الحالي من نظامك
-    const currentRate = typeof exchangeRate !== 'undefined' ? exchangeRate : 90000;
+    // تم تعديل هذا السطر برمجياً ليفحص أولاً المتغيرات الحية النشطة في نظامك (currentRateFromDB أو rate) قبل اللجوء للـ 90000 لضمان دقة الحساب الحية
+    const currentRate = typeof currentRateFromDB !== 'undefined' && currentRateFromDB > 0 ? currentRateFromDB : (typeof rate !== 'undefined' ? rate : (typeof exchangeRate !== 'undefined' ? exchangeRate : 90000));
 
     // حالة صفرية: إذا لم يتم كتابة أي رقم في الخانة
     if (cashInput.value.trim() === "") {

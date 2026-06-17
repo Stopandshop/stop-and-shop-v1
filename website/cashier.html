@@ -629,10 +629,17 @@
     <input type="number" id="discount-val" value="0" min="0" max="100" oninput="renderCart()" style="width: 70px; padding: 8px; border-radius: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
 </div>
 
-        <div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; border-top: 1px solid #f0f0f0; padding-top: 15px;">
-            <span>نقاط الولاء المكتسبة:</span>
-            <span id="points-earned">0</span>
-        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; border-top: 1px solid #f0f0f0; padding-top: 15px;">
+    <label style="font-weight: bold; color: var(--dark); font-size: 0.95rem;">
+        <i class="fas fa-phone-alt" style="margin-left: 5px; color: var(--primary);"></i> رقم هاتف الزبون (لربط النقاط):
+    </label>
+    <input type="tel" id="customer-phone" placeholder="أدخل رقم الهاتف هنا..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; text-align: center; outline: none; transition: 0.3s;" onfocus="this.style.borderColor='var(--success)'" onblur="this.style.borderColor='#ddd'">
+</div>
+
+<div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; border-top: 1px dashed #eee; padding-top: 10px;">
+    <span>نقاط الولاء المكتسبة:</span>
+    <span id="points-earned">0</span>
+</div>
 
         <div class="total-banner">
             <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px;">الإجمالي بالليرة اللبنانية</div>
@@ -1066,7 +1073,7 @@ function renderCart() {
     }
 
     // --- 4. الحفظ والأرشفة ---
-   async function saveInvoice() {
+ async function saveInvoice() {
     if (cart.length === 0) return alert("السلة فارغة!");
     
     // إذا ضغط الكاشير على Cancel (إلغاء) في نافذة التأكيد، ستتوقف الدالة فوراً وبمنتهى الهدوء دون أي مشاكل
@@ -1090,7 +1097,6 @@ function renderCart() {
         const batch = db.batch();
         const saleRef = db.collection("sales").doc();
         
-        // 1. إعداد بيانات الفاتورة لحفظها في كولكشن المبيعات
         batch.set(saleRef, {
             items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
             employee: currentEmployee, 
@@ -1100,7 +1106,8 @@ function renderCart() {
             time: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 2. تحديث المخزون ليعمل بشكل منفصل وذكي لحماية الفاتورة من الانهيار
+        // تم نقل تحديث المخزون ليعمل بشكل منفصل وذكي لحماية الفاتورة من الانهيار
+        // سيتم معالجة تحديث المخزون عبر وعود متوازية (Promises) تضمن عدم توقف الحفظ
         const stockUpdates = cart.map(async (item) => {
             const targetDocId = item.barcode ? item.barcode : item.id;
             const ref = db.collection("products").doc(targetDocId);
@@ -1108,41 +1115,55 @@ function renderCart() {
             try {
                 const doc = await ref.get();
                 if (doc.exists) {
+                    // إذا كان المنتج موجوداً، نقوم بتحديث مخزونه بأمان
                     await ref.update({ stock: firebase.firestore.FieldValue.increment(-item.qty) });
                 } else {
+                    // إذا كان المنتج ممسوحاً بالباركود وغير معرف في السيستم، ننشئه بـ set لمنع الخطأ
                     console.warn(`المنتج بالباركود ${targetDocId} غير موجود في المستودع، تم إنشاؤه تلقائياً.`);
                     await ref.set({
                         name: item.name || "منتج جديد غير معرف",
                         barcode: targetDocId,
                         price: item.price || 0,
-                        stock: 0 - item.qty, 
+                        stock: 0 - item.qty, // تسجيل كمية سالبة مؤقتة للحسابات
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 }
             } catch (err) {
                 console.error(`فشل تحديث مخزون المنتج ${targetDocId}:`, err);
+                // لا نرفع الخطأ (throw) هنا لكي لا تنهار عملية حفظ الفاتورة الأساسية والطباعة
             }
         });
 
-        // 🛠️ التعديل الجديد: ربط النقاط برقم هاتف أو حساب الزبون في الـ Firestore 🛠️
-        // نقوم بجلب العنصر الذي يدخل فيه الكاشير رقم أو اسم الزبون (تأكد من مطابقة الـ ID مع واجهتك)
-        const customerInput = document.getElementById('customer-phone') || document.getElementById('customer-select') || document.getElementById('customer-phone-input');
+        // متغيرات مخصصة لبناء رسالة التنبيه النهائية للزبون
+        let customerMessage = ""; 
+        const customerInput = document.getElementById('customer-phone');
         
         if (customerInput && customerInput.value.trim() !== "" && pointsToSave > 0) {
-            const customerPhoneOrId = customerInput.value.trim();
-            const customerRef = db.collection("customers").doc(customerPhoneOrId);
+            const customerPhone = customerInput.value.trim();
+            // 🛠️ تم تعديل اسم الكولكشن هنا ليصبح "users" بناءً على طلبك بدلاً من customers
+            const customerRef = db.collection("users").doc(customerPhone);
             
-            // إضافة أمر تحديث النقاط تراكمياً للـ Batch (أقوى وأسرع وتتم مع حفظ الفاتورة معاً)
+            // جلب بيانات الزبون الحالية لمعرفة رصيد نقاطه القديم قبل الإضافة لتظهر في الـ alert
+            let currentPoints = 0;
+            const customerDoc = await customerRef.get();
+            if (customerDoc.exists) {
+                currentPoints = customerDoc.data().totalPoints || 0;
+            }
+            
+            // مجموع النقاط الكلي للزبون بعد إضافة نقاط الفاتورة الحالية
+            const finalTotalPoints = currentPoints + pointsToSave;
+
+            // استخدام increment لزيادة النقاط بشكل تراكمي فوق النقاط السابقة للرقم دون مسح القديم
             batch.set(customerRef, {
-                // increment تقوم بزيادة النقاط القديمة بالنقاط الجديدة تلقائياً دون مسح القديم
                 totalPoints: firebase.firestore.FieldValue.increment(pointsToSave),
                 lastPurchase: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }); // merge تضمن عدم مسح اسم الزبون أو بياناته الأخرى المتواجدة سابقاً
+            }, { merge: true }); // merge تضمن الحفاظ على اسم الزبون أو أي بيانات محفوظة سابقاً للرقم
             
-            console.log(`🎯 تم تجهيز إضافة ${pointsToSave} نقطة إلى حساب الرقم: ${customerPhoneOrId}`);
+            // صياغة رسالة الـ alert للزبون بشكل احترافي ومميز
+            customerMessage = `\n\n🎯 زبون الولاء: ${customerPhone}\n➕ النقاط المضافة: ${pointsToSave} نقطة\n⭐ مجموع نقاط الزبون الحالي: ${finalTotalPoints} نقطة`;
         }
 
-        // حفظ الفاتورة وتحديث نقاط الزبون معاً في قاعدة البيانات بضغطة واحدة
+        // حفظ الفاتورة وتحديث نقاط الرقم المستهدف دفعة واحدة وبأعلى سرعة وسلاسة
         await batch.commit();
 
         // تنفيذ تحديثات المخزون في الخلفية بأمان تام
@@ -1152,11 +1173,13 @@ function renderCart() {
         saveToInvoices(usd, lbp);
 
         // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة ---
+        // نمرر printWindow لضمان أن دالة الطباعة تستخدم نفس النافذة المسموح بها وتفتح صفحة واحدة فقط
         printInvoice(printWindow); 
 
-        alert("تم حفظ العملية بنجاح بواسطة: " + currentEmployee);
+        // 🌟 عرض الـ alert المطلوب والمحدث بالكامل 🌟
+        alert(`تم حفظ العملية بنجاح بواسطة: ${currentEmployee}${customerMessage}`);
         
-        // تفريغ حقل رقم الزبون بعد نجاح العملية للاستعداد للزبون التالي
+        // تفريغ حقل رقم هاتف الزبون بعد انتهاء الحفظ بنجاح استعداداً للعملية التالية
         if (customerInput) customerInput.value = '';
         
         cart = []; 
@@ -1166,7 +1189,6 @@ function renderCart() {
         alert("خطأ في الحفظ: " + e.message); 
     }
 }
-
 function saveToInvoices(u, l) {
     const mid = new Date().toISOString().slice(0, 7);
     db.collection("invoices").add({

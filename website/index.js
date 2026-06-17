@@ -28,6 +28,7 @@ let products = [];;
 window.addEventListener('load', () => {
     loadProducts();      // جلب المنتجات
     loadSavedCart();     // استرجاع السلة
+    loadLoyaltyCustomersRealtime();
     checkFirstVisit();   // فحص الترحيب
 });
 async function syncExchangeRate() {
@@ -1521,7 +1522,8 @@ function updateDashboardStats() {
 window.addEventListener('load', () => {
     loadProducts();      
     loadSavedCart();     
-    checkFirstVisit();   
+    checkFirstVisit();  
+    loadLoyaltyCustomersRealtime(); 
     loadSalesStats(); // أضف هذا السطر هنا
 });
 // دالة إغلاق رسالة الترحيب
@@ -3323,6 +3325,55 @@ function searchInventory() {
 }
 
 // 4. دالة إدارة زر "عرض المزيد" المضافة لحماية الشاشة
+
+async function updateStock(productId, currentStock) {
+    const input = document.getElementById(`add-qty-${productId}`);
+    if(!input) return;
+    const addedValue = parseInt(input.value);
+
+    if (isNaN(addedValue) || addedValue <= 0) {
+        alert("يرجى إدخال كمية صحيحة");
+        return;
+    }
+
+    try {
+        const newStock = currentStock + addedValue;
+        
+        // 1. الحفظ الذكي والآمن في الفايربيس (كودك المحدث)
+        await db.collection("products").doc(productId).update({
+            stock: firebase.firestore.FieldValue.increment(addedValue)
+        });
+        
+        // 🛠️ التحديث الذكي: تحديث القيمة داخل المصفوفات المحلية فوراً
+        if (typeof adminOriginalProducts !== 'undefined') {
+            let p1 = adminOriginalProducts.find(p => p.id === productId);
+            if (p1) p1.stock = newStock;
+            // 🎯 إعادة ترتيب المصفوفة الأصلية لتصعد الكميات الأقل والنواقص للأعلى دائماً
+            adminOriginalProducts.sort((a, b) => a.stock - b.stock);
+        }
+        if (typeof adminFilteredProducts !== 'undefined') {
+            let p2 = adminFilteredProducts.find(p => p.id === productId);
+            if (p2) p2.stock = newStock;
+            // 🎯 إعادة ترتيب مصفوفة التصفية (البحث) لضمان استقرار الترتيب بالكمية
+            adminFilteredProducts.sort((a, b) => a.stock - b.stock);
+        }
+        
+        alert("تم تحديث المخزن بنجاح");
+        
+        // 🛠️ الإصلاح السحري: تصفير قيمة الخانة في الواجهة أولاً قبل إعادة بناء الجدول
+        input.value = '';
+        
+        // 2. تحديث المخزن وإعادة رسم الجدول بالكميات والترتيب الجديد حياً
+        if (typeof renderInventoryTable === 'function') {
+            renderInventoryTable();
+        } else {
+            loadInventory(); 
+        }
+        
+    } catch (error) {
+        alert("حدث خطأ أثناء التحديث");
+    }
+}
 function handleAdminMoreButton() {
     removeAdminMoreBtn(); // مسح القديم أولاً لمنع التكرار
 
@@ -3344,37 +3395,6 @@ function handleAdminMoreButton() {
 function removeAdminMoreBtn() {
     const existingBtn = document.getElementById('admin-load-more-btn');
     if (existingBtn) existingBtn.remove();
-}
-async function updateStock(productId, currentStock) {
-    const input = document.getElementById(`add-qty-${productId}`);
-    if(!input) return;
-    const addedValue = parseInt(input.value);
-
-    if (isNaN(addedValue) || addedValue <= 0) {
-        alert("يرجى إدخال كمية صحيحة");
-        return;
-    }
-
-    try {
-        const newStock = currentStock + addedValue;
-        
-        // 1. الحفظ الذكي والآمن في الفايربيس (كودك المحدث)
-        await db.collection("products").doc(productId).set({
-            stock: newStock
-        }, { merge: true });
-        
-        alert("تم تحديث المخزن بنجاح");
-        
-        // 🛠️ الإصلاح السحري: تصفير قيمة الخانة في الواجهة أولاً قبل إعادة بناء الجدول
-        input.value = '';
-        document.getElementById(`add-qty-${productId}`).value = ''; 
-        
-        // 2. تحديث المخزن وإعادة رسم الجدول بالكميات الجديدة (كودك الأصلي)
-        loadInventory(); 
-        
-    } catch (error) {
-        alert("حدث خطأ أثناء التحديث");
-    }
 }
 async function updateGlobalExchangeRate(newRate) {
     if(!newRate) return;
@@ -3825,6 +3845,117 @@ function convertCostToUSD() {
         costUSDInput.value = (costLBP / exchangeRate).toFixed(2);
     } else {
         costUSDInput.value = ''; // تصفير الحقل إذا كانت القيمة صفر أو فارغة
+    }
+}
+// --- دالة جلب وعرض زبائن الولاء حياً في الجدول ---
+// --- دالة جلب وعرض زبائن الولاء حياً في الجدول المحدثة بالكامل مع الحذف ---
+// --- 1. دالة إضافة النقاط يدوياً عند الضغط على زر (إضافة 5$) ---
+function addManualPoints(userId, pointsAmount = 1) {
+    if (!userId) return;
+
+    // تأكيد العملية لحماية البيانات من الضغط العشوائي
+    if (confirm(`هل تريد إضافة نقاط بقيمة 5$ (تعادل ${pointsAmount} نقطة) لحساب هذا الزبون؟`)) {
+        const customerRef = db.collection("users").doc(userId);
+
+        // استخدام increment لزيادة النقاط بشكل تراكمي حياً في السيرفر دون مسح البيانات القديمة
+        customerRef.set({
+            totalPoints: firebase.firestore.FieldValue.increment(pointsAmount),
+            lastPurchase: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true })
+        .then(() => {
+            alert("🎯 تم إضافة النقاط بنجاح وتحديث حساب الزبون!");
+        })
+        .catch((error) => {
+            console.error("خطأ أثناء إضافة النقاط يدوياً: ", error);
+            alert("فشل إضافة النقاط: " + error.message);
+        });
+    }
+}
+
+// --- 2. دالة جلب وعرض زبائن الولاء حياً في الجدول المحدثة بالكامل لربط الزرين معاً ---
+function loadLoyaltyCustomersRealtime() {
+    const listContainer = document.getElementById("customers-list");
+    if (!listContainer) return; 
+    
+    db.collection("users").onSnapshot((querySnapshot) => {
+        listContainer.innerHTML = ''; 
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+
+            // فحص النقاط والتاريخ لضمان التوافق مع القديم والجديد
+            const totalPoints = data.totalPoints !== undefined ? data.totalPoints : (data.points !== undefined ? data.points : 0);
+
+            let lastActivity = "لا يوجد";
+            if (data.lastPurchase) {
+                lastActivity = new Date(data.lastPurchase.seconds * 1000).toLocaleDateString('ar-LB');
+            } else if (data.lastOrder) {
+                lastActivity = new Date(data.lastOrder.seconds * 1000).toLocaleDateString('ar-LB');
+            }
+
+            const customerPhone = data.phone || doc.id;
+
+            // بناء أسطر الجدول وتمرير المعرف doc.id لدالة الإضافة ودالة الحذف بنجاح
+            listContainer.innerHTML += `
+                <tr>
+                    <td style="font-weight: 700; direction: ltr; text-align: right;">${customerPhone}</td>
+                    <td style="font-weight: bold; color: #2ecc71;">${totalPoints} نقطة</td>
+                    <td>${lastActivity}</td>
+                    <td>
+                        <button class="btn-add-5" style="background-color: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;" onclick="addManualPoints('${doc.id}', 1)">إضافة 5$</button>
+                        
+                        <button class="btn-delete" style="background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;" onclick="deleteLoyaltyUser('${doc.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }, (error) => {
+        console.error("خطأ أثناء جلب زبائن الولاء: ", error);
+    });
+}
+// --- دالة حذف زبون الولاء نهائياً من قاعدة البيانات ---
+function deleteLoyaltyUser(userId) {
+    if (!userId) return;
+    
+    // إظهار نافذة تأكيد حمايةً من الحذف بالخطأ
+    if (confirm("هل أنت متأكد من حذف هذا الزبون نهائياً؟ لا يمكن التراجع عن هذه العملية.")) {
+        db.collection("users").doc(userId).delete()
+        .then(() => {
+            alert("تم حذف الزبون بنجاح.");
+        })
+        .catch((error) => {
+            console.error("خطأ أثناء حذف الزبون: ", error);
+            alert("فشل الحذف: " + error.message);
+        });
+    }
+}
+// دالة لتزويد وزيادة كمية المخزن لأي منتج حياً في السيرفر عند ضغط زر زيادة
+async function addStockQuantity(productId, productName) {
+    if (!productId) return;
+
+    // طلب الكمية المراد إضافتها من المستخدم عبر نافذة إدخال ذكية
+    let amountInput = prompt(`أدخل الكمية التي تريد إضافتها لمنتج (${productName}):`, "10");
+    if (amountInput === null) return; // إذا ضغط إلغاء
+
+    let addedQty = parseInt(amountInput);
+    if (isNaN(addedQty) || addedQty <= 0) {
+        alert("يرجى إدخال رقم صحيح أكبر من الصفر!");
+        return;
+    }
+
+    try {
+        // تحديث الكمية تراكمياً في السيرفر باستخدام increment
+        await db.collection('products').doc(productId).update({
+            stock: firebase.firestore.FieldValue.increment(addedQty)
+        });
+
+        alert(`تم إضافة ${addedQty} قطع بنجاح لمنتج ${productName}.`);
+        loadInventory(); // إعادة تحديث الجدول تلقائياً ليظهر الرقم الجديد فوراً أمامك
+    } catch (error) {
+        console.error("خطأ أثناء زيادة المخزون:", error);
+        alert("فشل تحديث المخزون في السيرفر: " + error.message);
     }
 }
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً

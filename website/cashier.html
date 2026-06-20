@@ -3,23 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stop & Shop | النظام الذكي</title>
+    <title>Stop & Shop | النظام الذكي الاحترافي</title>
     
+    <!-- الخطوط والأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- مكتبات النظام الأساسية -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<link rel="icon" type="image/jpeg" href="logo.jpg">
+    <link rel="icon" type="image/jpeg" href="logo.jpg">
+
     <style>
         :root {
-            --primary: #e74c3c;
-            --dark: #2c3e50;
-            --success: #2ecc71;
-            --bg: #f4f7f6;
+            --primary: #ff4757;
+            --primary-gradient: linear-gradient(135deg, #ff4757, #ee5253);
+            --dark: #1e272e;
+            --dark-card: #2f3640;
+            --success: #2ed573;
+            --success-gradient: linear-gradient(135deg, #2ed573, #26af58);
+            --bg: #f1f2f6;
             --white: #ffffff;
-            --shadow: 0 10px 25px rgba(0,0,0,0.08);
-            --radius: 16px;
+            --shadow-sm: 0 4px 6px rgba(0,0,0,0.03);
+            --shadow-md: 0 10px 25px rgba(0,0,0,0.05);
+            --shadow-lg: 0 20px 40px rgba(0,0,0,0.08);
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --radius-pill: 50px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
@@ -32,509 +44,459 @@
             color: var(--dark);
         }
 
-        /* --- الهيكل الرئيسي --- */
+        /* --- الهيكل الرئيسي وتوزيع مساحات العمل --- */
         .sidebar-actions {
-            width: 280px;
+            width: 300px;
             background: var(--white);
-            padding: 20px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            border-left: 1px solid #e0e0e0;
-            box-shadow: 5px 0 15px rgba(0,0,0,0.02);
+            gap: 14px;
+            border-left: 1px solid rgba(0,0,0,0.06);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.02);
             z-index: 10;
+            height: 100%;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
 
         .main-workspace {
             flex: 1;
-            padding: 25px;
+            padding: 30px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 24px;
             overflow-y: auto;
+            box-sizing: border-box;
         }
 
         .billing-panel {
-            width: 380px;
+            width: 410px;
             background: var(--white);
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #e0e0e0;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.02);
+            border-right: 1px solid rgba(0,0,0,0.06);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.02);
+            height: 100%;
+            box-sizing: border-box;
         }
 
-        /* --- العناصر الجميلة --- */
+        /* --- عناصر البطاقات الفاخرة --- */
         .glass-card {
             background: var(--white);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 20px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(0,0,0,0.03);
+            padding: 25px;
+            transition: var(--transition);
+        }
+        .glass-card:hover {
+            box-shadow: var(--shadow-lg);
         }
 
+        /* --- تصميم شريط البحث المطور --- */
         .search-container {
             position: relative;
             display: flex;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
+            width: 100%;
+        }
+        .search-container::before {
+            content: "\f02a";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            position: absolute;
+            right: 25px;
+            font-size: 1.3rem;
+            color: #a4b0be;
+            transition: var(--transition);
+        }
+        .search-container:focus-within::before {
+            color: var(--primary);
+            transform: scale(1.1);
         }
 
         .search-input {
             flex: 1;
-            padding: 18px 25px;
-            border-radius: 50px;
+            padding: 18px 60px 18px 25px;
+            border-radius: var(--radius-pill);
             border: 2px solid transparent;
             background: var(--white);
-            box-shadow: var(--shadow);
-            font-size: 1.1rem;
+            box-shadow: var(--shadow-md);
+            font-size: 1.15rem;
             outline: none;
-            transition: 0.3s;
+            transition: var(--transition);
             font-weight: 600;
+            color: var(--dark);
+        }
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 10px 25px rgba(255, 71, 87, 0.15);
+            background: #fff;
         }
 
-        .search-input:focus { border-color: var(--primary); }
-
+        /* --- تصميم الأزرار الجانبية الفاخرة --- */
         .btn-action {
             width: 100%;
-            padding: 16px;
+            padding: 15px 20px;
             border: none;
-            border-radius: var(--radius);
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-weight: 700;
             font-family: 'Cairo';
             display: flex;
             align-items: center;
-            gap: 12px;
-            transition: all 0.3s;
-            font-size: 0.95rem;
+            gap: 14px;
+            transition: var(--transition);
+            font-size: 1rem;
+            box-shadow: var(--shadow-sm);
         }
-
-        .btn-save { background: var(--success); color: white; height: 70px; font-size: 1.2rem; }
-        .btn-secondary { background: #ecf0f1; color: var(--dark); }
-        .btn-danger { background: #fff5f5; color: var(--primary); }
-        .btn-action:hover { transform: translateY(-3px); filter: brightness(1.05); }
-
-        .products-list-header {
-            border-bottom: 2px solid var(--primary);
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            font-weight: 900;
+        .btn-save { 
+            background: var(--success-gradient); 
+            color: white; 
+            padding: 20px; 
             font-size: 1.2rem;
+            box-shadow: 0 8px 20px rgba(46, 213, 115, 0.3);
+        }
+        .btn-save:hover {
+            box-shadow: 0 12px 25px rgba(46, 213, 115, 0.45);
+        }
+        .btn-secondary { 
+            background: #f1f2f6; 
+            color: #57606f; 
+        }
+        .btn-secondary:hover {
+            background: #e4e7eb;
             color: var(--dark);
         }
+        .btn-danger { 
+            background: #ffe0e3; 
+            color: var(--primary); 
+        }
+        .btn-danger:hover {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 8px 20px rgba(255, 71, 87, 0.2);
+        }
+        .btn-to-admin {
+            background-color: #747d8c;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: var(--transition);
+        }
+        .btn-to-admin:hover {
+            background-color: var(--dark);
+            box-shadow: var(--shadow-md);
+        }
+        .btn-action:hover { 
+            transform: translateY(-3px); 
+        }
 
+        /* --- ترويسة المنتجات --- */
+        .products-list-header {
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            font-weight: 900;
+            font-size: 1.3rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .products-list-header i {
+            color: var(--primary);
+        }
+
+        /* --- بطاقات السلة / المنتجات المضافة وعناصر التحكم المتقدمة --- */
         .product-row {
             display: flex;
             align-items: center;
-            padding: 15px;
+            padding: 16px 20px;
             background: var(--white);
-            border-radius: var(--radius);
-            margin-bottom: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-            border: 1px solid #f0f0f0;
-            animation: fadeIn 0.4s ease;
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(0,0,0,0.02);
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: var(--transition);
+        }
+        .product-row:hover {
+            transform: scale(1.01) translateX(-5px);
+            box-shadow: var(--shadow-md);
+            border-color: rgba(0,0,0,0.05);
         }
 
-        /* تنسيق صورة المنتج */
         .product-img-circle {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
+            width: 55px;
+            height: 55px;
+            border-radius: var(--radius-md);
             object-fit: cover;
-            background: #f0f2f5;
-            border: 1px solid #eee;
+            background: #f1f2f6;
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
         .qty-box {
             display: flex;
             align-items: center;
-            background: #f8f9fa;
-            border-radius: 30px;
-            padding: 5px 15px;
+            background: #f1f2f6;
+            border-radius: var(--radius-pill);
+            padding: 6px 14px;
             gap: 10px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
         }
-
-        /* تنسيق حقل الكمية القابل للكتابة */
         .qty-input-manual {
             width: 45px;
             border: none;
             background: transparent;
             text-align: center;
-            font-weight: bold;
+            font-weight: 700;
             font-family: 'Cairo';
-            font-size: 1rem;
+            font-size: 1.05rem;
             outline: none;
+            color: var(--dark);
         }
-
         .qty-btn {
             background: var(--white);
-            border: 1px solid #ddd;
-            width: 28px;
-            height: 28px;
+            border: none;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             cursor: pointer;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            color: var(--dark);
         }
-
-        .brand-section {
-            background: var(--dark);
+        .qty-btn:hover {
+            background: var(--primary);
             color: white;
-            padding: 30px 20px;
-            text-align: center;
-            border-radius: 0 0 var(--radius) var(--radius);
         }
 
+        /* --- تصميم لوحة الهوية المدمجة (تم تصغيرها وتنسيقها هنا) --- */
+        .brand-section {
+            background: linear-gradient(135deg, #2c3e50, #1a252f);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
         .brand-section img {
-            width: 80px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.2);
-            margin-bottom: 10px;
+            border: 2px solid rgba(255,255,255,0.15);
+            box-shadow: var(--shadow-sm);
+        }
+        .brand-section h2 {
+            margin: 0;
+            font-weight: 900;
+            font-size: 1.3rem;
+            letter-spacing: 1px;
         }
 
         .total-banner {
-            background: var(--primary);
+            background: var(--primary-gradient);
             color: white;
-            padding: 25px;
-            border-radius: var(--radius);
+            padding: 24px;
+            border-radius: var(--radius-lg);
             text-align: center;
-            margin: 20px;
-            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.3);
+            margin: 5px 0 20px 0;
+            box-shadow: 0 12px 30px rgba(255, 71, 87, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+        .total-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .total-banner #total-lbp {
+            font-size: 2.4rem;
+            font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
 
+        /* --- حاسبة الباقي الاحترافية --- */
+        .change-calc-box {
+            background: #ffffff;
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            border-top: 4px solid var(--success);
+            font-family: 'Cairo', sans-serif;
+            overflow: hidden;
+        }
+        .calc-header {
+            background: #fafbfc;
+            padding: 12px 16px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #4b5563;
+            border-bottom: 1px solid #f1f2f6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .calc-header i { color: var(--success); }
+        .calc-body-scroll { padding: 15px; }
+        .input-row input {
+            width: 50%;
+            padding: 10px 14px;
+            border: 2px solid #e4e7eb;
+            border-radius: var(--radius-md);
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            color: #111827;
+            transition: var(--transition);
+            background: #fafbfc;
+        }
+        .input-row input:focus {
+            border-color: var(--success);
+            background: white;
+            outline: none;
+            box-shadow: 0 0 12px rgba(46, 213, 115, 0.15);
+        }
+        .result-row {
+            background: #fafbfc;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            border-right: 5px solid #d1d5db;
+            box-sizing: border-box;
+            margin-top: 10px;
+        }
+        .usd-highlight { border-right-color: var(--success); background: rgba(46, 213, 115, 0.03); }
+        .lbp-highlight { border-right-color: var(--primary); background: rgba(255, 71, 87, 0.03); }
+        
+        /* --- فوتر النظام السفلي --- */
         .status-footer {
-            background: #fff;
-            padding: 12px 25px;
-            border-radius: 50px;
+            background: var(--white);
+            padding: 14px 30px;
+            border-radius: var(--radius-pill);
             display: flex;
             justify-content: space-between;
-            font-size: 0.85rem;
-            box-shadow: var(--shadow);
+            align-items: center;
+            font-size: 0.9rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(0,0,0,0.02);
         }
-        /* زر الانتقال للمسؤول */
-.btn-to-admin {
-    background-color: #34495e;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: 'Cairo', sans-serif;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: 0.3s;
-    margin: 10px; /* ليتناسب مع موقعك */
-}
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f1f2f6;
+            padding: 6px 16px;
+            border-radius: var(--radius-pill);
+            font-weight: 700;
+        }
+        .stat-value { color: var(--primary); font-size: 1rem; }
 
-.btn-to-admin:hover {
-    background-color: #2c3e50;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
+        /* --- النوافذ المنبثقة (Modals) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(6px);
+        }
+        .modal-content.admin-theme {
+            background: white;
+            padding: 35px;
+            border-radius: var(--radius-lg);
+            width: 400px;
+            text-align: center;
+            border-top: 6px solid var(--primary);
+            box-shadow: var(--shadow-lg);
+        }
+        #adminLoginInput {
+            width: 100%;
+            padding: 14px;
+            margin: 20px 0;
+            border: 2px solid #e4e7eb;
+            border-radius: var(--radius-md);
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 6px;
+            outline: none;
+            transition: var(--transition);
+        }
+        #adminLoginInput:focus { border-color: var(--primary); }
+        .btn-confirm-admin {
+            flex: 2; background: var(--primary-gradient); color: white;
+            border: none; padding: 14px; border-radius: var(--radius-md);
+            cursor: pointer; font-weight: bold; font-size: 1rem; transition: var(--transition);
+        }
+        .btn-confirm-admin:hover { box-shadow: 0 6px 15px rgba(255, 71, 87, 0.3); }
+        .btn-cancel {
+            flex: 1; background: #f1f2f6; color: #57606f;
+            border: none; padding: 14px; border-radius: var(--radius-md);
+            cursor: pointer; font-family: 'Cairo'; transition: var(--transition);
+        }
 
-/* نمط خاص لنافذة الإدارة */
-.admin-theme {
-    border-top: 5px solid #34495e;
-}
+        /* تحسينات التمرير الجانبي */
+        .sidebar-actions::-webkit-scrollbar,
+        .billing-panel::-webkit-scrollbar,
+        #cart-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar-actions::-webkit-scrollbar-thumb,
+        .billing-panel::-webkit-scrollbar-thumb,
+        #cart-container::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
 
-.btn-confirm-admin {
-    flex: 2;
-    background: #34495e;
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: bold;
-}
-/* تنسيق منطقة الأزرار الجانبية مع خاصية الـ Scroll */
-.sidebar-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 15px;
-    height: 100%; /* تأخذ كامل الطول المتاح */
-    overflow-y: auto; /* تفعيل التمرير العمودي */
-    overflow-x: hidden; /* إخفاء التمرير الأفقي */
-    scrollbar-width: thin; /* لشاشات فايرفوكس */
-    scrollbar-color: #ccc transparent;
-}
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(12px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
 
-/* تحسين شكل شريط التمرير (للمتصفحات مثل Chrome و Edge) */
-.sidebar-actions::-webkit-scrollbar {
-    width: 6px;
-}
-
-.sidebar-actions::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.sidebar-actions::-webkit-scrollbar-thumb {
-    background-color: #ccc;
-    border-radius: 10px;
-}
-
-.sidebar-actions::-webkit-scrollbar-thumb:hover {
-    background-color: #999;
-}
-/* خلفية النافذة - جعلتها أغمق قليلاً لزيادة التركيز */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8); /* سواد شفاف */
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-    backdrop-filter: blur(4px); /* تأثير تغبيش خلف النافذة */
-}
-
-/* صندوق المحتوى */
-.modal-content.admin-theme {
-    background: white;
-    padding: 30px;
-    border-radius: 20px;
-    width: 380px;
-    text-align: center;
-    border-top: 6px solid #e74c3c; /* اللون الأحمر الخاص بـ Stop & Shop */
-    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-}
-
-/* أيقونة القفل */
-.modal-header i {
-    font-size: 45px;
-    color: #2c3e50; /* اللون الداكن للنظام */
-    margin-bottom: 15px;
-}
-
-/* حقل إدخال كلمة المرور */
-#adminLoginInput {
-    width: 100%;
-    padding: 15px;
-    margin: 20px 0;
-    border: 2px solid #eee;
-    border-radius: 12px;
-    text-align: center;
-    font-size: 22px;
-    letter-spacing: 5px;
-    outline: none;
-    transition: 0.3s;
-}
-
-#adminLoginInput:focus {
-    border-color: #e74c3c; /* يتحول للأحمر عند الكتابة */
-    box-shadow: 0 0 10px rgba(231, 76, 60, 0.1);
-}
-
-/* أزرار النافذة */
-.btn-confirm-admin {
-    flex: 2;
-    background: #e74c3c; /* أحمر */
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-family: 'Cairo', sans-serif;
-    font-weight: bold;
-    font-size: 16px;
-}
-
-.btn-cancel {
-    flex: 1;
-    background: #f8f9fa;
-    color: #666;
-    border: 1px solid #ddd;
-    padding: 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-family: 'Cairo', sans-serif;
-}
-.low-stock-warning {
-    color: #e67e22 !important; /* لون برتقالي للتنبيه */
-    font-weight: bold;
-}
-.out-of-stock {
-    color: #e74c3c !important; /* لون أحمر للنفاد التام */
-    text-decoration: line-through;
-}
-/* تحديد ارتفاع أقصى لجدول المنتجات داخل الفاتورة ليظهر له سكرول خاص به */
-.invoice-items-container, #cart-table-container {
-    max-height: 220px; /* يمكنك تعديل هذا الارتفاع ليناسب شاشتك */
-    overflow-y: auto;
-    border-bottom: 2px solid #e2e8f0;
-}
-
-/* تخصيص شكل السكرول ليكون ناعماً ولا يأخذ مساحة */
-.invoice-items-container::-webkit-scrollbar, 
-#cart-table-container::-webkit-scrollbar {
-    width: 6px;
-}
-.invoice-items-container::-webkit-scrollbar-thumb, 
-#cart-table-container::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
-    border-radius: 10px;
-}
-
-/* تعديل حجم حاسبة الباقي لتكون مدمجة ومضغوطة جداً فلا تأخذ مساحة عمودية */
-.change-calc-box {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    margin-top: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-    border-top: 3px solid #2ecc71;
-    font-family: 'Cairo', sans-serif;
-}
-
-.calc-header {
-    background: #f8fafc;
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: #334155;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.calc-body-compact {
-    padding: 6px;
-}
-
-.calc-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-}
-
-.input-row label {
-    font-size: 0.75rem;
-    color: #64748b;
-    font-weight: 600;
-}
-
-.input-row input {
-    width: 45%;
-    padding: 3px 6px;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    font-size: 0.95rem;
-    font-weight: bold;
-    text-align: center;
-}
-
-.result-row {
-    background: #f8fafc;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
-.result-row .val {
-    font-weight: 900;
-    font-size: 0.95rem;
-}
-#change-due-usd { color: #2ecc71; }
-#change-due-lbp { color: #e74c3c; }
-/* استخدم نفس الـ Modal CSS الذي استعملناه في صفحة المسؤول سابقاً */
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* تحسين المظهر تلقائياً عند فتح الصفحة من الهاتف */
-/* --- إعدادات ستايل خاصة بالشاشات الصغيرة والهواتف --- */
-@media (max-width: 768px) {
-    
-    /* 1. الحاوية الرئيسية الكبرى لصفحة الكاشير */
-    /* إذا كانت الحاوية تستخدم flex-direction: row سنقوم بتحويلها إلى column ليصبح الترتيب عمودياً */
-    body, .main-container, .cashier-wrapper, style + div {
-        flex-direction: column !important;
-        display: flex !important;
-        padding: 5px !important;
-        gap: 15px !important;
-    }
-
-    /* 2. لوحة الحسابات والبيانات (billing-panel) */
-    .billing-panel {
-        width: 100% !important;        /* جعلها تأخذ كامل عرض شاشة الهاتف */
-        max-width: 100% !important;
-        min-width: 100% !important;
-        max-height: none !important;    /* إلغاء الارتفاع الثابت لتتمدد بحرية لأسفل */
-        overflow-y: visible !important; /* إلغاء السكرول الداخلي المعقد على الهاتف */
-        box-sizing: border-box !important;
-        padding: 12px !important;       /* تقليل الحشو الداخلي لتوفير المساحة */
-    }
-
-    /* 3. لوحة الأزرار الجانبية (الأزرار الزرقاء والخضراء مثل حفظ وتجميد الفاتورة) */
-    /* بدلاً من ظهورها كعمود جانبي، ستظهر كشبكة متناسقة أسفل أو أعلى الفاتورة */
-    .actions-panel, .buttons-sidebar, .invoice-actions {
-        width: 100% !important;
-        min-width: 100% !important;
-        display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important; /* تقسيم الأزرار لعمودين متساويين لسهولة الضغط */
-        gap: 8px !important;
-        padding: 10px 0 !important;
-    }
-
-    /* تحسين شكل الأزرار داخل الهاتف لتكون مريحة للمس باليد */
-    .actions-panel button, .buttons-sidebar a, .invoice-actions button {
-        width: 100% !important;
-        padding: 12px 8px !important;
-        font-size: 0.9rem !important;
-        margin: 0 !important;
-        display: flex !important;
-        flex-direction: row !important; /* جعل الأيقونة بجانب النص بدلاً من فوقه لتوفير مساحة عمودية */
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 5px !important;
-    }
-
-    /* 4. قسم المجموع والخصومات واللوجو */
-    .brand-section {
-        padding: 10px 0 !important;
-    }
-    .brand-section img {
-        max-height: 50px !important; /* تصغير اللوجو قليلاً على الهاتف */
-    }
-
-    .total-banner {
-        padding: 15px !important;
-    }
-    .total-banner #total-lbp {
-        font-size: 1.8rem !important; /* تصغير خط الرقم الكبير لليرة ليناسب الشاشة */
-    }
-
-    /* 5. حاسبة الباقي التلقائية على الهاتف */
-    .change-calc-box {
-        margin-top: 12px !important;
-    }
-    .input-row {
-        flex-direction: row !important; /* الحفاظ على التسمية بجانب صندوق الإدخال */
-        justify-content: space-between !important;
-    }
-    .input-row input {
-        width: 45% !important; /* إعطاء مساحة مريحة للكتابة */
-        font-size: 1rem !important;
-        padding: 6px !important;
-    }
-}
+        /* استجابة تامة لشاشات الهواتف */
+        @media (max-width: 1024px) {
+            body { flex-direction: column; overflow-y: auto; height: auto; }
+            .sidebar-actions, .billing-panel { width: 100%; height: auto; }
+            .main-workspace { padding: 15px; }
+        }
     </style>
 </head>
 <body>
 
+<!-- القائمة الجانبية اليمنى وعناصر العمليات الحية -->
 <div class="sidebar-actions">
-    <div style="margin-bottom: 10px; text-align: center;">
-        <i class="fas fa-desktop" style="font-size: 2rem; color: #ddd;"></i>
+    <div style="margin-bottom: 5px; text-align: center;">
+        <i class="fas fa-desktop" style="font-size: 2.2rem; color: #cbd5e1;"></i>
     </div>
     
     <button class="btn-action btn-save" onclick="saveInvoice()">
         <i class="fas fa-check-circle fa-lg"></i> حفظ الفاتورة (F9)
     </button>
     
-    <button class="btn-action btn-secondary" style="background: #34495e; color: white;" onclick="printInvoice()">
+    <button class="btn-action btn-secondary" style="background: #2c3e50; color: white;" onclick="printInvoice()">
         <i class="fas fa-print"></i> طباعة إيصال (F10)
     </button>
     
@@ -549,36 +511,41 @@
     <button class="btn-action btn-secondary" style="background: #2980b9; color: white;" onclick="showMonthlyReview()">
         <i class="fas fa-chart-line"></i> أرشيف المبيعات الشهري
     </button>
+    
     <button class="btn-action btn-secondary" style="background: #27ae60; color: white;" onclick="showDailyReview()">
-    <i class="fas fa-calendar-day"></i> أرشيف مبيعات اليوم
-</button>
+        <i class="fas fa-calendar-day"></i> أرشيف مبيعات اليوم
+    </button>
+    
     <button class="btn-action btn-danger" onclick="if(confirm('مسح السلة؟')) { cart = []; renderCart(); }">
         <i class="fas fa-trash-alt"></i> إفراغ السلة (Esc)
     </button>
 
-    <button onclick="openReviewInvoicesModal()" class="btn btn-secondary" style="background-color: #34495e; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-family: 'Cairo', sans-serif; margin: 5px;">
-    <i class="fas fa-history"></i> مراجعة وإعادة طباعة الفواتير
-</button>
+    <button onclick="openReviewInvoicesModal()" class="btn-action btn-secondary" style="background-color: #4b5563; color: white;">
+        <i class="fas fa-history"></i> مراجعة وإعادة طباعة الفواتير
+    </button>
+    
     <button onclick="openAdminPassModal()" class="btn-to-admin">
-    <i class="fas fa-user-shield"></i>
-    لوحة الإدارة
-</button>
+        <i class="fas fa-user-shield"></i> لوحة الإدارة
+    </button>
 
-<div id="adminPasswordModal" class="modal-overlay">
-    <div class="modal-content admin-theme"> <div class="modal-header">
-            <i class="fas fa-user-lock"></i>
-            <h3 style="color: #2c3e50; margin: 10px 0;">دخول الإدارة</h3>
-        </div>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">هذه المنطقة محمية، يرجى إدخال الرمز</p>
-        <input type="password" id="adminLoginInput" placeholder="••••">
-        <div class="modal-buttons" style="display: flex; gap: 10px;">
-            <button onclick="checkAndShowDashboard()" class="btn-confirm-admin">دخول</button>
-            <button onclick="closeAdminPassModal()" class="btn-cancel">إلغاء</button>
+    <!-- نافذة حماية لوحة الإدارة -->
+    <div id="adminPasswordModal" class="modal-overlay">
+        <div class="modal-content admin-theme"> 
+            <div class="modal-header">
+                <i class="fas fa-user-lock" style="font-size: 3rem; color: var(--dark); margin-bottom: 10px;"></i>
+                <h3 style="color: var(--dark); margin: 10px 0; font-weight: 700;">دخول الإدارة</h3>
+            </div>
+            <p style="color: #718093; font-size: 0.95rem;">هذه المنطقة محمية، يرجى إدخال الرمز السري</p>
+            <input type="password" id="adminLoginInput" placeholder="••••">
+            <div class="modal-buttons" style="display: flex; gap: 12px;">
+                <button onclick="checkAndShowDashboard()" class="btn-confirm-admin">دخول</button>
+                <button onclick="closeAdminPassModal()" class="btn-cancel">إلغاء</button>
+            </div>
         </div>
     </div>
 </div>
-</div>
 
+<!-- مساحة العمل الوسطى (البحث والمنتجات الحية) -->
 <div class="main-workspace">
     <div class="search-container">
         <input type="text" id="barcode-input" class="search-input" 
@@ -589,242 +556,139 @@
 
     <div class="glass-card" style="flex: 1; display: flex; flex-direction: column;">
         <div class="products-list-header">
-            <i class="fas fa-shopping-basket"></i> قائمة المنتجات الحالية
+            <i class="fas fa-shopping-basket"></i> قائمة المنتجات الحالية في الفاتورة
         </div>
         <div id="cart-container" style="flex: 1; overflow-y: auto; padding-right: 5px;">
-            <div style="text-align: center; color: #ccc; margin-top: 50px;">
-                <i class="fas fa-cart-arrow-down fa-4x"></i>
-                <p>ابدأ بإضافة المنتجات للفاتورة</p>
+            <div style="text-align: center; color: #a4b0be; margin-top: 60px;">
+                <i class="fas fa-cart-arrow-down fa-4x" style="opacity: 0.4; margin-bottom: 15px;"></i>
+                <p style="font-size: 1.1rem; font-weight: 600;">جاهز لمسح الباركود وبدء البيع التلقائي...</p>
             </div>
         </div>
     </div>
 
+    <!-- الفوتر السفلي للحالة وسعر الصرف -->
     <div class="status-footer">
-        <span><i class="fas fa-user-circle"></i> الموظف: <b id="employee-display">جاري التحميل...</b> <a href="#" onclick="logout()" style="color:red; text-decoration:none; margin-right:5px;">(خروج)</a></span>
+        <span><i class="fas fa-user-circle" style="color: #57606f;"></i> الموظف: <b id="employee-display">جاري التحميل...</b> <a href="#" onclick="logout()" style="color:var(--primary); text-decoration:none; margin-right:8px; font-weight:bold;">(خروج)</a></span>
+        
         <div class="exchange-rate-container" onclick="changeExchangeRate()" style="cursor: pointer;">
-    <div class="stat-card">
-    <div class="stat-label">سعر الصرف (ل.ل)</div>
-    <div class="stat-value" id="rate-display">---</div>
-</div>
-</div>
-        <span><i class="fas fa-circle" style="color: var(--success); font-size: 8px;"></i> النظام متصل</span>
+            <div class="stat-card">
+                <div class="stat-label" style="color: #57606f;">سعر الصرف:</div>
+                <div class="stat-value" id="rate-display">---</div>
+                <span style="font-size: 0.8rem; color:#a4b0be;">ل.ل</span>
+            </div>
+        </div>
+        <span><i class="fas fa-circle" style="color: var(--success); font-size: 9px; margin-left: 6px;"></i> النظام متصل وسحابي</span>
     </div>
 </div>
 
-<div class="billing-panel" style="max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
+<!-- لوحة الفاتورة اليسرى والحاسبة التلقائية المدمجة -->
+<div class="billing-panel">
+    <!-- البانر العلوي بعد تعديله وتصغيره ليصبح عرضياً ومدمجاً -->
     <div class="brand-section">
         <img src="logo.jpg" alt="Stop & Shop">
-        <h2 style="margin: 0; letter-spacing: 1px;">STOP & SHOP</h2>
-        
+        <h2>STOP & SHOP</h2>
     </div>
 
-    <div style="padding: 25px; flex: 1;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 600;">
-            <span>المجموع الأولي:</span>
-            <span id="subtotal-usd">0.00 $</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center;">
-    <span>الخصم المطبق (%):</span>
-    <input type="number" id="discount-val" value="0" min="0" max="100" oninput="renderCart()" style="width: 70px; padding: 8px; border-radius: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">
-</div>
-
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; border-top: 1px solid #f0f0f0; padding-top: 15px;">
-    <label style="font-weight: bold; color: var(--dark); font-size: 0.95rem;">
-        <i class="fas fa-phone-alt" style="margin-left: 5px; color: var(--primary);"></i> رقم هاتف الزبون (لربط النقاط):
-    </label>
-    <input type="tel" id="customer-phone" placeholder="أدخل رقم الهاتف هنا..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; text-align: center; outline: none; transition: 0.3s;" onfocus="this.style.borderColor='var(--success)'" onblur="this.style.borderColor='#ddd'">
-</div>
-
-<div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; border-top: 1px dashed #eee; padding-top: 10px;">
-    <span>نقاط الولاء المكتسبة:</span>
-    <span id="points-earned">0</span>
-</div>
-
-        <div class="total-banner">
-            <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px;">الإجمالي بالليرة اللبنانية</div>
-            <div id="total-lbp" style="font-size: 2.2rem; font-weight: 900;">0 L.L</div>
-            <div id="final-usd-text" style="font-size: 1rem; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 10px;">صافي: 0.00 $</div>
-        </div>
-        
-        <div class="change-calc-box">
-            <div class="calc-header">
-                <i class="fas fa-calculator"></i>
-                <span>حاسبة الباقي التلقائية</span>
+    <div style="padding: 24px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto;">
+        <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 14px; font-weight: 700; font-size: 1.05rem;">
+                <span>المجموع الأولي:</span>
+                <span id="subtotal-usd" style="color: var(--dark);">0.00 $</span>
             </div>
             
-            <div class="calc-body-scroll">
-                <div class="calc-row input-row">
-                    <label>المستلم من الزبون ($):</label>
-                    <input type="number" id="cash-received-usd" placeholder="0.00" step="0.01" oninput="calculateChangeUSD()">
-                </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 14px; align-items: center;">
+                <span style="font-weight: 700;">الخصم المطبق (%):</span>
+                <input type="number" id="discount-val" value="0" min="0" max="100" oninput="renderCart()" style="width: 75px; padding: 8px; border-radius: var(--radius-md); border: 2px solid #e4e7eb; text-align: center; font-weight: 900; font-size: 1.05rem;">
+            </div>
 
-                <div class="calc-row result-row usd-highlight">
-                    <span class="lbl">المتبقي بالدولار:</span>
-                    <span id="change-due-usd" class="val">$0.00</span>
-                </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; border-top: 1px dashed #e4e7eb; padding-top: 15px;">
+                <label style="font-weight: bold; color: var(--dark); font-size: 0.95rem;">
+                    <i class="fas fa-phone-alt" style="margin-left: 6px; color: var(--primary);"></i> رقم هاتف الزبون والولاء:
+                </label>
+                <input type="tel" id="customer-phone" placeholder="أدخل رقم الزبون..." style="width: 100%; padding: 12px; border: 2px solid #e4e7eb; border-radius: var(--radius-md); font-family: 'Cairo'; font-size: 1.05rem; text-align: center; outline: none; transition: var(--transition);" onfocus="this.style.borderColor='var(--success)'" onblur="this.style.borderColor='#e4e7eb'">
+            </div>
 
-                <div class="calc-row result-row lbp-highlight">
-                    <span class="lbl">المتبقي باللبناني:</span>
-                    <span id="change-due-lbp" class="val">0 ل.ل</span>
+            <div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; margin-bottom: 15px;">
+                <span>نقاط الولاء المكتسبة:</span>
+                <span id="points-earned" style="font-size: 1.1rem; background: rgba(46, 213, 115, 0.1); padding: 2px 10px; border-radius: 20px;">0</span>
+            </div>
+        </div>
+        
+        <div>
+            <div class="total-banner">
+                <div style="font-size: 0.95rem; opacity: 0.9; margin-bottom: 4px; font-weight: 600;">الإجمالي النهائي لـ الفاتورة</div>
+                <div id="total-lbp">0 L.L</div>
+                <div id="final-usd-text" style="font-size: 1.1rem; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 8px; font-weight: 700;">صافي: 0.00 $</div>
+            </div>
+            
+            <!-- حاسبة الباقي للزبائن التلقائية الموزونة والمحمية من التكرار -->
+            <div class="change-calc-box">
+                <div class="calc-header">
+                    <i class="fas fa-calculator"></i>
+                    <span>حاسبة كاشير المتبقي الذكية</span>
                 </div>
                 
-                <p class="calc-note">💡 يتم التقريب تلقائياً لأقرب 500 ليرة.</p>
+                <div class="calc-body-scroll">
+                    <div class="calc-row input-row" style="margin-bottom: 12px;">
+                        <label style="font-weight: 700;">المستلم من الزبون ($):</label>
+                        <input type="number" id="cash-received-usd" placeholder="0.00" step="0.01" oninput="calculateChangeUSD()">
+                    </div>
+
+                    <div class="calc-row result-row usd-highlight">
+                        <span class="lbl" style="font-weight: 700;">المتبقي بالدولار:</span>
+                        <span id="change-due-usd" class="val">$0.00</span>
+                    </div>
+
+                    <div class="calc-row result-row lbp-highlight">
+                        <span class="lbl" style="font-weight: 700;">المتبقي باللبناني:</span>
+                        <span id="change-due-lbp" class="val">0 ل.ل</span>
+                    </div>
+                    
+                    <p class="calc-note" style="margin-top: 8px;">💡 يتم تقريب المتبقي اللبناني لأقرب 500 ليرة تلقائياً.</p>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* تخصيص وتفعيل شريط التمرير للوحة الكبرى بالكامل وتأمين مظهر ناعم */
-.billing-panel::-webkit-scrollbar {
-    width: 6px;
-}
-.billing-panel::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 10px;
-}
-.billing-panel::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-}
-.billing-panel::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-/* الحاوية الرئيسية للحاسبة */
-.change-calc-box {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    margin-top: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
-    border-top: 3px solid #2ecc71;
-    font-family: 'Cairo', sans-serif;
-    overflow: hidden;
-}
-
-/* الهيدر الثابت */
-.calc-header {
-    background: #f8fafc;
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    font-weight: bold;
-    color: #334155;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.calc-header i {
-    color: #2ecc71;
-}
-
-/* تم تعديلها لتصبح مرنة وتتبع السكرول الرئيسي للـ div الكبير دون تضارب */
-.calc-body-scroll {
-    max-height: none; 
-    overflow-y: visible;
-    padding: 10px;
-}
-
-/* تنسيق الأسطر بالداخل */
-.calc-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.input-row label {
-    font-size: 0.8rem;
-    color: #64748b;
-    font-weight: 600;
-}
-.input-row input {
-    width: 50%;
-    padding: 5px 8px;
-    border: 2px solid #cbd5e1;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: bold;
-    text-align: center;
-    color: #1e293b;
-}
-.input-row input:focus {
-    border-color: #2ecc71;
-    outline: none;
-}
-
-/* تنسيق خانات النتائج */
-.result-row {
-    background: #f8fafc;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border-right: 4px solid #cbd5e1;
-    width: 100%; /* ضمان التمدد الصحيح بالداخل */
-    box-sizing: border-box;
-}
-.usd-highlight { border-right-color: #2ecc71; }
-.lbp-highlight { border-right-color: #e74c3c; }
-
-.result-row .lbl {
-    font-size: 0.8rem;
-    color: #475569;
-}
-.result-row .val {
-    font-size: 1rem;
-    font-weight: 900;
-}
-#change-due-usd { color: #2ecc71; }
-#change-due-lbp { color: #e74c3c; }
-
-.calc-note {
-    font-size: 0.7rem;
-    color: #94a3b8;
-    text-align: center;
-    margin: 4px 0 0 0;
-}
-</style>
+<!-- نافذة أرشيف ومراجعة الفواتير المكتملة -->
+<div id="reviewInvoicesModal" class="modal-overlay" style="align-items: center; justify-content: center; padding: 15px;">
+    <div style="background: white; padding: 30px; width: 100%; max-width: 750px; max-height: 85vh; overflow-y: auto; border-radius: var(--radius-lg); direction: rtl; font-family: 'Cairo', sans-serif; position: relative; box-shadow: var(--shadow-lg);">
+        <span onclick="closeReviewInvoicesModal()" style="position: absolute; top: 15px; left: 20px; font-size: 32px; cursor: pointer; color: #a4b0be; transition: var(--transition);" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='#a4b0be'">&times;</span>
         
-    </div>
-</div>
-<div id="reviewInvoicesModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 15px;">
-    <div style="background: white; padding: 25px; width: 100%; max-width: 700px; max-height: 85vh; overflow-y: auto; border-radius: 12px; direction: rtl; font-family: 'Cairo', sans-serif; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-        <span onclick="closeReviewInvoicesModal()" style="position: absolute; top: 15px; left: 20px; font-size: 28px; cursor: pointer; color: #95a5a6; transition: 0.2s;" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#95a5a6'">&times;</span>
-        
-        <h3 style="margin-top: 0; margin-bottom: 5px; color: var(--primary, #e74c3c); display: flex; align-items: center; gap: 10px; font-weight: 700;">
+        <h3 style="margin-top: 0; margin-bottom: 5px; color: var(--primary); display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 1.4rem;">
             <i class="fas fa-file-invoice"></i> مراجعة والبحث عن الفواتير المحفوظة
         </h3>
-        <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 15px;">يمكنك استعراض آخر الفواتير أو البحث عن يوم محدد بدقة وإعادة طباعتها.</p>
+        <p style="font-size: 0.95rem; color: #718093; margin-bottom: 20px;">استعرض آخر الفواتير المنفذة في النظام أو ابحث عن تاريخ مبيعات محدد.</p>
         
-        <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; border: 1px solid #e2e8f0;">
-            <label style="font-weight: 600; color: #2c3e50; font-size: 0.9rem;"><i class="fas fa-calendar-alt"></i> اختر التاريخ:</label>
-            <input type="date" id="search-invoice-date" style="padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'Cairo'; font-size: 0.9rem; outline: none;">
+        <div style="background: #f1f2f6; padding: 15px; border-radius: var(--radius-md); margin-bottom: 25px; display: flex; gap: 12px; align-items: center; border: 1px solid rgba(0,0,0,0.03);">
+            <label style="font-weight: 700; color: var(--dark); font-size: 0.95rem;"><i class="fas fa-calendar-alt" style="color:var(--primary);"></i> اختر التاريخ المطلوب:</label>
+            <input type="date" id="search-invoice-date" style="padding: 8px 14px; border: 2px solid #e4e7eb; border-radius: var(--radius-md); font-family: 'Cairo'; font-size: 0.95rem; outline: none; background: white;">
             
-            <button type="button" onclick="searchInvoicesByDate()" style="background: #e74c3c; color: white; border: none; padding: 7px 15px; border-radius: 6px; cursor: pointer; font-family: 'Cairo'; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 5px;">
+            <button type="button" onclick="searchInvoicesByDate()" style="background: var(--primary-gradient); color: white; border: none; padding: 9px 20px; border-radius: var(--radius-md); cursor: pointer; font-family: 'Cairo'; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 6px; font-weight: bold; box-shadow: 0 4px 10px rgba(255, 71, 87, 0.2);">
                 <i class="fas fa-search"></i> ابحث الآن
             </button>
-            <button type="button" onclick="openReviewInvoicesModal()" style="background: #7f8c8d; color: white; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-family: 'Cairo'; font-size: 0.9rem;">
+            <button type="button" onclick="openReviewInvoicesModal()" style="background: #747d8c; color: white; border: none; padding: 9px 16px; border-radius: var(--radius-md); cursor: pointer; font-family: 'Cairo'; font-weight: bold;">
                 عرض الأحدث
             </button>
         </div>
         
         <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 0.95rem;">
+            <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 1rem;">
                 <thead>
-                    <tr style="background: #f8f9fa; border-bottom: 2px solid #ddd; color: var(--dark);">
-                        <th style="padding: 12px 10px;">الوقت والتاريخ</th>
-                        <th style="padding: 12px 10px;">الموظف</th>
-                        <th style="padding: 12px 10px;">الإجمالي ($)</th>
-                        <th style="padding: 12px 10px; text-align: left;">الإجراء</th>
+                    <tr style="background: #f1f2f6; border-bottom: 2px solid #e4e7eb; color: var(--dark); font-weight: 900;">
+                        <th style="padding: 14px 12px;">الوقت والتاريخ</th>
+                        <th style="padding: 14px 12px;">الموظف المسئول</th>
+                        <th style="padding: 14px 12px;">الإجمالي ($)</th>
+                        <th style="padding: 14px 12px; text-align: left;">الإجراء</th>
                     </tr>
                 </thead>
-                <tbody id="review-invoices-tbody">
-                    </tbody>
+                <tbody id="review-invoices-tbody"></tbody>
             </table>
         </div>
     </div>
 </div>
+
 <script>
     // --- 1. الإعدادات والربط مع Firebase ---
     const firebaseConfig = {
@@ -996,14 +860,30 @@ function renderCart() {
         const itemPriceLBP = Math.round((item.price * currentExchangeRate) / 500) * 500;
         const itemTotalLBP = Math.round((itemTotal * currentExchangeRate) / 500) * 500;
 
+        // التعديل الآمن هنا: تحويل نصوص عرض السعر المفرد إلى خانات إدخال مدمجة قابلة للتعديل اليدوي
         container.innerHTML += `
-            <div class="product-row">
+            <div class="product-row" style="display: flex; align-items: center; justify-content: space-between;">
                 <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
                     <img src="${productImg}" class="product-img-circle" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'">
                     <div>
                         <div style="font-weight: 700;">${item.name} ${stockStatusHTML}</div>
-                        <div style="font-size: 0.85rem; color: #7f8c8d;">
-                            سعر الوحدة: ${item.price} $ <span style="color: #e74c3c; font-weight: bold; margin-right: 5px;">(${itemPriceLBP.toLocaleString()} ل.ل)</span>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: 5px; align-items: center;">
+                            <span style="font-size: 0.8rem; color: #7f8c8d;">السعر:</span>
+                            
+                            <div style="display: flex; align-items: center; background: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 4px; width: 70px;">
+                                <input type="number" value="${item.price}" step="0.01" 
+                                       oninput="updateSingleProductPrice(${index}, 'usd', this.value)"
+                                       style="width: 100%; border: none; background: transparent; text-align: center; font-weight: bold; font-size: 0.85rem; outline: none; color: #2c3e50;">
+                                <span style="font-size: 0.75rem; color: #94a3b8;">$</span>
+                            </div>
+
+                            <div style="display: flex; align-items: center; background: #f8f9fa; border: 1px solid #cbd5e1; border-radius: 6px; padding: 1px 4px; width: 90px;">
+                                <input type="number" value="${itemPriceLBP}" step="500" 
+                                       oninput="updateSingleProductPrice(${index}, 'lbp', this.value)"
+                                       style="width: 100%; border: none; background: transparent; text-align: center; font-weight: bold; font-size: 0.85rem; outline: none; color: #e74c3c;">
+                                <span style="font-size: 0.7rem; color: #94a3b8;">ل.ل</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1041,6 +921,9 @@ function renderCart() {
 
     const rateLabel = document.getElementById('rate-display') || document.getElementById('exchange-rate-val');
     if (rateLabel) rateLabel.innerText = rateShow.toLocaleString();
+    
+    // ربط الحساب التلقائي لحشابة كاشير المتبقي الذكية عند تحديث السلة
+    if (typeof calculateChangeUSD === "function") calculateChangeUSD();
 }
     // دالة تحديث الكمية يدوياً بالكتابة
     function updateQtyManual(i, val) {
@@ -1207,40 +1090,70 @@ function saveToInvoices(u, l) {
     updateUI(); 
     if(!localStorage.getItem('emp_name')) loginSystem(); 
 };
-    let barcodeTimeout; // مؤقت لمنع الإضافة الفورية قبل اكتمال الرقم
+let barcodeTimeout; // مؤقت ذكي وموحد لمنع الاستعجال التلقائي أثناء الكتابة باليد
 
+// 🎯 الحدث الموحد والذكي الموزون على ثانيتين ليعطيك الوقت الكامل للكتابة براحتك
 document.getElementById('barcode-input').addEventListener('input', (e) => {
     const val = e.target.value.trim();
     if (!val) return;
 
-    // مسح المؤقت السابق في كل مرة تضغط فيها رقماً جديداً
+    // 1. تصفير العداد فوراً عند ضغط أي زر لإعادة منح يدك مهلة ثانيتين كاملتين من جديد
     clearTimeout(barcodeTimeout);
 
-    // الانتظار لمدة 300 ملي ثانية (سرعة كافية لجهاز الباركود وبطيئة لليد)
+    // 2. الانتظار لمدة 2000 ملي ثانية (ثانيتين) بعد التوقف التام عن الكتابة قبل الإدخال التلقائي
     barcodeTimeout = setTimeout(() => {
-        // البحث عن تطابق تام فقط (Exact Match)
-        const match = products.find(p => String(p.barcode) === val || p.name === val);
+        
+        // فحص ما إذا كان المدخل عبارة عن أرقام فقط (باركود)
+        const isNumber = /^\d+$/.test(val);
+
+        const match = products.find(p => {
+            const productBarcode = p.barcode ? String(p.barcode).trim() : '';
+            const productName = p.name ? p.name.toLowerCase().trim() : '';
+
+            if (isNumber) {
+                // 🛡️ مطابقة تامة وصارمة للباركود لمنع التداخل (رقم 105 يعطي 105 فقط حصراً)
+                return productBarcode === val;
+            } else {
+                // 📝 إذا كتبت حروفاً، يبحث بالاسم الجزئي المرن
+                return productName.includes(val.toLowerCase());
+            }
+        });
         
         if (match) {
-            // نمرر الباركود أو الاسم المكتوب مباشرة لتقوم الدالة بمعالجته بشكل صحيح
-            addProduct(val); 
-            e.target.value = ''; // مسح الخانة بعد الإضافة التلقائية
+            addProduct(match.barcode || match.name); 
+            e.target.value = ''; // مسح الخانة تلقائياً بعد الإضافة
         }
-    }, 300); // يمكنك تقليل الرقم إلى 200 إذا كان جهاز الباركود لديك سريعاً جداً
+    }, 1000); // ⏱️ ثانيتين: المهلة الموزونة والمثالية للكاشير واليد معاً
 });
 
-// الحفاظ على زر Enter كخيار يدوي سريع أيضاً
+// 🎯 زر Enter يظل يعمل كإجراء فوري إذا انتهيت من الكتابة ولا تريد انتظار الثانيتين
 document.getElementById('barcode-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        clearTimeout(barcodeTimeout); // إلغاء المؤقت لأن المستخدم ضغط Enter يدوياً
+        clearTimeout(barcodeTimeout); // إيقاف المؤقت التلقائي فوراً لمنع التكرار والإضافة المزدوجة
         const val = e.target.value.trim();
-        if (val) {
-            addProduct(val);
-            e.target.value = '';
+        if (!val) return;
+
+        const isNumber = /^\d+$/.test(val);
+
+        const match = products.find(p => {
+            const productBarcode = p.barcode ? String(p.barcode).trim() : '';
+            const productName = p.name ? p.name.toLowerCase().trim() : '';
+
+            if (isNumber) {
+                return productBarcode === val;
+            } else {
+                return productName.includes(val.toLowerCase());
+            }
+        });
+        
+        if (match) {
+            addProduct(match.barcode || match.name);
+            e.target.value = ''; 
+        } else {
+            alert("⚠️ لم يتم العثور على هذا المنتج في النظام!");
         }
     }
 });
-
     document.addEventListener('keydown', (e) => {
         if (e.key === 'F9') { e.preventDefault(); saveInvoice(); }
         if (e.key === 'Escape') { if(confirm('مسح السلة؟')){cart = []; renderCart();} }
@@ -2152,6 +2065,108 @@ function calculateChangeUSD() {
         changeUsdElem.innerText = `$${deficitUSD.toFixed(2)}`;
         changeLbpElem.innerText = `${deficitLBP.toLocaleString('ar-LB')} ل.ل`;
     }
+}
+// دالة لتحديث السعر يدوياً من داخل السلة واحتساب الإجمالي فوراً
+function updateProductPriceManually(index, type, inputElement) {
+    if (typeof cart === 'undefined' || !cart[index]) return;
+    
+    // الحصول على سعر الصرف الحالي من نظامك
+    const currentRate = typeof currentRateFromDB !== 'undefined' && currentRateFromDB > 0 ? currentRateFromDB : (typeof rate !== 'undefined' ? rate : (typeof exchangeRate !== 'undefined' ? exchangeRate : 90000));
+    
+    let newPrice = parseFloat(inputElement.value) || 0;
+    
+    if (type === 'usd') {
+        // إذا عدلت بالدولار، نحدث سعر الدولار في السلة
+        cart[index].price = newPrice;
+        
+        // ونحدث الخانة اللبنانية المقابلة لها في الواجهة تلقائياً
+        const lbpInput = document.getElementById(`man-price-lbp-${index}`);
+        if (lbpInput) {
+            lbpInput.value = Math.round((newPrice * currentRate) / 500) * 500;
+        }
+    } else if (type === 'lbp') {
+        // إذا عدلت باللبناني، نحسب قيمتها بالدولار ونحدث السلة
+        let usdEquivalent = newPrice / currentRate;
+        cart[index].price = usdEquivalent;
+        
+        // ونحدث خانة الدولار المقابلة لها في الواجهة تلقائياً
+        const usdInput = document.getElementById(`man-price-usd-${index}`);
+        if (usdInput) {
+            usdInput.value = usdEquivalent.toFixed(2);
+        }
+    }
+    
+    // استدعاء دالة احتساب المجموع النهائي الأصلية الموجودة في نظامك وتحديث السلة
+    // (تأكد من مطابقة اسم دالة التحديث لديك مثل renderCart أو updateTotals)
+    if (typeof updateTotals === "function") {
+        updateTotals();
+    } else if (typeof renderCart === "function") {
+        // إذا كانت renderCart تعيد بناء العناصر، يفضل فقط حساب المجاميع لعدم فقدان التركيز (Focus) أثناء الكتابة
+        calculateInvoiceTotalOnly(); 
+    }
+}
+
+// دالة مخصصة لتحديث الأرقام النهائية فقط دون إعادة بناء السلة بالكامل لضمان سلاسة الكتابة
+function calculateInvoiceTotalOnly() {
+    let subtotalUSD = 0;
+    cart.forEach(item => {
+        subtotalUSD += (item.price * (item.qty || item.quantity || 1));
+    });
+    
+    const discountInput = document.getElementById('discount-val');
+    const discount = discountInput ? parseFloat(discountInput.value) || 0 : 0;
+    const finalUSD = subtotalUSD * (1 - discount / 100);
+    
+    const currentRate = typeof currentRateFromDB !== 'undefined' && currentRateFromDB > 0 ? currentRateFromDB : (typeof rate !== 'undefined' ? rate : (typeof exchangeRate !== 'undefined' ? exchangeRate : 90000));
+    const finalLBP = Math.round((finalUSD * currentRate) / 500) * 500;
+    
+    // تحديث شاشات العرض
+    if(document.getElementById('subtotal-usd')) document.getElementById('subtotal-usd').innerText = subtotalUSD.toFixed(2) + " $";
+    if(document.getElementById('final-usd-text')) document.getElementById('final-usd-text').innerText = "صافي: " + finalUSD.toFixed(2) + " $";
+    if(document.getElementById('total-lbp')) document.getElementById('total-lbp').innerText = finalLBP.toLocaleString('ar-LB') + " L.L";
+    
+    // تحديث حاسبة المتبقي إذا كان بها قيمة مدخلة
+    if(typeof calculateChangeUSD === "function") calculateChangeUSD();
+}
+// دالة مسؤولة عن استقبال السعر المعدل يدوياً للمنتج وتحديث السلة حياً بالاتجاهين
+function updateSingleProductPrice(index, currencyType, value) {
+    if (typeof cart === 'undefined' || !cart[index]) return;
+    
+    const currentExchangeRate = typeof rate !== 'undefined' ? rate : 90000;
+    let inputPrice = parseFloat(value) || 0;
+    
+    if (currencyType === 'usd') {
+        // تحديث سعر الدولار مباشرة
+        cart[index].price = inputPrice;
+    } else if (currencyType === 'lbp') {
+        // تحويل اللبناني المدخل يدوياً إلى دولار وحفظه في المصفوفة لضمان توافق الفاتورة
+        cart[index].price = inputPrice / currentExchangeRate;
+    }
+    
+    // حساب فوري وتحديث للشاشات والمجاميع دون التأثير على العناصر المكتوبة
+    let subtotal = 0;
+    cart.forEach(item => {
+        subtotal += (item.price * item.qty);
+    });
+    
+    const discountInput = document.getElementById('discount-val');
+    const discountPercent = parseFloat(discountInput?.value || 0);
+    const discountAmount = subtotal * (discountPercent / 100);
+    const finalUSD = Math.max(0, subtotal - discountAmount);
+    
+    const rateCalc = typeof rate !== 'undefined' ? rate : 90000; 
+    const rateShow = typeof sellingRate !== 'undefined' ? sellingRate : 89000; 
+    const lbp = Math.round((finalUSD * rateCalc) / 500) * 500;
+    
+    if(document.getElementById('subtotal-usd')) document.getElementById('subtotal-usd').innerText = subtotal.toFixed(2) + " $";
+    if(document.getElementById('total-lbp')) document.getElementById('total-lbp').innerText = lbp.toLocaleString() + " L.L";
+    if(document.getElementById('final-usd-text')) document.getElementById('final-usd-text').innerText = "صافي: " + (lbp / rateShow).toFixed(2) + " $";
+    
+    const pointsEarned = Math.floor((lbp / rateShow));
+    const pointsEarnedFinal = Math.floor(pointsEarned / 5);
+    if (document.getElementById('points-earned')) document.getElementById('points-earned').innerText = pointsEarnedFinal;
+    
+    if (typeof calculateChangeUSD === "function") calculateChangeUSD();
 }
 window.addEventListener('load', () => {
     startRateListener();

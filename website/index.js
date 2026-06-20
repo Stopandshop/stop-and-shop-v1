@@ -2116,128 +2116,129 @@ function calculateCartTotal() {
     document.getElementById('cart-total').innerText = total.toFixed(2);
 }
 let html5QrCode;
-let isQuaggaScanningPaused = false;
+let isScannerCooldown = false; // قفل لمنع الكاميرا من تكرار القراءة واختفاء المنتج
 
+// 1. دالة تشغيل السكنر الأصلية المتوافقة مع ملف index.html الخاص بك
 function startScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
-    wrapper.style.display = 'flex';
+    if (wrapper) wrapper.style.display = 'flex';
 
-    Quagga.init({
-        inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target: document.querySelector('#reader'), // مكان ظهور الكاميرا
-            constraints: {
-                facingMode: "environment", // الكاميرا الخلفية
-                aspectRatio: { min: 1, max: 2 }
-            },
-        },
-        decoder: {
-            // تحديد الأنواع المستخدمة في لبنان (EAN هي الأهم للمواد الغذائية)
-            readers: ["ean_reader", "ean_8_reader", "code_128_reader", "upc_reader"]
-        },
-        locate: true // ميزة تحديد مكان الباركود في الصورة لتسريع القراءة
-    }, function (err) {
-        if (err) {
-            console.error(err);
-            alert("خطأ في تشغيل الكاميرا");
-            return;
-        }
-        // عند إعادة تشغيل السكنر، نفتح القفل مجدداً
-        isQuaggaScanningPaused = false;
-        Quagga.start();
+    // نتحقق أولاً إذا كان هناك سكنر يعمل مسبقاً لإيقافه منعاً للتعليق
+    if (html5QrCode) {
+        try {
+            html5QrCode.clear();
+        } catch(e) { console.log(e); }
+    }
+
+    // إعداد السكنر الأصلي المبني في مشروعك (Html5QrcodeScanner)
+    html5QrCode = new Html5QrcodeScanner("reader", { 
+        fps: 10, 
+        qrbox: { width: 250, height: 150 },
+        rememberLastUsedCamera: true
     });
-}
 
-// ماذا يفعل الكود عند قراءة الباركود بنجاح (تم حمايتها من التكرار السريع دون حذف أكوادك)
-Quagga.onDetected(function (result) {
-    // إذا كان القفل مفعلاً، تجاهل القراءات الزائدة فوراً لمنع اختفاء المنتج
-    if (isQuaggaScanningPaused) return;
-
-    const code = result.codeResult.code;
-    if (code) {
-        // تفعيل القفل فوراً لمنع التكرار في نفس اللحظة
-        isQuaggaScanningPaused = true;
-
-        // 1. وضع الرقم في خانة البحث
-        document.getElementById('search-input').value = code;
+    // بدء استماع الكاميرا وقراءة الباركود بنجاح
+    html5QrCode.render((decodedText) => {
+        // إذا كان القفل مفعلاً، يتجاهل القراءات المتتالية لمنع اللغبطة والاختفاء
+        if (isScannerCooldown) return;
         
-        // 2. البحث عن المنتج في القائمة لديك
-        const foundProduct = products.find(p => p.barcode === code);
+        // تفعيل القفل فوراً
+        isScannerCooldown = true;
+
+        // وضع الرقم في خانة البحث
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = decodedText;
+        
+        console.log("تم قراءة الباركود بنجاح:", decodedText);
+
+        // البحث عن المنتج في المصفوفة الأصلية لديك
+        const foundProduct = products.find(p => p.barcode === decodedText);
 
         if (foundProduct) {
-            // إيقاف الماسح فور إيجاد المنتج
-            stopScanner();
+            // إغلاق الكاميرا فوراً عند العثور على المنتج باستخدام الدالة الصحيحة لمشروعك
+            closeScanner();
             
-            // 3. عرض المنتج "كملصق مرتب" في أعلى الصفحة أو في مودال
+            // عرض الملصق المنبثق الذكي فوق الصفحة لحماية المنتجات من الاختفاء
             showProductSticker(foundProduct);
             
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         } else {
-            // إذا قرأ باركود غير مسجل، نفتح القفل بعد ثانيتين ليعطيك فرصة لفحص منتج آخر
+            // إذا كان الباركود غير مسجل، يفتح القفل بعد ثانيتين لتجربة منتج آخر
             setTimeout(() => {
-                isQuaggaScanningPaused = false;
+                isScannerCooldown = false;
             }, 2000);
         }
-    }
-});
 
-// دالة رسم الملصق المرتب المعدلة لمنع الاختفاء الفجائي
+    }, (error) => {
+        // لتجنب امتلاء الكونسول بالأخطاء أثناء حركة الكاميرا العادية
+    });
+}
+
+// 2. دالة رسم الملصق المرتب - تظهر كمودال منبثق لحماية المنتجات الخلفية من الحذف
 function showProductSticker(product) {
-    // --- إضافة سطر الصوت هنا ---
+    // تشغيل صوت الإشعار التلقائي عند نجاح الفحص
     const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
     audio.play().catch(e => console.log("الصوت يحتاج تفاعل أولاً"));
-    // -------------------------
 
-    // التعديل الذكي هنا: نبحث أولاً عن صندوق مخصص لعرض الباركود العلوي أو نقوم بإنشائه لضمان الثبات التام وعدم الاختفاء
-    let scannedContainer = document.getElementById('scanned-product-holder');
-    if (!scannedContainer) {
-        scannedContainer = document.createElement('div');
-        scannedContainer.id = 'scanned-product-holder';
-        // وضعه في أعلى الحاوية الرئيسية للمنتجات ليظل ثابتاً ومستقلاً
-        const mainContainer = document.getElementById('products-container');
-        if(mainContainer) {
-            mainContainer.parentNode.insertBefore(scannedContainer, mainContainer);
-        }
+    // إنشاء حاوية المودال المستقلة فوق الصفحة تماماً
+    let stickerModal = document.getElementById('scanned-sticker-modal');
+    if (!stickerModal) {
+        stickerModal = document.createElement('div');
+        stickerModal.id = 'scanned-sticker-modal';
+        stickerModal.style.cssText = "display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; justify-content:center; align-items:center;";
+        document.body.appendChild(stickerModal);
     }
+
+    stickerModal.style.display = 'flex';
     
-    // إظهار الصندوق وبناء التصميم الخاص بك داخله بالكامل دون مسح بقية المنتجات
-    scannedContainer.style.display = 'block';
-    scannedContainer.innerHTML = `
-        <div class="scanned-product-result" style="max-width: 260px; padding: 10px; margin: 10px auto; border: 2px solid #27ae60; border-radius: 12px; text-align: center; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-            <div class="sticker-header" style="font-size: 0.85rem; color: #27ae60; font-weight: bold; margin-bottom: 5px;">
-                <i class="fas fa-check-circle"></i> تم التعرف
+    // بناء تصميم الملصق المرتب الخاص بك بالكامل داخل المودال المستقل لضمان الثبات
+    stickerModal.innerHTML = `
+        <div class="scanned-product-result" style="max-width: 280px; width:90%; padding: 20px; border: 2px solid #27ae60; border-radius: 15px; text-align: center; background: white; box-shadow: 0 5px 25px rgba(0,0,0,0.2); direction: rtl; font-family: 'Tajawal', sans-serif;">
+            <div class="sticker-header" style="font-size: 0.95rem; color: #27ae60; font-weight: bold; margin-bottom: 10px;">
+                <i class="fas fa-check-circle"></i> تم التعرف على المنتج
             </div>
             
-            <img src="${product.image}" alt="${product.name}" style="width: 70px; height: 70px; object-fit: contain;">
+            <img src="${product.image || 'https://cdn-icons-png.flaticon.com/512/679/679821.png'}" alt="${product.name}" style="width: 90px; height: 90px; object-fit: contain; margin-bottom: 10px;">
             
             <div class="sticker-info">
-                <h3 style="font-size: 0.95rem; margin: 5px 0;">${product.name}</h3>
-                <span class="sticker-category" style="font-size: 0.75rem; color: #777;">${product.category}</span>
-                <div class="sticker-price" style="font-size: 1.3rem; font-weight: bold; color: #e74c3c;">$${product.price.toFixed(2)}</div>
+                <h3 style="font-size: 1.1rem; margin: 5px 0; color:#2c3e50;">${product.name}</h3>
+                <span class="sticker-category" style="font-size: 0.8rem; color: #7f8c8d; display:block; margin-bottom: 8px;">${product.category || 'عام'}</span>
+                <div class="sticker-price" style="font-size: 1.5rem; font-weight: bold; color: #e74c3c; margin-bottom: 15px;">$${product.price.toFixed(2)}</div>
             </div>
 
-            <div class="sticker-actions" style="margin-top: 8px;">
-                <button class="add-btn-large" onclick="addToCart('${product.id}'); alert('تمت الإضافة للسلة!')" style="background: #27ae60; color: white; border: none; padding: 8px; font-size: 0.9rem; width: 100%; border-radius: 20px; cursor: pointer;">
+            <div class="sticker-actions" style="display:flex; flex-direction:column; gap:8px;">
+                <button class="add-btn-large" onclick="addToCart('${product.id}'); document.getElementById('scanned-sticker-modal').style.display='none';" style="background: #27ae60; color: white; border: none; padding: 10px; font-size: 0.95rem; width: 100%; border-radius: 20px; cursor: pointer; font-weight:bold;">
                     <i class="fas fa-cart-plus"></i> إضافة للسلة
                 </button>
                 
-                <button class="close-sticker" onclick="document.getElementById('scanned-product-holder').style.display='none';" style="font-size: 0.75rem; margin-top: 8px; background: none; border: none; color: #999; cursor: pointer; display: block; width: 100%;">
-                    <i class="fas fa-times"></i> إغلاق
+                <button class="close-sticker" onclick="document.getElementById('scanned-sticker-modal').style.display='none';" style="font-size: 0.85rem; padding: 5px; background: none; border: none; color: #e74c3c; cursor: pointer; font-weight:bold; text-decoration:underline;">
+                    <i class="fas fa-times"></i> إغلاق النافذة
                 </button>
             </div>
         </div>
     `;
-    
-    // تمرير الشاشة للأعلى لرؤية الملصق فوراً
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// تعديل دالة الإيقاف لتناسب المكتبة الجديدة
+// 3. دالة الإغلاق الحقيقية والمطابقة تماماً لزر الإغلاق الأحمر في ملف index.html لديك (closeScanner)
+function closeScanner() {
+    const wrapper = document.getElementById('scanner-wrapper');
+    if (wrapper) wrapper.style.display = 'none'; // إخفاء الواجهة الرمادية فوراً
+    
+    // إيقاف وتصفير سكنر Html5Qrcode الأصلي برمجياً لإطفاء كشاف الكاميرا فوراً
+    if (html5QrCode) {
+        try {
+            html5QrCode.clear(); 
+        } catch(e) {
+            console.log("إشعار الإغلاق الطبيعي للسكنر:", e);
+        }
+    }
+    
+    isScannerCooldown = false; // إعادة تصفير القفل لتكون جاهزة للمرات القادمة
+}
+
+// دالة الإيقاف الاحتياطية لتفادي أي مشاكل استدعاء بأي مكان آخر
 function stopScanner() {
-    // ... أكوادك الحالية لإغلاق الكاميرا وإخفاء الـ wrapper ...
-    Quagga.stop(); 
-    isQuaggaScanningPaused = false; // تصفير القفل لتكون جاهزة للمرة القادمة
+    closeScanner();
 }
 
 function openLoginModal() {
@@ -2249,7 +2250,6 @@ function closeModal() {
     document.getElementById('admin-action-section').style.display = 'none';
     document.getElementById('points-result').innerHTML = '';
     
-    // 🛠️ التعديل الخاص باللبناني: تصفير خانات أسعار الشراء والبيع ونسبة الربح منعاً للتعليق
     if (document.getElementById('product-cost-input')) document.getElementById('product-cost-input').value = '';
     if (document.getElementById('product-cost-lbp-input')) document.getElementById('product-cost-lbp-input').value = '';
     if (document.getElementById('new-price')) document.getElementById('new-price').value = '';

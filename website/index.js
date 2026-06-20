@@ -158,7 +158,6 @@ function searchProducts() {
     
     displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
 }
-
 // =========================================================
 // 3. دالة الاستماع للتمرير (Scroll Listener) لزيادة المنتجات تلقائياً
 // =========================================================
@@ -2117,6 +2116,7 @@ function calculateCartTotal() {
     document.getElementById('cart-total').innerText = total.toFixed(2);
 }
 let html5QrCode;
+let isQuaggaScanningPaused = false;
 
 function startScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
@@ -2143,13 +2143,22 @@ function startScanner() {
             alert("خطأ في تشغيل الكاميرا");
             return;
         }
+        // عند إعادة تشغيل السكنر، نفتح القفل مجدداً
+        isQuaggaScanningPaused = false;
         Quagga.start();
     });
+}
 
-    // ماذا يفعل الكود عند قراءة الباركود بنجاح
-    Quagga.onDetected(function (result) {
+// ماذا يفعل الكود عند قراءة الباركود بنجاح (تم حمايتها من التكرار السريع دون حذف أكوادك)
+Quagga.onDetected(function (result) {
+    // إذا كان القفل مفعلاً، تجاهل القراءات الزائدة فوراً لمنع اختفاء المنتج
+    if (isQuaggaScanningPaused) return;
+
     const code = result.codeResult.code;
     if (code) {
+        // تفعيل القفل فوراً لمنع التكرار في نفس اللحظة
+        isQuaggaScanningPaused = true;
+
         // 1. وضع الرقم في خانة البحث
         document.getElementById('search-input').value = code;
         
@@ -2164,22 +2173,38 @@ function startScanner() {
             showProductSticker(foundProduct);
             
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        } else {
+            // إذا قرأ باركود غير مسجل، نفتح القفل بعد ثانيتين ليعطيك فرصة لفحص منتج آخر
+            setTimeout(() => {
+                isQuaggaScanningPaused = false;
+            }, 2000);
         }
     }
 });
 
-// دالة رسم الملصق المرتب
+// دالة رسم الملصق المرتب المعدلة لمنع الاختفاء الفجائي
 function showProductSticker(product) {
     // --- إضافة سطر الصوت هنا ---
     const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
     audio.play().catch(e => console.log("الصوت يحتاج تفاعل أولاً"));
     // -------------------------
 
-    const container = document.getElementById('products-container');
+    // التعديل الذكي هنا: نبحث أولاً عن صندوق مخصص لعرض الباركود العلوي أو نقوم بإنشائه لضمان الثبات التام وعدم الاختفاء
+    let scannedContainer = document.getElementById('scanned-product-holder');
+    if (!scannedContainer) {
+        scannedContainer = document.createElement('div');
+        scannedContainer.id = 'scanned-product-holder';
+        // وضعه في أعلى الحاوية الرئيسية للمنتجات ليظل ثابتاً ومستقلاً
+        const mainContainer = document.getElementById('products-container');
+        if(mainContainer) {
+            mainContainer.parentNode.insertBefore(scannedContainer, mainContainer);
+        }
+    }
     
-    // مسح المحتوى الحالي لإظهار المنتج الممسوح فقط بشكل بارز
-    container.innerHTML = `
-        <div class="scanned-product-result" style="max-width: 260px; padding: 10px; margin: 10px auto; border: 2px solid #27ae60; border-radius: 12px; text-align: center; background: white;">
+    // إظهار الصندوق وبناء التصميم الخاص بك داخله بالكامل دون مسح بقية المنتجات
+    scannedContainer.style.display = 'block';
+    scannedContainer.innerHTML = `
+        <div class="scanned-product-result" style="max-width: 260px; padding: 10px; margin: 10px auto; border: 2px solid #27ae60; border-radius: 12px; text-align: center; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
             <div class="sticker-header" style="font-size: 0.85rem; color: #27ae60; font-weight: bold; margin-bottom: 5px;">
                 <i class="fas fa-check-circle"></i> تم التعرف
             </div>
@@ -2197,7 +2222,7 @@ function showProductSticker(product) {
                     <i class="fas fa-cart-plus"></i> إضافة للسلة
                 </button>
                 
-                <button class="close-sticker" onclick="location.reload()" style="font-size: 0.75rem; margin-top: 8px; background: none; border: none; color: #999; cursor: pointer; display: block; width: 100%;">
+                <button class="close-sticker" onclick="document.getElementById('scanned-product-holder').style.display='none';" style="font-size: 0.75rem; margin-top: 8px; background: none; border: none; color: #999; cursor: pointer; display: block; width: 100%;">
                     <i class="fas fa-times"></i> إغلاق
                 </button>
             </div>
@@ -2207,13 +2232,14 @@ function showProductSticker(product) {
     // تمرير الشاشة للأعلى لرؤية الملصق فوراً
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-}
 
 // تعديل دالة الإيقاف لتناسب المكتبة الجديدة
 function stopScanner() {
-    Quagga.stop();
-    document.getElementById('scanner-wrapper').style.display = 'none';
+    // ... أكوادك الحالية لإغلاق الكاميرا وإخفاء الـ wrapper ...
+    Quagga.stop(); 
+    isQuaggaScanningPaused = false; // تصفير القفل لتكون جاهزة للمرة القادمة
 }
+
 function openLoginModal() {
     document.getElementById('unified-modal').style.display = 'flex';
 }

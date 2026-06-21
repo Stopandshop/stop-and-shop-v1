@@ -124,38 +124,31 @@ function loadProducts() {
 // 2. الدالة المحسنة لـ searchProducts (بدون حذف أي سطر منطقي وبأعلى سرعة)
 function searchProducts() {
     const term = document.getElementById('search-input').value.toLowerCase().trim();
-    
     // البحث في كل المنتجات الأصلية
     const filtered = products.filter(p => {
         const name = (p.name || "").toLowerCase();
         const cat = (p.category || "").toLowerCase();
-        
         // --- الإضافة الجديدة للباركود دون حذف القديم ---
-        const barcode = (p.barcode || "").toLowerCase(); 
-        
+        const barcode = (p.barcode || "").toLowerCase();       
         // تعديل سطر الـ return ليشمل مطابقة الباركود أيضاً
         return name.includes(term) || cat.includes(term) || barcode === term;
     });
-
     // 🔥 تأمين البحث: فرز النتيجة المفلترة فوراً ليظهر المنتج المستورد من الملف (الذي يملك باركود) بالصدارة أولاً
     filtered.sort((a, b) => {
         const aIsImported = a.barcode ? 1 : 0;
         const bIsImported = b.barcode ? 1 : 0;
-        
+       
         if (bIsImported !== aIsImported) {
             return bIsImported - aIsImported; // المرفوع من الملف أولاً
-        }
-        
+        }  
         // إذا تساويا في النوع، نرتب حسب الوقت الأحدث
         const aTime = a.createdAt ? (a.createdAt.seconds ? a.createdAt.seconds * 1000 : (typeof a.createdAt === 'number' ? a.createdAt : 0)) : 0;
         const bTime = b.createdAt ? (b.createdAt.seconds ? b.createdAt.seconds * 1000 : (typeof b.createdAt === 'number' ? b.createdAt : 0)) : 0;
         return bTime - aTime;
     });
-
-    // 🛠️ تهيئة العداد للبحث الجديد وعرض النتائج مجزأة لتظل سريعة جداً
+   // 🛠️ تهيئة العداد للبحث الجديد وعرض النتائج مجزأة لتظل سريعة جداً
     displayedProductsCount = 50;
-    activeFilteredProducts = [...filtered];
-    
+    activeFilteredProducts = [...filtered];   
     displayProducts(activeFilteredProducts.slice(0, displayedProductsCount));
 }
 // =========================================================
@@ -2115,72 +2108,81 @@ function calculateCartTotal() {
     // تحديث رقم الإجمالي العادي في السلة
     document.getElementById('cart-total').innerText = total.toFixed(2);
 }
-let html5QrCode;
-let isScannerCooldown = false; // قفل لمنع الكاميرا من تكرار القراءة واختفاء المنتج
+let html5QrCode = null; // الاحتفاظ بكائن السكنر
+let isScannerCooldown = false; // قفل لمنع تكرار القراءة السريعة واختفاء المنتج
 
-// 1. دالة تشغيل السكنر الأصلية المتوافقة مع ملف index.html الخاص بك
+// 1. دالة تشغيل السكنر الأصلية والمضمونة المتوافقة مع نسخة مشروعك
 function startScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
     if (wrapper) wrapper.style.display = 'flex';
 
-    // نتحقق أولاً إذا كان هناك سكنر يعمل مسبقاً لإيقافه منعاً للتعليق
+    // إذا كان السكنر مفتوحاً أو معلقاً مسبقاً، نقوم بإغلاقه وتنظيف الحاوية لمنع التعارض
     if (html5QrCode) {
         try {
             html5QrCode.clear();
-        } catch(e) { console.log(e); }
+        } catch(e) { 
+            console.log("تنظيف تلقائي عادي"); 
+        }
     }
 
-    // إعداد السكنر الأصلي المبني في مشروعك (Html5QrcodeScanner)
+    // بناء السكنر وتحديد مربع الفحص المناسب للباركود
     html5QrCode = new Html5QrcodeScanner("reader", { 
-        fps: 10, 
+        fps: 15, // سرعة اللقطة لتناسب السوبرماركت
         qrbox: { width: 250, height: 150 },
         rememberLastUsedCamera: true
     });
 
-    // بدء استماع الكاميرا وقراءة الباركود بنجاح
+    // بدء تشغيل الفحص واستقبال الباركود بنجاح
     html5QrCode.render((decodedText) => {
-        // إذا كان القفل مفعلاً، يتجاهل القراءات المتتالية لمنع اللغبطة والاختفاء
+        // إذا كان قفل الأمان مفعلاً، يتم تجاهل القراءة لمنع التكرار اللحظي
         if (isScannerCooldown) return;
-        
-        // تفعيل القفل فوراً
         isScannerCooldown = true;
 
-        // وضع الرقم في خانة البحث
+        // وضع الرقم المقروء في خانة البحث فوراً
         const searchInput = document.getElementById('search-input');
-        if (searchInput) searchInput.value = decodedText;
+        if (searchInput) {
+            searchInput.value = decodedText;
+            
+            // تشغيل دالة البحث الأصلية في مشروعك لتحديث المنتجات خلف الكاميرا فوراً
+            if (typeof searchProducts === "function") {
+                searchProducts();
+            }
+        }
         
         console.log("تم قراءة الباركود بنجاح:", decodedText);
 
-        // البحث عن المنتج في المصفوفة الأصلية لديك
-        const foundProduct = products.find(p => p.barcode === decodedText);
+        // البحث عن المنتج داخل المصفوفة (تحويل القيم لنصوص وحذف الفراغات لضمان دقة البحث)
+        const foundProduct = products.find(p => 
+            p.barcode && String(p.barcode).trim() === String(decodedText).trim()
+        );
 
         if (foundProduct) {
-            // إغلاق الكاميرا فوراً عند العثور على المنتج باستخدام الدالة الصحيحة لمشروعك
+            // إغلاق الكاميرا والـ wrapper فوراً عند إيجاد المنتج
             closeScanner();
             
-            // عرض الملصق المنبثق الذكي فوق الصفحة لحماية المنتجات من الاختفاء
+            // عرض الملصق المنبثق الاحترافي (Modal) لضمان ثبات المنتجات الأصلية وعدم اختفائها بالخلفية
             showProductSticker(foundProduct);
             
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         } else {
-            // إذا كان الباركود غير مسجل، يفتح القفل بعد ثانيتين لتجربة منتج آخر
+            // إذا كان الباركود غير مسجل، يفتح القفل بعد ثانيتين لتجربة منتج آخر دون إغلاق الكاميرا
             setTimeout(() => {
                 isScannerCooldown = false;
             }, 2000);
         }
 
     }, (error) => {
-        // لتجنب امتلاء الكونسول بالأخطاء أثناء حركة الكاميرا العادية
+        // لتجنب امتلاء الكونسول بالأخطاء أثناء حركة الكاميرا الطبيعية
     });
 }
 
-// 2. دالة رسم الملصق المرتب - تظهر كمودال منبثق لحماية المنتجات الخلفية من الحذف
+// 2. دالة رسم الملصق المرتب - تظهر كمودال منبثق لحماية واجهة الكاشير والمنتجات من الحذف
 function showProductSticker(product) {
-    // تشغيل صوت الإشعار التلقائي عند نجاح الفحص
+    // تشغيل صوت الإشعار التلقائي عند التعرف بنجاح
     const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
     audio.play().catch(e => console.log("الصوت يحتاج تفاعل أولاً"));
 
-    // إنشاء حاوية المودال المستقلة فوق الصفحة تماماً
+    // إنشاء حاوية المودال الطافية المستقلة تماماً فوق شاشة العرض
     let stickerModal = document.getElementById('scanned-sticker-modal');
     if (!stickerModal) {
         stickerModal = document.createElement('div');
@@ -2191,7 +2193,7 @@ function showProductSticker(product) {
 
     stickerModal.style.display = 'flex';
     
-    // بناء تصميم الملصق المرتب الخاص بك بالكامل داخل المودال المستقل لضمان الثبات
+    // بناء تصميم الملصق المرتب بالكامل داخل المودال المستقل لضمان الثبات المطلق
     stickerModal.innerHTML = `
         <div class="scanned-product-result" style="max-width: 280px; width:90%; padding: 20px; border: 2px solid #27ae60; border-radius: 15px; text-align: center; background: white; box-shadow: 0 5px 25px rgba(0,0,0,0.2); direction: rtl; font-family: 'Tajawal', sans-serif;">
             <div class="sticker-header" style="font-size: 0.95rem; color: #27ae60; font-weight: bold; margin-bottom: 10px;">
@@ -2219,46 +2221,42 @@ function showProductSticker(product) {
     `;
 }
 
-// 3. دالة الإغلاق الحقيقية والمطابقة تماماً لزر الإغلاق الأحمر في ملف index.html لديك (closeScanner)
+// 3. دالة الإغلاق الحقيقية والآمنة لزر الإغلاق الأحمر (closeScanner) لإنهاء عمل الكاميرا بنجاح
 function closeScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
     if (wrapper) wrapper.style.display = 'none'; // إخفاء الواجهة الرمادية فوراً
     
-    // إيقاف وتصفير سكنر Html5Qrcode الأصلي برمجياً لإطفاء كشاف الكاميرا فوراً
+    // الطريقة الصحيحة والمستقرة لتصفير المحرك الشامل في نسخة مكتبتك لحذف الكاميرا والـ Canvas
     if (html5QrCode) {
         try {
             html5QrCode.clear(); 
         } catch(e) {
-            console.log("إشعار الإغلاق الطبيعي للسكنر:", e);
+            console.log("إشعار تنظيف عادي للسكنر");
         }
     }
     
-    isScannerCooldown = false; // إعادة تصفير القفل لتكون جاهزة للمرات القادمة
+    // إفراغ الديف داخلياً لإطفاء اللمبة أو الكشاف تماماً وإيقاف بث الكاميرا الحركي
+    const readerDiv = document.getElementById('reader');
+    if (readerDiv) readerDiv.innerHTML = '';
+    
+    isScannerCooldown = false; // تصفير قفل الأمان لتصبح جاهزة للمرات القادمة تماماً
 }
 
-// دالة الإيقاف الاحتياطية لتفادي أي مشاكل استدعاء بأي مكان آخر
+// دالة تفريغ احتياطية لضمان التوافق الكامل مع أي استدعاء قديم بملفك
 function stopScanner() {
     closeScanner();
 }
-
 function openLoginModal() {
     document.getElementById('unified-modal').style.display = 'flex';
 }
 
 function closeModal() {
     document.getElementById('unified-modal').style.display = 'none';
+    // إعادة تعيين الواجهة عند الإغلاق
     document.getElementById('admin-action-section').style.display = 'none';
     document.getElementById('points-result').innerHTML = '';
-    
-    if (document.getElementById('product-cost-input')) document.getElementById('product-cost-input').value = '';
-    if (document.getElementById('product-cost-lbp-input')) document.getElementById('product-cost-lbp-input').value = '';
-    if (document.getElementById('new-price')) document.getElementById('new-price').value = '';
-    if (document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = '';
-    if (document.getElementById('profit-margin')) {
-        document.getElementById('profit-margin').value = '0%';
-        document.getElementById('profit-margin').style.color = '#388e3c';
-    }
 }
+
 
 // دالة فك قفل الإدارة داخل النافذة
 function unlockAdmin() {

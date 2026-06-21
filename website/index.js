@@ -2108,81 +2108,89 @@ function calculateCartTotal() {
     // تحديث رقم الإجمالي العادي في السلة
     document.getElementById('cart-total').innerText = total.toFixed(2);
 }
-let html5QrCode = null; // الاحتفاظ بكائن السكنر
+let html5QrCode = null; 
 let isScannerCooldown = false; // قفل لمنع تكرار القراءة السريعة واختفاء المنتج
 
-// 1. دالة تشغيل السكنر الأصلية والمضمونة المتوافقة مع نسخة مشروعك
+// 1. دالة تشغيل السكنر المباشرة والمطابقة تماماً لنسخة مكتبتك
 function startScanner() {
     const wrapper = document.getElementById('scanner-wrapper');
     if (wrapper) wrapper.style.display = 'flex';
 
-    // إذا كان السكنر مفتوحاً أو معلقاً مسبقاً، نقوم بإغلاقه وتنظيف الحاوية لمنع التعارض
-    if (html5QrCode) {
+    isScannerCooldown = false; // فتح قفل الأمان عند تشغيل السكنر
+
+    // تهيئة السكنر وتعديل بناء الكائن برمجياً ليقوم بفتح الكاميرا فوراً دون طلب أزرار داخلية
+    if (!html5QrCode) {
         try {
-            html5QrCode.clear();
-        } catch(e) { 
-            console.log("تنظيف تلقائي عادي"); 
+            // التعديل التقني هنا: استخدام Html5Qrcode للتشغيل المباشر بدلاً من الواجهة الجاهزة القديمة
+            html5QrCode = new Html5Qrcode("reader"); 
+            
+            const config = { 
+                fps: 15, // سرعة لقطة عالية لتناسب حركة المنتجات في السوبرماركت
+                qrbox: { width: 250, height: 150 }
+            };
+
+            // تشغيل الكاميرا الخلفية مباشرة فور الضغط على الزر دون أزرار طلب صلاحية داخلية
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess, 
+                (error) => {
+                    // تجاوز أخطاء مسح الصور المتتالية أثناء حركة الكاميرا الطبيعية
+                }
+            ).catch(err => {
+                console.error("خطأ أثناء تشغيل محرك الكاميرا المباشر:", err);
+                // إظهار تنبيه للمستخدم في حال فتح الملف عبر الـ file://
+                alert("تنبيه: المتصفح يمنع الكاميرا من ملف محلي. يرجى رفع الموقع على استضافة https أو تشغيل سيرفر محلي (Localhost).");
+            });
+
+        } catch (e) {
+            console.error("خطأ أثناء تشغيل محرك الكاميرا المباشر:", e);
         }
     }
-
-    // بناء السكنر وتحديد مربع الفحص المناسب للباركود
-    html5QrCode = new Html5QrcodeScanner("reader", { 
-        fps: 15, // سرعة اللقطة لتناسب السوبرماركت
-        qrbox: { width: 250, height: 150 },
-        rememberLastUsedCamera: true
-    });
-
-    // بدء تشغيل الفحص واستقبال الباركود بنجاح
-    html5QrCode.render((decodedText) => {
-        // إذا كان قفل الأمان مفعلاً، يتم تجاهل القراءة لمنع التكرار اللحظي
-        if (isScannerCooldown) return;
-        isScannerCooldown = true;
-
-        // وضع الرقم المقروء في خانة البحث فوراً
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.value = decodedText;
-            
-            // تشغيل دالة البحث الأصلية في مشروعك لتحديث المنتجات خلف الكاميرا فوراً
-            if (typeof searchProducts === "function") {
-                searchProducts();
-            }
-        }
-        
-        console.log("تم قراءة الباركود بنجاح:", decodedText);
-
-        // البحث عن المنتج داخل المصفوفة (تحويل القيم لنصوص وحذف الفراغات لضمان دقة البحث)
-        const foundProduct = products.find(p => 
-            p.barcode && String(p.barcode).trim() === String(decodedText).trim()
-        );
-
-        if (foundProduct) {
-            // إغلاق الكاميرا والـ wrapper فوراً عند إيجاد المنتج
-            closeScanner();
-            
-            // عرض الملصق المنبثق الاحترافي (Modal) لضمان ثبات المنتجات الأصلية وعدم اختفائها بالخلفية
-            showProductSticker(foundProduct);
-            
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        } else {
-            // إذا كان الباركود غير مسجل، يفتح القفل بعد ثانيتين لتجربة منتج آخر دون إغلاق الكاميرا
-            setTimeout(() => {
-                isScannerCooldown = false;
-            }, 2000);
-        }
-
-    }, (error) => {
-        // لتجنب امتلاء الكونسول بالأخطاء أثناء حركة الكاميرا الطبيعية
-    });
 }
 
-// 2. دالة رسم الملصق المرتب - تظهر كمودال منبثق لحماية واجهة الكاشير والمنتجات من الحذف
+// دالة معالجة الباركود المقروء بنجاح
+function onScanSuccess(decodedText) {
+    // إذا كانت واجهة الكاميرا مخفية أو قفل الأمان مفعل، يتجاهل القراءة فوراً
+    const wrapper = document.getElementById('scanner-wrapper');
+    if (!wrapper || wrapper.style.display === 'none' || isScannerCooldown) return;
+    
+    isScannerCooldown = true; // تفعيل القفل لمنع التكرار اللحظي
+
+    // وضع الرقم المقروء في خانة البحث فوراً
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.value = decodedText;
+        // تشغيل دالة البحث الأصلية في مشروعك لتحديث المنتجات خلف الكاميرا فوراً
+        if (typeof searchProducts === "function") {
+            searchProducts();
+        }
+    }
+    
+    console.log("تم قراءة الباركود بنجاح:", decodedText);
+
+    // البحث عن المنتج داخل مصفوفة المنتجات الأصلية لديك
+    const foundProduct = products.find(p => 
+        p.barcode && String(p.barcode).trim() === String(decodedText).trim()
+    );
+
+    if (foundProduct) {
+        closeScanner(); // إغلاق واجهة الكاميرا فوراً وبطريقة آمنة
+        showProductSticker(foundProduct); // عرض الملصق المنبثق الذكي لحماية المنتجات الخلفية
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    } else {
+        // إذا كان الباركود غير مسجل، يفتح القفل بعد ثانيتين لتجربة منتج آخر دون إغلاق الكاميرا
+        setTimeout(() => {
+            isScannerCooldown = false;
+        }, 2000);
+    }
+}
+
+// 2. دالة رسم الملصق المنبثق لحماية واجهة المنتجات الخلفية من الحذف والاختفاء
 function showProductSticker(product) {
-    // تشغيل صوت الإشعار التلقائي عند التعرف بنجاح
     const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
     audio.play().catch(e => console.log("الصوت يحتاج تفاعل أولاً"));
 
-    // إنشاء حاوية المودال الطافية المستقلة تماماً فوق شاشة العرض
     let stickerModal = document.getElementById('scanned-sticker-modal');
     if (!stickerModal) {
         stickerModal = document.createElement('div');
@@ -2193,7 +2201,6 @@ function showProductSticker(product) {
 
     stickerModal.style.display = 'flex';
     
-    // بناء تصميم الملصق المرتب بالكامل داخل المودال المستقل لضمان الثبات المطلق
     stickerModal.innerHTML = `
         <div class="scanned-product-result" style="max-width: 280px; width:90%; padding: 20px; border: 2px solid #27ae60; border-radius: 15px; text-align: center; background: white; box-shadow: 0 5px 25px rgba(0,0,0,0.2); direction: rtl; font-family: 'Tajawal', sans-serif;">
             <div class="sticker-header" style="font-size: 0.95rem; color: #27ae60; font-weight: bold; margin-bottom: 10px;">
@@ -2221,25 +2228,27 @@ function showProductSticker(product) {
     `;
 }
 
-// 3. دالة الإغلاق الحقيقية والآمنة لزر الإغلاق الأحمر (closeScanner) لإنهاء عمل الكاميرا بنجاح
+// 3. دالة الإغلاق الحقيقية والآمنة والمطابقة لزر الإغلاق الأحمر لإنهاء بث الكاميرا برمجياً بدون أخطاء
 function closeScanner() {
-    const wrapper = document.getElementById('scanner-wrapper');
-    if (wrapper) wrapper.style.display = 'none'; // إخفاء الواجهة الرمادية فوراً
-    
-    // الطريقة الصحيحة والمستقرة لتصفير المحرك الشامل في نسخة مكتبتك لحذف الكاميرا والـ Canvas
-    if (html5QrCode) {
-        try {
-            html5QrCode.clear(); 
-        } catch(e) {
-            console.log("إشعار تنظيف عادي للسكنر");
-        }
+    // إيقاف بث الكاميرا الحركي رسمياً كـ Promise لضمان إطفاء العدسة والكشاف أولاً وبأمان تام
+    if (html5QrCode && typeof html5QrCode.stop === "function") {
+        html5QrCode.stop().then(() => {
+            console.log("تم إيقاف بث الكاميرا بنجاح.");
+            const wrapper = document.getElementById('scanner-wrapper');
+            if (wrapper) wrapper.style.display = 'none'; // إخفاء الواجهة الرمادية بعد الإيقاف المضمون
+            html5QrCode = null; // تصفير الكائن ليكون جاهزاً لإعادة البناء عند الطلب التالي مباشرة
+        }).catch((err) => {
+            console.log("إشعار إغلاق احتياطي للواجهة:", err);
+            const wrapper = document.getElementById('scanner-wrapper');
+            if (wrapper) wrapper.style.display = 'none';
+            html5QrCode = null;
+        });
+    } else {
+        const wrapper = document.getElementById('scanner-wrapper');
+        if (wrapper) wrapper.style.display = 'none';
     }
     
-    // إفراغ الديف داخلياً لإطفاء اللمبة أو الكشاف تماماً وإيقاف بث الكاميرا الحركي
-    const readerDiv = document.getElementById('reader');
-    if (readerDiv) readerDiv.innerHTML = '';
-    
-    isScannerCooldown = false; // تصفير قفل الأمان لتصبح جاهزة للمرات القادمة تماماً
+    isScannerCooldown = false; // تصفير قفل الأمان لتصبح جاهزة للمرة القادمة تماماً
 }
 
 // دالة تفريغ احتياطية لضمان التوافق الكامل مع أي استدعاء قديم بملفك

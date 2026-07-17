@@ -956,113 +956,7 @@ function launchConfetti() {
 }
 // 7. إدارة المسؤول (Firebase CRUD)
 // 7. إدارة المسؤول (Firebase CRUD)
-async function saveProduct() {
-    const id = document.getElementById('edit-product-id').value;
-    const name = document.getElementById('new-name').value;
-    const price = parseFloat(document.getElementById('new-price').value);
-    const category = document.getElementById('new-category').value;
-    const image = document.getElementById('new-image').value;
-    // إضافة قيمة الـ checkbox الجديد
-    const isOutOfStock = document.getElementById('out-of-stock-check').checked;
-    
-    // --- الإضافة الجديدة لجلب الباركود دون حذف أي سطر ---
-    // تأكد أن id الحقل في الـ HTML هو فعلاً "new-barcode"
-    const barcodeInput = document.getElementById('new-barcode');
-    const barcode = barcodeInput ? barcodeInput.value.trim() : ""; 
 
-    // --- الإضافة الجديدة لجلب الكمية المتوفرة ---
-    const stockInput = document.getElementById('new-stock');
-    const stock = stockInput ? parseInt(stockInput.value) : 0;
-
-    // --- التعديل هنا: استخدام ID المطابق للـ HTML الخاص بك ---
-    const oldPriceInput = document.getElementById('product-old-price');
-    const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
-    
-    // 🔍 توحيد المعرف هنا ليتوافق مع الحقل الفعلي في ملفك (purchase-price) لمنع الـ NaN
-    const costPriceInput = document.getElementById('purchase-price') || document.getElementById('product-cost-input');
-    const costPrice = costPriceInput ? (parseFloat(costPriceInput.value) || 0) : 0;
-
-    // 🔍 جلب حقل السعر اللبناني من الواجهة لحفظه مباشرة في الفايربيس
-    const priceLBPInput = document.getElementById('new-price-lbp');
-    const priceLBP = priceLBPInput && priceLBPInput.value ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
-
-    if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
-
-    // --- سطر إضافي لضمان تحديث النسبة في الواجهة عند الحفظ ---
-    if (typeof calculateProfit === "function") calculateProfit();
-
-    // نحدد الـ ID الفعلي المستهدف؛ إن قمت بتغيير الباركود يدوياً أثناء التعديل نعتمد الباركود الجديد كمستند، وإلا نستخدم المعرف القديم المحفوظ
-    const targetDocId = barcode ? barcode : (id ? id : `product_${Date.now()}`);
-
-    const data = { 
-        name, 
-        price, 
-        priceLBP,      // <<< حفظ السعر اللبناني بدقة في قاعدة البيانات
-        cost: costPrice, // <<< هذا هو السطر الذي كان ينقصك لحفظ سعر الشراء
-        category, 
-        image, 
-        barcode, // حفظ الباركود الجديد في Firebase
-        isOutOfStock: isOutOfStock || (stock <= 0), // تحديث الحالة تلقائياً إذا كانت الكمية 0
-        stock, // حفظ الكمية المتوفرة الجديدة
-        oldPrice: oldPrice || null, // حفظ السعر القديم إذا وجد لعمل عرض
-        lastUpdated: Date.now() 
-    };
-
-    // إضافة تاريخ الإنشاء فقط عند الإضافة لأول مرة (أي في حال عدم وجود id سابق)
-    if (!id) {
-        data.createdAt = Date.now();
-        // لكي نضيف حقل id العادي داخل بيانات المستند ليطابق صيغة ملف الـ CSV
-        data.id = targetDocId.replace('product_', '');
-    }
-
-    try {
-        // تم استبدال أمر .update بأمر .set المتكامل مع خاصية الدمج { merge: true } ليعمل على المنتجات المرفوعة من ملف يدوياً فوراً
-        await db.collection("products").doc(targetDocId).set(data, { merge: true });
-        
-        if (id) {
-            alert("تم تحديث بيانات المنتج بنجاح! ✅");
-        } else {
-            alert("تمت إضافة المنتج الجديد بنجاح! ✨");
-        }
-
-        // --- الجزء المسؤول عن الطباعة (يوضع هنا بعد نجاح الحفظ) ---
-        if (typeof printProductLabel === "function") {
-            printProductLabel({ name, price, barcode });
-        } else if (typeof printBarcode === "function") {
-            printBarcode(barcode, name, price); 
-        }
-        // -------------------------------------------------------
-
-        // 🛠️ الإصلاح السحري والخاص باللبناني لتصفير السعر ومنع تعليقه نهائياً:
-        const purchaseLbpInput = document.getElementById('product-cost-lbp-input');
-        if (purchaseLbpInput) {
-            purchaseLbpInput.value = '';
-        }
-        if (costPriceInput) {
-            costPriceInput.value = '';
-        }
-
-        // --- استدعاء الفورم لتصفير كافة الخانات بما فيها سعر الشراء ---
-        if (typeof resetForm === "function") resetForm();
-
-        // --- الحل الآمن لمشكلة الـ style التي ظهرت في الصور ---
-        const modal = document.querySelector('.modal') || 
-                      document.getElementById('edit-modal') || 
-                      document.getElementById('product-modal') ||
-                      document.getElementById('unified-modal') ||
-                      document.querySelector('[style*="display: block"]');
-
-        if (modal && modal.style) {
-            modal.style.display = 'none';
-        } else {
-            if (typeof closeModal === "function") closeModal();
-        }
-
-    } catch (e) {
-        console.error("Firebase Error:", e);
-        alert("خطأ تقني: " + e.message);
-    }
-}
 // دالة حذف المنتج المحسنة والمعالجة لملفات الـ CSV المستوردة
 async function deleteProduct(id) {
     if (confirm("هل أنت متأكد من حذف هذا المنتج نهائياً من قاعدة البيانات؟")) {
@@ -1258,14 +1152,15 @@ function editProduct(id) {
     const product = products.find(p => p.id === id);
     if (!product) return;
     
-    // الحل الأكيد: تخزين معرف المستند الحقيقي (سواء كان باركود أو ID عادي) لضمان عدم ضياعه عند الحفظ
-    document.getElementById('edit-product-id').value = product.barcode ? product.barcode : product.id;
+    // تخزين معرف المستند الحالي لضمان الوصول إليه عند التحديث
+    document.getElementById('edit-product-id').value = product.id;
     
     document.getElementById('new-name').value = product.name;
     document.getElementById('new-price').value = product.price;
     document.getElementById('new-category').value = product.category;
     document.getElementById('new-image').value = product.image;
 
+    // مطابقة كاملة وحماية لحقول السوبرماركت الخاصة بك
     if (document.getElementById('new-barcode')) {
         document.getElementById('new-barcode').value = product.barcode || '';
     }
@@ -1276,18 +1171,12 @@ function editProduct(id) {
         document.getElementById('product-cost-input').value = product.cost || 0;
     }
 
-    // 🔍 الإضافة الذكية لحل التضارب: تعبئة الحقل الفعلي (purchase-price) بقيمة التكلفة ليعمل حساب الربح فوراً
-    const alternativeCostField = document.getElementById('purchase-price');
-    if (alternativeCostField) {
-        alternativeCostField.value = product.cost || 0;
-    }
-
-    // لتعبئة حقل الليرة اللبنانية فوراً عند الضغط على زر تعديل منتج
+    // لتعبئة حقل الليرة اللبنانية فوراً عند الضغط على زر تعديل منتج بناءً على السعر الحالي
     if (document.getElementById('new-price-lbp')) {
         document.getElementById('new-price-lbp').value = product.priceLBP || Math.round((product.price * exchangeRate) / 500) * 500;
     }
 
-    // 🛠️ الإضافة اللبنانية الذكية: جلب سعر الشراء بالليرة اللبنانية فوراً عند التعديل بناءً على التكلفة المتاحة
+    // جلب سعر الشراء بالليرة اللبنانية فوراً عند التعديل بناءً على التكلفة المتاحة
     if (document.getElementById('product-cost-lbp-input')) {
         const currentCost = product.cost || 0;
         document.getElementById('product-cost-lbp-input').value = currentCost > 0 ? Math.round(currentCost * exchangeRate) : '';
@@ -1295,7 +1184,13 @@ function editProduct(id) {
 
     if (typeof calculateProfit === "function") calculateProfit();
 
-    document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
+    if (document.getElementById('out-of-stock-check')) {
+        document.getElementById('out-of-stock-check').checked = product.isOutOfStock || false;
+    }
+    if (document.getElementById('product-old-price')) {
+        document.getElementById('product-old-price').value = product.oldPrice || '';
+    }
+    
     document.getElementById('form-title').innerText = "تعديل: " + product.name;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1308,28 +1203,129 @@ function resetForm() {
     document.getElementById('new-barcode').value = "";
     document.getElementById('form-title').innerText = "إضافة منتج جديد";
 
-    // --- الأسطر المضافة لتصفير الخانات الجديدة وضمان عودتها للقيمة فارغة ---
-    // تم تعديل المعرف هنا ليطابق المستخدم في دالة الحفظ
+    // تصفير الخانات بالمعرفات الحقيقية الموجودة في الـ HTML الخاص بك
     if(document.getElementById('product-cost-input')) document.getElementById('product-cost-input').value = ""; 
+    if(document.getElementById('product-cost-lbp-input')) document.getElementById('product-cost-lbp-input').value = "";
     if(document.getElementById('new-price-lbp')) document.getElementById('new-price-lbp').value = "";
     if(document.getElementById('profit-margin')) document.getElementById('profit-margin').value = "0%";
     if(document.getElementById('new-stock')) document.getElementById('new-stock').value = "";
+    if(document.getElementById('product-old-price')) document.getElementById('product-old-price').value = "";
+    if(document.getElementById('out-of-stock-check')) document.getElementById('out-of-stock-check').checked = false;
 
-    // 🛠️ الضربة القاضية: تصفير خانة سعر الشراء بالليرة اللبنانية تماماً لمنع تعليق الرقم القديم
-    if(document.getElementById('product-cost-lbp-input')) {
-        document.getElementById('product-cost-lbp-input').value = "";
-    }
-    if(document.getElementById('purchase-price')) {
-        document.getElementById('purchase-price').value = "";
-    }
-
-    // إعادة لون نسبة الربح للوضع الطبيعي (الأخضر)
     if(document.getElementById('profit-margin')) {
         document.getElementById('profit-margin').style.color = "#2e7d32";
     }
 
-    // وضع المؤشر تلقائياً على خانة الاسم لتسريع العمل
     document.getElementById('new-name').focus();
+}
+
+async function saveProduct() {
+    // 1. جلب القيم من الـ HTML الفعلي لديك بدقة
+    const id = document.getElementById('edit-product-id').value;
+    const name = document.getElementById('new-name').value;
+    const price = parseFloat(document.getElementById('new-price').value);
+    const category = document.getElementById('new-category').value;
+    const image = document.getElementById('new-image').value;
+    
+    const isOutOfStockCheck = document.getElementById('out-of-stock-check');
+    const isOutOfStock = isOutOfStockCheck ? isOutOfStockCheck.checked : false;
+    
+    const barcodeInput = document.getElementById('new-barcode');
+    const barcode = barcodeInput ? barcodeInput.value.trim() : ""; 
+
+    const stockInput = document.getElementById('new-stock');
+    const stock = stockInput ? parseInt(stockInput.value) : 0;
+
+    const oldPriceInput = document.getElementById('product-old-price');
+    const oldPrice = oldPriceInput && oldPriceInput.value ? parseFloat(oldPriceInput.value) : null;
+    
+    const costPriceInput = document.getElementById('product-cost-input');
+    const costPrice = costPriceInput ? (parseFloat(costPriceInput.value) || 0) : 0;
+
+    const priceLBPInput = document.getElementById('new-price-lbp');
+    const priceLBP = priceLBPInput && priceLBPInput.value ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
+
+    if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
+
+    if (typeof calculateProfit === "function") calculateProfit();
+
+    // نحدد اسم المستند (Doc ID): إن وجد باركود نعتمد عليه كـ ID، وإلا نستخدم الـ ID الافتراضي للمنتج
+    const targetDocId = barcode ? barcode : (id ? id : `product_${Date.now()}`);
+
+    const data = { 
+        name, 
+        price, 
+        priceLBP,      
+        cost: costPrice, 
+        category, 
+        image, 
+        barcode, 
+        isOutOfStock: isOutOfStock || (stock <= 0), 
+        stock, 
+        oldPrice: oldPrice, 
+        lastUpdated: Date.now() 
+    };
+
+    // 🔍 تأمين ملصق الجديد: البحث عن المنتج الحالي في المصفوفة لجلب تاريخ إنشائه الأصلي إن وجد
+    const existingProduct = products.find(p => p.id === id);
+
+    if (!id) {
+        // في حالة إضافة منتج جديد كلياً لأول مرة
+        data.createdAt = Date.now();
+        data.id = targetDocId.replace('product_', '');
+    } else {
+        // في حالة التعديل: إذا كان للمنتج تاريخ إنشاء أصلي مخزن، نحافظ عليه ونرسله لمنع اختفاء ملصق "جديد"
+        if (existingProduct && existingProduct.createdAt) {
+            data.createdAt = existingProduct.createdAt;
+        }
+    }
+
+    try {
+        // إذا كنا نقوم بعملية تعديل لمنتج موجود اصلاً
+        if (id) {
+            // إذا قام المستخدم بتعديل رقم الباركود وأصبح مختلفاً عن الـ ID القديم المخزن
+            if (id !== targetDocId) {
+                // ننشئ المستند الجديد بالباركود الجديد ونحفظ به كامل البيانات المحدثة مع تاريخ الإنشاء الأصلي
+                await db.collection("products").doc(targetDocId).set(data, { merge: true });
+                // نحذف المستند القديم لضمان عدم بقاء المنتج القديم مكرراً في النظام بالباركود القديم
+                await db.collection("products").doc(id).delete().catch(e => console.log("المستند القديم تم حذفه أو غير موجود"));
+            } else {
+                // إذا لم يتغير الباركود، نقوم بتحديث نفس المستند مباشرة بـ set merge لحماية البيانات المرفوعة
+                await db.collection("products").doc(id).set(data, { merge: true });
+            }
+            alert("تم تحديث بيانات المنتج بنجاح! ✅");
+        } else {
+            // في حالة إضافة منتج جديد كلياً
+            await db.collection("products").doc(targetDocId).set(data, { merge: true });
+            alert("تمت إضافة المنتج الجديد بنجاح! ✨");
+        }
+
+        // تشغيل وظائف الطباعة التلقائية المتوافقة مع أجهزة الـ Xprinter لديك
+        if (typeof printProductLabel === "function") {
+            printProductLabel({ name, price, barcode });
+        } else if (typeof printBarcode === "function") {
+            printBarcode(barcode, name, price); 
+        }
+
+        // تنظيف وتصفير الفورم بعد نجاح الإرسال
+        if (typeof resetForm === "function") resetForm();
+
+        // إخفاء الـ Modal أو الفورم التابع للـ Admin تلقائياً لمنع التشتيت عند العمل المباشر
+        const modal = document.querySelector('.modal') || 
+                      document.getElementById('edit-modal') || 
+                      document.getElementById('product-modal') ||
+                      document.getElementById('unified-modal') ||
+                      document.getElementById('add-product-form') ||
+                      document.querySelector('[style*="display: block"]');
+
+        if (modal && modal.id !== 'add-product-form') {
+            modal.style.display = 'none';
+        }
+
+    } catch (e) {
+        console.error("Firebase Error:", e);
+        alert("خطأ تقني أثناء الحفظ: " + e.message);
+    }
 }
 
 // 8. الطباعة والعودة للأعلى
@@ -2862,77 +2858,7 @@ async function resetTodaySales() {
         }
     }
 }
-async function saveProduct() {
-    const id = document.getElementById('edit-product-id').value;
-    const name = document.getElementById('new-name').value;
-    const price = parseFloat(document.getElementById('new-price').value);
-    const category = document.getElementById('new-category').value;
-    const image = document.getElementById('new-image').value;
-    const isOutOfStock = document.getElementById('out-of-stock-check').checked;
-    
-    const barcodeInput = document.getElementById('new-barcode');
-    const barcode = barcodeInput ? barcodeInput.value.trim() : "";
-    
-    const stockInput = document.getElementById('new-stock');
-    const stock = stockInput ? parseInt(stockInput.value) : 0;
-    
-    const oldPriceInput = document.getElementById('product-old-price');
-    const oldPrice = oldPriceInput ? parseFloat(oldPriceInput.value) : null;
-    const costPrice = parseFloat(document.getElementById('product-cost-input').value) || 0;
 
-    const priceLBPInput = document.getElementById('new-price-lbp');
-    const priceLBP = priceLBPInput ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
-
-    if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
-
-    if (typeof calculateProfit === "function") calculateProfit();
-
-    const data = {
-        name,
-        price,
-        priceLBP, 
-        cost: costPrice, 
-        category,
-        image,
-        barcode, 
-        isOutOfStock: isOutOfStock || (stock <= 0), 
-        stock, 
-        oldPrice: oldPrice || null, 
-        lastUpdated: Date.now()
-    };
-
-    if (!id) {
-        data.createdAt = Date.now();
-    }
-
-    try {
-        if (id) {
-            await db.collection("products").doc(id).update(data);
-            alert("تم تحديث بيانات المنتج!");
-        } else {
-            await db.collection("products").add(data);
-            alert("تمت إضافة المنتج الجديد!");
-        }
-
-        if (typeof printProductLabel === "function") {
-            printProductLabel({ name, price, barcode });
-        } else if (typeof printBarcode === "function") {
-            printBarcode(barcode, name, price);
-        }
-
-        if (typeof resetForm === "function") resetForm();
-
-        const modal = document.querySelector('.modal') || document.getElementById('edit-modal') || document.getElementById('product-modal') || document.querySelector('[style*="display: block"]');
-        if (modal && modal.style) {
-            modal.style.display = 'none';
-        } else {
-            if (typeof closeModal === "function") closeModal();
-        }
-    } catch (e) {
-        console.error("Firebase Error:", e);
-        alert("خطأ تقني: " + e.message);
-    }
-}
 
 function convertToLBP() {
     const usdInput = document.getElementById('new-price'); 

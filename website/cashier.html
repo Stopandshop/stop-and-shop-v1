@@ -1432,10 +1432,24 @@ function printInvoice() {
             <title>Stop & Shop Receipt</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                
+                /* جعل الجسم يمتد بالكامل ليسمح بالتوسيط الحر */
                 body { 
-                    width: 80mm; margin: 0; padding: 10px; direction: rtl; 
+                    margin: 0; padding: 0; direction: rtl; 
                     font-family: 'Cairo', sans-serif; font-size: 13px; color: #000;
+                    background: #fff;
+                    width: 100% !important;
                 }
+                
+                /* حاوية الفاتورة الأساسية المحسنة لتتوسط عرض الورقة بنسبة 75% */
+                .receipt-wrapper {
+                    width: 75% !important;
+                    max-width: 75% !important;
+                    margin: 0 auto !important; /* التوسيط التلقائي المباشر */
+                    padding: 10px;
+                    box-sizing: border-box;
+                }
+
                 .logo-area { text-align: center; margin-bottom: 10px; }
                 .logo-area h1 { margin: 0; font-size: 24px; font-weight: 900; }
                 .line { border-top: 1px dashed #000; margin: 10px 0; }
@@ -1445,43 +1459,62 @@ function printInvoice() {
                 .footer { text-align: center; margin-top: 15px; }
                 .qr-code { margin: 10px auto; width: 100px; height: 100px; display: flex; justify-content: center; }
                 .phone-box { font-weight: bold; font-size: 14px; margin: 5px 0; direction: ltr; }
+
+                /* إعدادات الطباعة لضمان بقائها موسطة في الطابعة الحرارية */
+                @media print {
+                    @page {
+                        margin: 0 !important;
+                    }
+                    body {
+                        width: 100% !important;
+                        background: #fff;
+                    }
+                    .receipt-wrapper {
+                        width: 75% !important;
+                        max-width: 75% !important;
+                        margin: 0 auto !important; /* إجبار التوسيط داخل الطابعة */
+                    }
+                }
             </style>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
         </head>
         <body>
-            <div class="logo-area">
-                <h1>🛒 STOP & SHOP</h1>
-                <div style="font-size: 12px; font-weight: bold;">مؤسسة نصور التجارية</div>
-                <div class="phone-box">📞 +961 ${phoneNumber}</div>
-            </div>
-
-            <div class="info-row"><span>📅 التاريخ:</span> <span>${date}</span></div>
-            <div class="info-row"><span>👤 الموظف:</span> <span>${employee}</span></div>
-
-            <div class="line"></div>
-
-            <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px;">
-                <span style="flex: 2; text-align: right;">الصنف</span>
-                <span style="flex: 1; text-align: center;">الكمية</span>
-                <span style="flex: 1.5; text-align: left;">السعر</span>
-            </div>
-
-            ${itemsHtml}
-
-            <div class="line"></div>
-
-            <div class="total-section">
-                <div style="text-align: center; font-size: 11px;">المبلغ المطلوب بالليرة اللبنانية</div>
-                <div class="big-price">${totalLBP}</div>
-                <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 5px;">
-                    صافي بالدولار: <b>${finalUSD}</b>
+            <!-- تم لف محتوى الفاتورة بالكامل داخل هذه الحاوية لضمان التوسيط الدقيق -->
+            <div class="receipt-wrapper">
+                <div class="logo-area">
+                    <h1>🛒 STOP & SHOP</h1>
+                    <div style="font-size: 12px; font-weight: bold;">مؤسسة نصور التجارية</div>
+                    <div class="phone-box">📞 +961 ${phoneNumber}</div>
                 </div>
-            </div>
 
-            <div class="footer">
-                <div id="qrcode" class="qr-code"></div>
-                <p style="margin: 5px 0;">شكراً لزيارتكم ❤️</p>
-                <div style="font-size: 9px; opacity: 0.5;">يرجى الاحتفاظ بالإيصال للمراجعة</div>
+                <div class="info-row"><span>📅 التاريخ:</span> <span>${date}</span></div>
+                <div class="info-row"><span>👤 الموظف:</span> <span>${employee}</span></div>
+
+                <div class="line"></div>
+
+                <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px;">
+                    <span style="flex: 2; text-align: right;">الصنف</span>
+                    <span style="flex: 1; text-align: center;">الكمية</span>
+                    <span style="flex: 1.5; text-align: left;">السعر</span>
+                </div>
+
+                ${itemsHtml}
+
+                <div class="line"></div>
+
+                <div class="total-section">
+                    <div style="text-align: center; font-size: 11px;">المبلغ المطلوب بالليرة اللبنانية</div>
+                    <div class="big-price">${totalLBP}</div>
+                    <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 5px;">
+                        صافي بالدولار: <b>${finalUSD}</b>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <div id="qrcode" class="qr-code"></div>
+                    <p style="margin: 5px 0;">شكراً لزيارتكم ❤️</p>
+                    <div style="font-size: 9px; opacity: 0.5;">يرجى الاحتفاظ بالإيصال للمراجعة</div>
+                </div>
             </div>
 
             <script>
@@ -1520,7 +1553,6 @@ function holdInvoice() {
         alert("تم تعليق الفاتورة بنجاح"); 
     } 
 }
-
 function showHeldInvoices() {
     if (heldInvoices.length === 0) {
         alert("لا توجد فواتير معلقة حالياً.");

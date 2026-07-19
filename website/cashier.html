@@ -482,6 +482,26 @@
             .sidebar-actions, .billing-panel { width: 100%; height: auto; }
             .main-workspace { padding: 15px; }
         }
+        @media print {
+    /* إلغاء هوامش الصفحة الافتراضية للمتصفح */
+    @page {
+        margin: 0;
+    }
+    
+    /* ضبط الحاوية الرئيسية للفاتورة لتملأ عرض الورقة الحرارية بالكامل */
+    body, .receipt-container, #receipt {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 5px !important; /* ترك مسافة صغيرة جداً للحواف */
+        box-shadow: none !important;
+    }
+    
+    /* تأكد من أن جدول الأصناف يأخذ العرض الكامل أيضاً */
+    table, .items-table {
+        width: 100% !important;
+    }
+}
     </style>
 </head>
 <body>

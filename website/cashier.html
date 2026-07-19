@@ -15,7 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="icon" type="image/jpeg" href="logo.jpg">
 
-    <style>
+   <style>
         :root {
             --primary: #ff4757;
             --primary-gradient: linear-gradient(135deg, #ff4757, #ee5253);
@@ -285,7 +285,7 @@
             color: white;
         }
 
-        /* --- تصميم لوحة الهوية المدمجة (تم تصغيرها وتنسيقها هنا) --- */
+        /* --- تصميم لوحة الهوية المدمجة --- */
         .brand-section {
             background: linear-gradient(135deg, #2c3e50, #1a252f);
             color: white;
@@ -482,27 +482,47 @@
             .sidebar-actions, .billing-panel { width: 100%; height: auto; }
             .main-workspace { padding: 15px; }
         }
+
+        /* --- التعديل الجديد: ضبط الفاتورة في منتصف الصفحة تماماً وبحجم منصف الحجم --- */
         @media print {
-    /* إلغاء هوامش الصفحة الافتراضية للمتصفح */
-    @page {
-        margin: 0;
-    }
-    
-    /* ضبط الحاوية الرئيسية للفاتورة لتملأ عرض الورقة الحرارية بالكامل */
-    body, .receipt-container, #receipt {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 5px !important; /* ترك مسافة صغيرة جداً للحواف */
-        box-shadow: none !important;
-    }
-    
-    /* تأكد من أن جدول الأصناف يأخذ العرض الكامل أيضاً */
-    table, .items-table {
-        width: 100% !important;
-    }
-}
-    </style>
+            @page {
+                margin: 0 !important;
+                size: auto;
+            }
+            
+            /* إخفاء عناصر التحكم والألواح والفوتر والبحث تماماً */
+            .sidebar-actions, .main-workspace, .billing-panel, .status-footer, .search-container, button {
+                display: none !important;
+            }
+            
+            /* جعل الـ body يغطي المساحة بالكامل لضمان حرية التوسيط */
+            body {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+            }
+            
+            /* التعديل الجوهري: إجبار الفاتورة على أخذ نسبة محددة (مثل 70%) مع التوسيط التلقائي يميناً ويساراً */
+            .receipt-container, #receipt, .receipt, #print-area {
+                display: block !important;
+                width: 72% !important; /* يأخذ جزء متناسق من المنتصف دون التمدد للأطراف */
+                max-width: 72% !important;
+                min-width: 72% !important;
+                margin: 0 auto !important; /* هذا السطر يضمن التوسيط الكامل في منتصف الورقة الحرارية */
+                padding: 4px !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+                overflow: visible !important;
+                height: auto !important;
+            }
+            
+            table, .items-table, .product-row {
+                width: 100% !important;
+            }
+        }
+</style>
 </head>
 <body>
 

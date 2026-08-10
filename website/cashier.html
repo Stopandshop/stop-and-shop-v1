@@ -1239,26 +1239,28 @@ document.getElementById('barcode-input').addEventListener('keypress', (e) => {
         }
     }
 });
-  // 🛠️ متغير للتحكم بوضع الطباعة
+// 🛠️ متغير للتحكم بوضع الطباعة
 window.isPrintDisabled = false;
 
 document.addEventListener('keydown', async (e) => {
-    // 1. F9: حفظ الفاتورة فقط (بدون طباعة)
-    if (e.key === 'F9') { 
+    // 1. F9: حفظ الفاتورة فقط (بدون طباعة) - مع دعم أزرار الكيبورد المخصصة لمنع الاختفاء
+    if (e.key === 'F9' || e.code === 'F9' || e.key === 'BrowserHome' || e.key === 'Home') { 
         e.preventDefault(); 
+        e.stopPropagation();
         window.isPrintDisabled = true; 
         await handleInvoiceCheckout(); 
     }
 
     // 2. F10: حفظ الفاتورة وطباعتها
-    if (e.key === 'F10') { 
+    if (e.key === 'F10' || e.code === 'F10') { 
         e.preventDefault(); 
+        e.stopPropagation();
         window.isPrintDisabled = false; 
         await handleInvoiceCheckout(); 
     }
 
     // 3. Escape: مسح السلة
-    if (e.key === 'Escape') { 
+    if (e.key === 'Escape' || e.code === 'Escape') { 
         if(confirm('مسح السلة؟')){ cart = []; if(typeof renderCart === "function") renderCart(); } 
     }
 });

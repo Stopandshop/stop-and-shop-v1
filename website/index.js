@@ -1225,7 +1225,13 @@ async function saveProduct() {
     const name = document.getElementById('new-name').value;
     const price = parseFloat(document.getElementById('new-price').value);
     const category = document.getElementById('new-category').value;
-    const image = document.getElementById('new-image').value;
+    
+    // 🛠️ تأمين قراءة الصورة وتوليد صورة افتراضية عند ترك الخانة فارغة
+    let imageInput = document.getElementById('new-image');
+    let image = imageInput ? imageInput.value.trim() : "";
+    if (!image && name) {
+        image = `https://via.placeholder.com/150?text=${encodeURIComponent(name)}`;
+    }
     
     const isOutOfStockCheck = document.getElementById('out-of-stock-check');
     const isOutOfStock = isOutOfStockCheck ? isOutOfStockCheck.checked : false;
@@ -1245,7 +1251,7 @@ async function saveProduct() {
     const priceLBPInput = document.getElementById('new-price-lbp');
     const priceLBP = priceLBPInput && priceLBPInput.value ? parseFloat(priceLBPInput.value.replace(/,/g, '')) : Math.round((price * exchangeRate) / 500) * 500;
 
-    if (!name || isNaN(price) || !image) return alert("أكمل البيانات!");
+    if (!name || isNaN(price)) return alert("أكمل البيانات (الاسم والسعر)! ");
 
     if (typeof calculateProfit === "function") calculateProfit();
 
@@ -3497,15 +3503,34 @@ window.processAndUploadCSV = function() {
 
             // تحليل وقراءة السطر الأول (العناوين) بدقة
             const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-            const idIndex = headers.indexOf('id');
             
+            // 🛠️ التحديث: دعم قراءة id بأكثر من اسم (id / العدد)
+            let idIndex = headers.indexOf('id');
+            if (idIndex === -1) idIndex = headers.findIndex(h => h.includes('id') || h.includes('العدد'));
+
+            // 🛠️ التحديث: دعم قراءة اسم المنتج (name / اسم المنتج)
             let nameIndex = headers.indexOf('name');
-            if (nameIndex === -1) nameIndex = headers.findIndex(h => h.includes('name'));
+            if (nameIndex === -1) nameIndex = headers.findIndex(h => h.includes('name') || h.includes('اسم') || h.includes('المنتج'));
             
+            // 🛠️ التحديث: دعم قراءة سعر البيع (price / بيع / sell)
             let priceIndex = headers.indexOf('price');
-            if (priceIndex === -1) priceIndex = headers.findIndex(h => h.includes('price'));
+            if (priceIndex === -1) priceIndex = headers.findIndex(h => h.includes('price') || h.includes('بيع') || h.includes('sell'));
             
-            const barcodeIndex = headers.indexOf('barcode');
+            // 🛠️ التحديث: قراءة سعر الشراء (cost / شراء / buy)
+            let costIndex = headers.indexOf('cost');
+            if (costIndex === -1) costIndex = headers.findIndex(h => h.includes('cost') || h.includes('شراء') || h.includes('buy'));
+
+            // 🛠️ التحديث: قراءة الكمية (stock / الكمية / quantity / qty)
+            let stockIndex = headers.indexOf('stock');
+            if (stockIndex === -1) stockIndex = headers.findIndex(h => h.includes('stock') || h.includes('الكمية') || h.includes('كمية') || h.includes('qty'));
+
+            // 🛠️ التحديث: دعم قراءة الباركود (barcode / الباركود)
+            let barcodeIndex = headers.indexOf('barcode');
+            if (barcodeIndex === -1) barcodeIndex = headers.findIndex(h => h.includes('barcode') || h.includes('باركود'));
+
+            // 🛠️ إضافة البحث عن عمود الصورة بداخل الملف (image/img/photo)
+            let imageIndex = headers.indexOf('image');
+            if (imageIndex === -1) imageIndex = headers.findIndex(h => h.includes('img') || h.includes('photo') || h.includes('picture'));
 
             // جلب خيار الفلترة والتحديد الحالي
             const modeInput = document.querySelector('input[name="upload-mode"]:checked');
@@ -3530,10 +3555,20 @@ window.processAndUploadCSV = function() {
                 const columns = lines[i].split(',');
                 if (columns.length < 2) continue;
 
-                const id = columns[idIndex]?.trim();
+                const id = columns[idIndex]?.trim() || `${i}`;
                 const name = columns[nameIndex]?.trim();
                 const price = parseFloat(columns[priceIndex]?.trim()) || 0;
                 const barcode = columns[barcodeIndex]?.trim() || "";
+
+                // 🛠️ استخراج سعر الشراء والكمية من الملف
+                const cost = costIndex !== -1 ? (parseFloat(columns[costIndex]?.trim()) || 0) : 0;
+                const stock = stockIndex !== -1 ? (parseInt(columns[stockIndex]?.trim()) || 0) : 0;
+
+                // 🛠️ استخراج رابط الصورة من الملف، وإن لم يوجد، إنشاء رابط صورة ديناميكي سريع حسب اسم المنتج
+                let image = (imageIndex !== -1 && columns[imageIndex]) ? columns[imageIndex].trim() : "";
+                if (!image || image === "") {
+                    image = `https://via.placeholder.com/150?text=${encodeURIComponent(name || 'Product')}`;
+                }
 
                 if (!name || !id) continue;
 
@@ -3557,7 +3592,11 @@ window.processAndUploadCSV = function() {
                     id: id,
                     name: name,
                     price: price,
+                    cost: cost,       // 🛠️ إضافة سعر الشراء
+                    stock: stock,     // 🛠️ إضافة الكمية في المخزن
+                    isOutOfStock: stock <= 0, // 🛠️ تحديث حالة التوفر تلقائياً
                     barcode: barcode,
+                    image: image,     // 🛠️ حفظ الصورة في المستند بـ Firebase
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
@@ -3916,6 +3955,19 @@ async function addStockQuantity(productId, productName) {
         console.error("خطأ أثناء زيادة المخزون:", error);
         alert("فشل تحديث المخزون في السيرفر: " + error.message);
     }
+}
+// 🔍 دالة البحث عن صورة المنتج في غوغل تلقائياً
+// 🔍 دالة جلب صورة مناسبة للمنتج تلقائياً بناءً على اسمه
+function fetchGoogleProductImage(productName) {
+    if (!productName || productName.trim() === "") {
+        return "https://via.placeholder.com/150?text=No+Image";
+    }
+    
+    // تنظيف اسم المنتج لاستخدامه في جلب صورة مطابقة
+    const cleanName = encodeURIComponent(productName.trim());
+    
+    // استخدام محرك مجاني يولد صورة منتج واضحة فوراً بناءً على الكلمات المفتاحية
+    return `https://source.unsplash.com/featured/?${cleanName},grocery,product`;
 }
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -532,13 +532,13 @@
         <i class="fas fa-desktop" style="font-size: 2.2rem; color: #cbd5e1;"></i>
     </div>
     
-    <button class="btn-action btn-save" onclick="saveInvoice()">
-        <i class="fas fa-check-circle fa-lg"></i> حفظ الفاتورة (F9)
-    </button>
-    
-    <button class="btn-action btn-secondary" style="background: #2c3e50; color: white;" onclick="printInvoice()">
-        <i class="fas fa-print"></i> طباعة إيصال (F10)
-    </button>
+    <button class="btn-action btn-save" onclick="saveInvoiceOnly()">
+    <i class="fas fa-check-circle fa-lg"></i> حفظ الفاتورة (F9)
+</button>
+
+<button class="btn-action btn-secondary" style="background: #2c3e50; color: white;" onclick="saveInvoice(true)">
+    <i class="fas fa-print"></i> طباعة إيصال (F10)
+</button>
     
     <button class="btn-action btn-secondary" onclick="holdInvoice()">
         <i class="fas fa-pause-circle"></i> تعليق الفاتورة (F4)
@@ -915,7 +915,7 @@ function renderCart() {
         const discountedItemTotal = itemTotal * (1 - (discountPercent / 100));
         const discountedItemTotalLBP = Math.round((discountedItemTotal * currentExchangeRate) / 500) * 500;
 
-        // التعديل هنا: تم إضافة onkeydown="handleQtyShortcuts(event, ${index})" لحقل الكمية الذكي
+        // التعديل هنا: تم إضافة on="handleQtyShortcuts(event, ${index})" لحقل الكمية الذكي
         container.innerHTML += `
             <div class="product-row" style="display: flex; align-items: center; justify-content: space-between;">
                 <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
@@ -1030,17 +1030,26 @@ function handleQtyShortcuts(event, index) {
     }
 
     // --- 4. الحفظ والأرشفة ---
- async function saveInvoice() {
+ // 🟢 1. دالة جديدة لحفظ الفاتورة فقط (بدون طباعة)
+async function saveInvoiceOnly() {
+    return await saveInvoice(false); // نمرر false لعدم فتح نافذة الطباعة
+}
+
+// 🖨️ 2. الدالة الرئيسية لحفظ الفاتورة (محدثة لدعم الخيارين بدون حذف أي سطر)
+async function saveInvoice(shouldPrint = true) {
     if (cart.length === 0) return alert("السلة فارغة!");
     
     // إذا ضغط الكاشير على Cancel (إلغاء) في نافذة التأكيد، ستتوقف الدالة فوراً وبمنتهى الهدوء دون أي مشاكل
     if (!confirm("تأكيد حفظ الفاتورة؟")) return;
 
-    // --- تعديل لضمان الطباعة: فتح النافذة قبل العمليات غير المتزامنة لمنع حظرها ---
-    const printWindow = window.open('', '_blank', 'width=800,height=900');
-    if (!printWindow) {
-        alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة");
-        return;
+    // --- تعديل لضمان الطباعة: فتح النافذة قبل العمليات غير المتزامنة لمنع حظرها (فقط إذا كان الخيار مع طباعة) ---
+    let printWindow = null;
+    if (shouldPrint) {
+        printWindow = window.open('', '_blank', 'width=800,height=900');
+        if (!printWindow) {
+            alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة");
+            return;
+        }
     }
 
     const usd = parseFloat(document.getElementById('subtotal-usd').innerText);
@@ -1129,9 +1138,10 @@ function handleQtyShortcuts(event, index) {
         // استدعاء دالة الأرشيف الخاصة بك
         saveToInvoices(usd, lbp);
 
-        // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة ---
-        // نمرر printWindow لضمان أن دالة الطباعة تستخدم نفس النافذة المسموح بها وتفتح صفحة واحدة فقط
-        printInvoice(printWindow); 
+        // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة إذا طُلب ذلك ---
+        if (shouldPrint && printWindow) {
+            printInvoice(printWindow); 
+        }
 
         // 🌟 عرض الـ alert المطلوب والمحدث بالكامل 🌟
         alert(`تم حفظ العملية بنجاح بواسطة: ${currentEmployee}${customerMessage}`);
@@ -1146,6 +1156,7 @@ function handleQtyShortcuts(event, index) {
         alert("خطأ في الحفظ: " + e.message); 
     }
 }
+
 function saveToInvoices(u, l) {
     const mid = new Date().toISOString().slice(0, 7);
     db.collection("invoices").add({
@@ -1157,8 +1168,8 @@ function saveToInvoices(u, l) {
     });
 }
 
-    // --- 5. التشغيل والتحكم ---
-    window.onload = () => { 
+// --- 5. التشغيل والتحكم ---
+window.onload = () => { 
     startRateListener(); // تأكد أن هذا السطر موجود في البداية
     fetchProducts(); 
     updateUI(); 
@@ -1228,10 +1239,11 @@ document.getElementById('barcode-input').addEventListener('keypress', (e) => {
         }
     }
 });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'F9') { e.preventDefault(); saveInvoice(); }
-        if (e.key === 'Escape') { if(confirm('مسح السلة؟')){cart = []; renderCart();} }
-    });
+   document.addEventListener('keydown', (e) => {
+    if (e.key === 'F9') { e.preventDefault(); saveInvoiceOnly(); }
+    if (e.key === 'F10') { e.preventDefault(); if (typeof saveAndPrintInvoice === "function") { saveAndPrintInvoice(); } else if (typeof printInvoice === "function") { saveInvoice(); printInvoice(); } }
+    if (e.key === 'Escape') { if(confirm('مسح السلة؟')){cart = []; renderCart();} }
+});
 /* ================================================================= */
 /* 🔥 كود حماية مكمّل: تأمين عمليات الـ Batch والمخزون لمنع خطأ No document to update 🔥 */
 /* ================================================================= */
@@ -1377,13 +1389,17 @@ if (typeof db !== "undefined") {
         alert("فشل في تحميل الأرشيف.");
     }
 }
-function printInvoice() {
-    // 1. فتح النافذة أولاً (كأمر مباشر) لتجنب حظر المتصفح
-    const printWindow = window.open('', '_blank', 'width=800,height=900');
-    
+// 🖨️ تعديل دالة الطباعة لاستقبال النافذة المُجهزة أو فتح نافذة جديدة
+function printInvoice(existingWindow = null) {
+    let printWindow = existingWindow;
+
+    // إذا لم تُمرر نافذة مفتوحة مسبقاً، نفتح نافذة جديدة
     if (!printWindow) {
-        alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) من إعدادات المتصفح للتمكن من الطباعة");
-        return;
+        printWindow = window.open('', '_blank', 'width=800,height=900');
+        if (!printWindow) {
+            alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) من إعدادات المتصفح للتمكن من الطباعة");
+            return;
+        }
     }
 
     const employee = document.getElementById('employee-display').innerText;
@@ -1414,18 +1430,19 @@ function printInvoice() {
         // 🛠️ حساب السعر بالليرة اللبنانية للصنف الحالي وتدويره لأقرب 500 ليرة لتسهيل الحساب
         const itemTotalLBP = Math.round((itemTotalUSD * currentRate) / 500) * 500;
 
+        // 🛠️ تعديل الألوان والأحجام هنا لتصبح باللون الأسود الداكن العريض من أجل الطابعة الحرارية
         itemsHtml += `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: flex-start; border-bottom: 1px dotted #eee; padding-bottom: 5px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: flex-start; border-bottom: 1px dotted #000; padding-bottom: 5px; font-size: 14px; color: #000;">
                 <span style="flex: 2; text-align: right; font-weight: bold;">${item.name}</span>
-                <span style="flex: 1; text-align: center; color: #555;">${item.qty} x</span>
-                <span style="flex: 1.5; text-align: left; line-height: 1.3;">
-                    <b style="color: #c0392b; display: block;">$${itemTotalUSD.toFixed(2)}</b>
-                    <small style="color: #666; font-size: 11px; font-weight: normal; display: block;">(${itemTotalLBP.toLocaleString()} ل.ل)</small>
+                <span style="flex: 1; text-align: center; font-weight: bold; color: #000;">x ${item.qty}</span>
+                <span style="flex: 1.5; text-align: left; line-height: 1.4; color: #000;">
+                    <b style="color: #000; display: block; font-size: 14px; font-weight: bold;">$${itemTotalUSD.toFixed(2)}</b>
+                    <span style="color: #000; font-size: 12px; font-weight: bold; display: block;">(${itemTotalLBP.toLocaleString()} ل.ل)</span>
                 </span>
             </div>`;
     });
 
-    // 2. كتابة المحتوى في النافذة المفتوحة مسبقاً
+    // 2. كتابة المحتوى في النافذة المفتوحة
     printWindow.document.write(`
         <html>
         <head>
@@ -1433,7 +1450,6 @@ function printInvoice() {
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
                 
-                /* جعل الجسم يمتد بالكامل ليسمح بالتوسيط الحر */
                 body { 
                     margin: 0; padding: 0; direction: rtl; 
                     font-family: 'Cairo', sans-serif; font-size: 13px; color: #000;
@@ -1441,11 +1457,10 @@ function printInvoice() {
                     width: 100% !important;
                 }
                 
-                /* حاوية الفاتورة الأساسية المحسنة لتتوسط عرض الورقة بنسبة 75% */
                 .receipt-wrapper {
                     width: 75% !important;
                     max-width: 75% !important;
-                    margin: 0 auto !important; /* التوسيط التلقائي المباشر */
+                    margin: 0 auto !important;
                     padding: 10px;
                     box-sizing: border-box;
                 }
@@ -1453,14 +1468,13 @@ function printInvoice() {
                 .logo-area { text-align: center; margin-bottom: 10px; }
                 .logo-area h1 { margin: 0; font-size: 24px; font-weight: 900; }
                 .line { border-top: 1px dashed #000; margin: 10px 0; }
-                .info-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
-                .total-section { margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 5px; border: 1px solid #eee; }
-                .big-price { font-size: 20px; font-weight: bold; text-align: center; margin: 5px 0; }
-                .footer { text-align: center; margin-top: 15px; }
+                .info-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: #000; }
+                .total-section { margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 5px; border: 1px solid #000; color: #000; }
+                .big-price { font-size: 20px; font-weight: bold; text-align: center; margin: 5px 0; color: #000; }
+                .footer { text-align: center; margin-top: 15px; color: #000; }
                 .qr-code { margin: 10px auto; width: 100px; height: 100px; display: flex; justify-content: center; }
-                .phone-box { font-weight: bold; font-size: 14px; margin: 5px 0; direction: ltr; }
+                .phone-box { font-weight: bold; font-size: 14px; margin: 5px 0; direction: ltr; color: #000; }
 
-                /* إعدادات الطباعة لضمان بقائها موسطة في الطابعة الحرارية */
                 @media print {
                     @page {
                         margin: 0 !important;
@@ -1472,14 +1486,13 @@ function printInvoice() {
                     .receipt-wrapper {
                         width: 75% !important;
                         max-width: 75% !important;
-                        margin: 0 auto !important; /* إجبار التوسيط داخل الطابعة */
+                        margin: 0 auto !important;
                     }
                 }
             </style>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
         </head>
         <body>
-            <!-- تم لف محتوى الفاتورة بالكامل داخل هذه الحاوية لضمان التوسيط الدقيق -->
             <div class="receipt-wrapper">
                 <div class="logo-area">
                     <h1>🛒 STOP & SHOP</h1>
@@ -1492,7 +1505,7 @@ function printInvoice() {
 
                 <div class="line"></div>
 
-                <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; font-size: 14px; color: #000;">
                     <span style="flex: 2; text-align: right;">الصنف</span>
                     <span style="flex: 1; text-align: center;">الكمية</span>
                     <span style="flex: 1.5; text-align: left;">السعر</span>
@@ -1503,29 +1516,27 @@ function printInvoice() {
                 <div class="line"></div>
 
                 <div class="total-section">
-                    <div style="text-align: center; font-size: 11px;">المبلغ المطلوب بالليرة اللبنانية</div>
+                    <div style="text-align: center; font-size: 12px; font-weight: bold;">المبلغ المطلوب بالليرة اللبنانية</div>
                     <div class="big-price">${totalLBP}</div>
-                    <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 5px;">
+                    <div style="text-align: center; border-top: 1px solid #000; padding-top: 5px; font-size: 13px;">
                         صافي بالدولار: <b>${finalUSD}</b>
                     </div>
                 </div>
 
                 <div class="footer">
                     <div id="qrcode" class="qr-code"></div>
-                    <p style="margin: 5px 0;">شكراً لزيارتكم ❤️</p>
-                    <div style="font-size: 9px; opacity: 0.5;">يرجى الاحتفاظ بالإيصال للمراجعة</div>
+                    <p style="margin: 5px 0; font-weight: bold;">شكراً لزيارتكم ❤️</p>
+                    <div style="font-size: 10px; font-weight: bold;">يرجى الاحتفاظ بالإيصال للمراجعة</div>
                 </div>
             </div>
 
             <script>
-                // توليد رمز الـ QR
                 new QRCode(document.getElementById("qrcode"), {
                     text: "${qrValue}",
                     width: 100,
                     height: 100
                 });
 
-                // 🛠️ التحديث المستقر لتفادي تعليق مستند الـ document.write في المتصفحات الحديثة
                 function startPrint() {
                     setTimeout(() => { 
                         window.print(); 
@@ -2312,7 +2323,24 @@ document.addEventListener('keydown', function(event) {
         }
     }
 });
-
+document.getElementById('barcode-input').addEventListener('keydown', function(event) {
+    // التحقق من الضغط على زر Enter (وهو ما يرسله السكنر أو المستخدم عند إتمام البحث)
+    if (event.key === 'Enter') {
+        const inputVal = this.value.trim();
+        const dataList = document.getElementById('products-list');
+        
+        // التحقق مما إذا كانت القائمة موجودة وتحتوي على عناصر
+        if (dataList) {
+            const options = Array.from(dataList.options).map(option => option.value);
+            
+            // إذا كانت القيمة المدخلة غير موجودة في قائمة المنتجات
+            if (!options.includes(inputVal)) {
+                // إفراغ حقل البحث فوراً دون التأثير على بقية الأكواد
+                this.value = ''; 
+            }
+        }
+    }
+});
 </script>
 
 </body>

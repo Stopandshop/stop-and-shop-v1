@@ -1239,10 +1239,28 @@ document.getElementById('barcode-input').addEventListener('keypress', (e) => {
         }
     }
 });
-   document.addEventListener('keydown', (e) => {
-    if (e.key === 'F9') { e.preventDefault(); saveInvoiceOnly(); }
-    if (e.key === 'F10') { e.preventDefault(); if (typeof saveAndPrintInvoice === "function") { saveAndPrintInvoice(); } else if (typeof printInvoice === "function") { saveInvoice(); printInvoice(); } }
-    if (e.key === 'Escape') { if(confirm('مسح السلة؟')){cart = []; renderCart();} }
+  // 🛠️ متغير للتحكم بوضع الطباعة
+window.isPrintDisabled = false;
+
+document.addEventListener('keydown', async (e) => {
+    // 1. F9: حفظ الفاتورة فقط (بدون طباعة)
+    if (e.key === 'F9') { 
+        e.preventDefault(); 
+        window.isPrintDisabled = true; 
+        await handleInvoiceCheckout(); 
+    }
+
+    // 2. F10: حفظ الفاتورة وطباعتها
+    if (e.key === 'F10') { 
+        e.preventDefault(); 
+        window.isPrintDisabled = false; 
+        await handleInvoiceCheckout(); 
+    }
+
+    // 3. Escape: مسح السلة
+    if (e.key === 'Escape') { 
+        if(confirm('مسح السلة؟')){ cart = []; if(typeof renderCart === "function") renderCart(); } 
+    }
 });
 /* ================================================================= */
 /* 🔥 كود حماية مكمّل: تأمين عمليات الـ Batch والمخزون لمنع خطأ No document to update 🔥 */
@@ -2339,6 +2357,96 @@ document.getElementById('barcode-input').addEventListener('keydown', function(ev
                 this.value = ''; 
             }
         }
+    }
+});
+// 🚀 دالة حفظ الفواتير وحساب الزبائن (تستجيب للإنترنت ولأوفلاين)
+async function handleInvoiceCheckout() {
+    if (!cart || cart.length === 0) {
+        alert("السلة فارغة!");
+        return;
+    }
+
+    const orderId = "SS" + Date.now().toString().slice(-6);
+    const totalUsdVal = cart.reduce((sum, item) => sum + (parseFloat(item.price) * parseInt(item.quantity || item.qty || 1)), 0);
+    const customerPhoneInput = document.getElementById('phone-input') || document.getElementById('customer-phone');
+    const customerPhone = customerPhoneInput ? customerPhoneInput.value : "زائر";
+
+    const invoiceData = {
+        orderId: orderId,
+        customerPhone: customerPhone,
+        items: [...cart],
+        total: totalUsdVal,
+        totalPrice: totalUsdVal,
+        date: new Date().toISOString(),
+        timestamp: Date.now(),
+        isOffline: !navigator.onLine
+    };
+
+    // 🌐 إذا كان الجهاز متصلاً بالإنترنت
+    if (navigator.onLine) {
+        try {
+            await db.collection("orders").add(invoiceData);
+            console.log("تم حفظ الفاتورة أونلاين بنجاح ✅");
+        } catch (error) {
+            console.error("فشل الحفظ أونلاين، سيتم الحفظ أوفلاين:", error);
+            saveInvoiceOffline(invoiceData);
+        }
+    } else {
+        // 📴 إذا كان الجهاز بدون إنترنت
+        saveInvoiceOffline(invoiceData);
+    }
+
+    // 🖨️ تنفيذ الطباعة إذا كان المفتاح F10
+    if (!window.isPrintDisabled) {
+        if (typeof printInvoice === "function") {
+            printInvoice();
+        } else if (typeof printArchiveOrder === "function") {
+            printArchiveOrder(orderId);
+        }
+    }
+
+    // 🧹 تفريغ السلة وتجهيز الشاشة للزبون التالي
+    cart = [];
+    if (typeof updateCartCount === "function") updateCartCount();
+    if (typeof renderCartItems === "function") renderCartItems();
+    if (typeof renderCart === "function") renderCart();
+    if (typeof saveCartToStorage === "function") saveCartToStorage();
+
+    // إعادة تصفير متغير الطباعة
+    window.isPrintDisabled = false;
+}
+
+// 💾 دالة الحفظ المحلي (Offline Storage)
+function saveInvoiceOffline(invoice) {
+    let offlineOrders = JSON.parse(localStorage.getItem('offline_orders') || '[]');
+    offlineOrders.push(invoice);
+    localStorage.setItem('offline_orders', JSON.stringify(offlineOrders));
+    alert("⚠️ لا يوجد إنترنت! تم حفظ الفاتورة محلياً وسيتم رفعها تلقائياً عند عودة الاتصال. 💾");
+}
+// 🔄 مزامنة فواتير الأوفلاين فور توفر شبكة الإنترنت
+window.addEventListener('online', async () => {
+    let offlineOrders = JSON.parse(localStorage.getItem('offline_orders') || '[]');
+    if (offlineOrders.length > 0) {
+        console.log("جاري مزامنة فواتير الأوفلاين مع السيرفر...");
+        
+        for (let order of offlineOrders) {
+            try {
+                // ضبط التاريخ كـ Timestamp لـ Firebase
+                order.date = firebase.firestore.FieldValue.serverTimestamp();
+                order.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+                delete order.isOffline;
+
+                await db.collection("orders").add(order);
+            } catch (err) {
+                console.error("خطأ أثناء مزامنة الفاتورة:", err);
+            }
+        }
+
+        // مسح الذاكرة المؤقتة بعد رفع جميع الفواتير بنجاح
+        localStorage.removeItem('offline_orders');
+        alert("✅ تم رفع جميع الفواتير المحفوظة أوفلاين إلى قاعدة البيانات بنجاح!");
+        
+        if (typeof loadSalesHistory === "function") loadSalesHistory();
     }
 });
 </script>

@@ -1139,10 +1139,11 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
 
     let printWindow = null;
     if (shouldPrint) {
-        printWindow = window.open('', '_blank', 'width=800,height=900');
-        if (!printWindow) {
-            alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة");
-            return;
+        // 🛠️ فتح النافذة فوراً قبل انتظار عمليات Firestore لمنع حظر Pop-up على الأجهزة الأخرى
+        try {
+            printWindow = window.open('about:blank', '_blank', 'width=800,height=900');
+        } catch (e) {
+            console.warn("تعذر فتح النافذة المنبثقة للطباعة:", e);
         }
     }
 
@@ -1191,7 +1192,7 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
                     }, { merge: true });
                 }
 
-                // --- تحديث المصفوفة المحلية المحلية فورياً كي يظهر الحساب مباشرة في واجهة المستخدم ---
+                // --- تحديث المصفوفة المحلية فورياً كي يظهر الحساب مباشرة في واجهة المستخدم ---
                 if (typeof products !== 'undefined' && Array.isArray(products)) {
                     let localProd = products.find(p => p.id === targetDocId || p.barcode === targetDocId);
                     if (localProd) {
@@ -1242,7 +1243,7 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
         await Promise.all(stockUpdates);
         saveToInvoices(usd, lbp);
 
-        if (shouldPrint && printWindow) {
+        if (shouldPrint) {
             if (typeof printInvoice === "function") {
                 printInvoice(printWindow);
             }
@@ -1255,7 +1256,7 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
         cart = []; 
         if (typeof renderCart === "function") renderCart();
     } catch (e) { 
-        if (printWindow) printWindow.close();
+        if (printWindow && !printWindow.closed) printWindow.close();
         alert("خطأ في الحفظ: " + e.message); 
     }
 }
@@ -1843,33 +1844,45 @@ if (typeof db !== "undefined") {
 function printInvoice(existingWindow = null) {
     let printWindow = existingWindow;
 
-    // إذا لم تُمرر نافذة مفتوحة مسبقاً، نفتح نافذة جديدة
-    if (!printWindow) {
-        printWindow = window.open('', '_blank', 'width=800,height=900');
-        if (!printWindow) {
-            alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) من إعدادات المتصفح للتمكن من الطباعة");
-            return;
+    // إذا لم تُمرر نافذة مفتوحة مسبقاً، أو كان الجهاز يمنع window.open، نحاول الفتح بحذر
+    if (!printWindow || printWindow.closed) {
+        try {
+            printWindow = window.open('', '_blank', 'width=800,height=900');
+        } catch (e) {
+            console.warn("فشل فتح نافذة جديدة للطباعة:", e);
         }
     }
 
-    const employee = document.getElementById('employee-display').innerText;
-    const subtotal = document.getElementById('subtotal-usd').innerText;
-    const totalLBP = document.getElementById('total-lbp').innerText;
-    const finalUSD = document.getElementById('final-usd-text').innerText;
-    const discount = document.getElementById('discount-val').value || 0;
-    const points = document.getElementById('points-earned').innerText;
+    const empElem = document.getElementById('employee-display');
+    const employee = empElem ? empElem.innerText : (typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير');
+    
+    const subtotalElem = document.getElementById('subtotal-usd');
+    const subtotal = subtotalElem ? subtotalElem.innerText : '0.00';
+    
+    const totalLBPElem = document.getElementById('total-lbp');
+    const totalLBP = totalLBPElem ? totalLBPElem.innerText : '0';
+    
+    const finalUSDElem = document.getElementById('final-usd-text');
+    const finalUSD = finalUSDElem ? finalUSDElem.innerText : '$0.00';
+    
+    const discountInput = document.getElementById('discount-val');
+    const discount = discountInput ? (discountInput.value || 0) : 0;
+    
+    const pointsElem = document.getElementById('points-earned');
+    const points = pointsElem ? pointsElem.innerText : '0';
+    
     const date = new Date().toLocaleString('ar-LB', { hour12: true });
     
-    // رقم الهاتف الخاص بالمحل (قم بتغييره هنا)
+    // رقم الهاتف الخاص بالمحل
     const phoneNumber = "78954599"; 
-    // رابط الـ QR (يمكنك وضع رابط الواتساب أو صفحة الفيس بوك)
+    // رابط الـ QR 
     const qrValue = `https://wa.me/961${phoneNumber}`;
 
     // 🛠️ تأمين سعر الصرف لحساب أسعار الأصناف بالليرة اللبنانية بشكل حي ودقيق
     let currentRate = typeof exchangeRate !== 'undefined' ? exchangeRate : 0;
     if (currentRate === 0) {
-        const numLBP = parseFloat(totalLBP.replace(/[^0-9.-]+/g, ""));
-        const numUSD = parseFloat(finalUSD.replace(/[^0-9.-]+/g, ""));
+        const numLBP = parseFloat(totalLBP.replace(/[^0-9.-]+/g, "")) || 0;
+        const numUSD = parseFloat(finalUSD.replace(/[^0-9.-]+/g, "")) || 0;
         if (numUSD > 0) currentRate = numLBP / numUSD;
     }
 
@@ -1877,7 +1890,7 @@ function printInvoice(existingWindow = null) {
     cart.forEach(item => {
         // حساب المجموع بالدولار للصنف الحالي
         const itemTotalUSD = item.price * item.qty;
-        // 🛠️ حساب السعر بالليرة اللبنانية للصنف الحالي وتدويره لأقرب 500 ليرة لتسهيل الحساب
+        // 🛠️️ حساب السعر بالليرة اللبنانية للصنف الحالي وتدويره لأقرب 500 ليرة لتسهيل الحساب
         const itemTotalLBP = Math.round((itemTotalUSD * currentRate) / 500) * 500;
 
         // 🛠️ تعديل الألوان والأحجام هنا لتصبح باللون الأسود الداكن العريض من أجل الطابعة الحرارية
@@ -1892,8 +1905,7 @@ function printInvoice(existingWindow = null) {
             </div>`;
     });
 
-    // 2. كتابة المحتوى في النافذة المفتوحة
-    printWindow.document.write(`
+    const receiptHtmlContent = `
         <html>
         <head>
             <title>Stop & Shop Receipt</title>
@@ -1990,7 +2002,7 @@ function printInvoice(existingWindow = null) {
                 function startPrint() {
                     setTimeout(() => { 
                         window.print(); 
-                        window.close(); 
+                        if (window.opener) { window.close(); }
                     }, 800);
                 }
                 
@@ -2002,8 +2014,26 @@ function printInvoice(existingWindow = null) {
             <\/script>
         </body>
         </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    // 🛠️ إن كانت النافذة المنبثقة متاحة نكتب بها، وإن عُطلت بالنوافذ المنبثقة على الجهاز الآخر نطبق آلية الطباعة عبر iframe مخفي بديل
+    if (printWindow && !printWindow.closed) {
+        printWindow.document.open();
+        printWindow.document.write(receiptHtmlContent);
+        printWindow.document.close();
+    } else {
+        let printIframe = document.getElementById('print-iframe-fallback');
+        if (!printIframe) {
+            printIframe = document.createElement('iframe');
+            printIframe.id = 'print-iframe-fallback';
+            printIframe.style.display = 'none';
+            document.body.appendChild(printIframe);
+        }
+        const iframeDoc = printIframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(receiptHtmlContent);
+        iframeDoc.close();
+    }
 }
 // --- 6. نظام تعليق واستعادة الفواتير ---
 function holdInvoice() { 

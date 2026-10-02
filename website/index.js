@@ -1190,6 +1190,23 @@ function editProduct(id) {
     if (document.getElementById('product-old-price')) {
         document.getElementById('product-old-price').value = product.oldPrice || '';
     }
+
+    // --- الإضافة الجديدة: تعبئة حركة المخزون التلقائية للمباع والتالف وحساب الأرباح ---
+    if (document.getElementById('sold-stock')) {
+        // يجلب إجمالي المباع المأخوذ من مسح الباركود بالكاشير ومبيعات الويب المسجلة للمنتج
+        document.getElementById('sold-stock').value = product.soldCount || 0;
+    }
+    if (document.getElementById('damaged-stock')) {
+        document.getElementById('damaged-stock').value = product.damagedCount || 0;
+    }
+    if (document.getElementById('incoming-stock')) {
+        document.getElementById('incoming-stock').value = '';
+    }
+
+    // إعادة حساب جميع القيم المتبقية والنسب الأرباح فور تشغيل التعديل
+    if (typeof calculateInventoryDetails === "function") {
+        calculateInventoryDetails();
+    }
     
     document.getElementById('form-title').innerText = "تعديل: " + product.name;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1216,9 +1233,22 @@ function resetForm() {
         document.getElementById('profit-margin').style.color = "#2e7d32";
     }
 
+    // --- الإضافة الجديدة: تصفير خانات الشحنة والبطاقات المالية ---
+    if(document.getElementById('incoming-stock')) document.getElementById('incoming-stock').value = "";
+    if(document.getElementById('sold-stock')) document.getElementById('sold-stock').value = "0";
+    if(document.getElementById('new-category')) document.getElementById('new-category').value = "";
+
+    if(document.getElementById('profit-per-item')) document.getElementById('profit-per-item').innerText = "$0.00";
+    if(document.getElementById('total-cost-val')) document.getElementById('total-cost-val').innerText = "$0.00";
+    if(document.getElementById('realized-profit-val')) document.getElementById('realized-profit-val').innerText = "$0.00";
+    if(document.getElementById('expected-profit-val')) document.getElementById('expected-profit-val').innerText = "$0.00";
+    // أضف هذه السطور في دالة resetForm() لديك لتصفير الخانات الجديدة أيضاً عند الحفظ:
+if(document.getElementById('damaged-stock')) document.getElementById('damaged-stock').value = "";
+if(document.getElementById('remaining-stock-val')) document.getElementById('remaining-stock-val').innerText = "0";
+if(document.getElementById('profit-percentage-val')) document.getElementById('profit-percentage-val').innerText = "0%";
+
     document.getElementById('new-name').focus();
 }
-
 async function saveProduct() {
     // 1. جلب القيم من الـ HTML الفعلي لديك بدقة
     const id = document.getElementById('edit-product-id').value;
@@ -3380,8 +3410,8 @@ async function updateGlobalExchangeRate(newRate) {
 // تشغيل المستمعات والتحميلات بأمان لجميع الصفحات
 // تشغيل المستمعات والتحميلات بأمان لجميع الصفحات
 document.addEventListener('DOMContentLoaded', () => {
-    loadInventory();
-    
+    if (typeof loadInventory === 'function') loadInventory();
+
     document.getElementById('new-price')?.addEventListener('input', convertToLBP);
     document.getElementById('new-price-lbp')?.addEventListener('input', convertToUSD);
     document.getElementById('purchase-price')?.addEventListener('input', calculateProfit);
@@ -3390,14 +3420,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const usdIn = document.getElementById('new-price');
     if (usdIn) {
         usdIn.addEventListener('input', () => {
-            // تصفير حقل نسبة العرض الخاص تلقائياً
             const specialOfferInput = document.getElementById('special-offer-percentage');
             if (specialOfferInput) specialOfferInput.value = "";
-
-            // تصفير حقل السعر قبل العرض (اختياري) تلقائياً
             const oldPriceInput = document.getElementById('product-old-price');
             if (oldPriceInput) oldPriceInput.value = "";
-
             convertToLBP();    
             calculateProfit(); 
         });
@@ -3406,19 +3432,102 @@ document.addEventListener('DOMContentLoaded', () => {
     const lbpIn = document.getElementById('new-price-lbp');
     if (lbpIn) {
         lbpIn.addEventListener('input', () => {
-            // تصفير حقل نسبة العرض الخاص تلقائياً
             const specialOfferInput = document.getElementById('special-offer-percentage');
             if (specialOfferInput) specialOfferInput.value = "";
-
-            // تصفير حقل السعر قبل العرض (اختياري) تلقائياً
             const oldPriceInput = document.getElementById('product-old-price');
             if (oldPriceInput) oldPriceInput.value = "";
-
             convertToUSD();    
             calculateProfit(); 
         });
     }
+
+    // ⚡ إلغاء تفاعل الخانة القديم بالكامل واستبداله لمنع السلوك السابق
+    const oldInput = document.getElementById('barcode-input');
+    if (oldInput) {
+        const newInput = oldInput.cloneNode(true);
+        oldInput.parentNode.replaceChild(newInput, oldInput);
+
+        // منع إرسال الـ Form إن وجد عند الضغط على Enter
+        if (newInput.form) {
+            newInput.form.addEventListener('submit', (e) => e.preventDefault());
+        }
+
+        newInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const val = newInput.value.trim();
+                if (val) {
+                    addProduct(val);
+                }
+            }
+        });
+    }
 });
+// 🛠️ 1. الدالة الشاملة للبحث والإضافة بالسلة مع دعم الكمية المباشرة (مثل 5*1)
+function handleBarcodeSearch(rawInput) {
+    if (!rawInput) return;
+
+    let addedQty = 1;
+    let searchQuery = String(rawInput).trim();
+
+    // تفكيك عملية الضرب (الكمية * الباركود)
+    if (searchQuery.includes('*')) {
+        const parts = searchQuery.split('*');
+        const parsedQty = parseFloat(parts[0]);
+        if (!isNaN(parsedQty) && parsedQty > 0) {
+            addedQty = parsedQty;
+            searchQuery = parts[1] ? parts[1].trim() : '';
+        }
+    }
+
+    if (!searchQuery) {
+        alert("⚠️ يرجى إدخال الباركود أو اسم المنتج بعد النجمة (*)");
+        return;
+    }
+
+    // البحث عن المنتج بالباركود أو الاسم
+    const p = products.find(i => String(i.barcode) === String(searchQuery) || i.name === searchQuery);
+
+    if (p) {
+        const exist = cart.find(c => c.id === p.id || (c.barcode && p.barcode && String(c.barcode) === String(searchQuery)));
+
+        if (exist) {
+            if (p.stock !== undefined && (exist.qty + addedQty) > p.stock) {
+                alert(`⚠️ خطأ: لا يمكن إضافة المزيد! المخزون المتاح من هذا المنتج هو ${p.stock} فقط.`);
+                const inputElem = document.getElementById('barcode-input');
+                if (inputElem) inputElem.value = '';
+                return;
+            }
+            if (p.stock === undefined || (exist.qty + addedQty) <= p.stock) {
+                exist.qty += addedQty;
+                if (typeof lastAddedIndex !== 'undefined') lastAddedIndex = cart.indexOf(exist);
+            } else {
+                alert("لا يوجد كمية كافية!");
+            }
+        } else {
+            if (p.stock === undefined || p.stock >= addedQty) {
+                cart.push({ ...p, qty: addedQty });
+                if (typeof lastAddedIndex !== 'undefined') lastAddedIndex = cart.length - 1;
+            } else {
+                alert("نفذ المخزون!");
+            }
+        }
+        if (typeof renderCart === 'function') renderCart();
+        const inputElem = document.getElementById('barcode-input');
+        if (inputElem) inputElem.value = '';
+    } else {
+        alert(`⚠️ لم يتم العثور على المنتج بالباركود: ${searchQuery}`);
+        const inputElem = document.getElementById('barcode-input');
+        if (inputElem) inputElem.value = '';
+    }
+}
+
+// دالة addProduct القديمة تحول تلقائياً للدالة الشاملة
+function addProduct(query) {
+    handleBarcodeSearch(query);
+}
 // 🔥 تحديث الدالة لفتح النافذة السرية بدلاً من الـ prompt دون حذف أكوادك الأصلية 🔥
 function openFinancePage() {
     document.getElementById('finance-password-modal').style.display = 'flex';
@@ -3564,10 +3673,12 @@ window.processAndUploadCSV = function() {
                 const cost = costIndex !== -1 ? (parseFloat(columns[costIndex]?.trim()) || 0) : 0;
                 const stock = stockIndex !== -1 ? (parseInt(columns[stockIndex]?.trim()) || 0) : 0;
 
-                // 🛠️ استخراج رابط الصورة من الملف، وإن لم يوجد، إنشاء رابط صورة ديناميكي سريع حسب اسم المنتج
+                // 🛠️ استخراج رابط الصورة من الملف، أو إنشاء رابط صورة منتج فريد ومباشر مضمون التحميل 100%
                 let image = (imageIndex !== -1 && columns[imageIndex]) ? columns[imageIndex].trim() : "";
-                if (!image || image === "") {
-                    image = `https://via.placeholder.com/150?text=${encodeURIComponent(name || 'Product')}`;
+                if (!image || image === "" || image.includes("unsplash.com") || image.includes("via.placeholder.com")) {
+                    // توزيع صور منتجات حقيقية ومتنوعة بناءً على ID المنتج لضمان السرعة وعدم الحظر
+                    const imgId = (parseInt(id) % 30) + 1;
+                    image = `https://cdn.dummyjson.com/product-images/${imgId}/thumbnail.jpg`;
                 }
 
                 if (!name || !id) continue;
@@ -3968,6 +4079,619 @@ function fetchGoogleProductImage(productName) {
     
     // استخدام محرك مجاني يولد صورة منتج واضحة فوراً بناءً على الكلمات المفتاحية
     return `https://source.unsplash.com/featured/?${cleanName},grocery,product`;
+}
+// 1. إضافة الشحنة الواردة إلى المخزن الحالي
+function addStockToTotal() {
+    let currentStock = parseFloat(document.getElementById('new-stock').value) || 0;
+    let incoming = parseFloat(document.getElementById('incoming-stock').value) || 0;
+    
+    // عند كتابة كمية جديدة تضاف للرصيد الحالي تلقائياً
+    if (incoming > 0) {
+        document.getElementById('new-stock').value = currentStock + incoming;
+    }
+    recalculateStockMetrics();
+}
+
+// 2. حساب تفاصيل الأرباح والمتبقي والتكلفة تلقائياً
+function recalculateStockMetrics() {
+    let cost = parseFloat(document.getElementById('product-cost-input').value) || 0;
+    let price = parseFloat(document.getElementById('new-price').value) || 0;
+    
+    // الكمية الأصلية / الكلية للبضاعة المعبأة في الأعلى (مثلاً 297)
+    let initialStock = parseFloat(document.getElementById('new-stock').value) || 0; 
+    let incoming = parseFloat(document.getElementById('incoming-stock') ? document.getElementById('incoming-stock').value : 0) || 0;
+    let soldStock = parseFloat(document.getElementById('sold-stock').value) || 0;
+    let damagedStock = parseFloat(document.getElementById('damaged-stock') ? document.getElementById('damaged-stock').value : 0) || 0;
+
+    // 1. حساب المتبقي الفعلي في المخزن = (الكمية الأصلية + الشحنة الجديدة) - (المباع + التالف)
+    // 297 - 2 - 0 = 295
+    let remainingStock = (initialStock + incoming) - (soldStock + damagedStock);
+
+    // 2. حسابات الأرباح والتكلفة
+    let profitPerItem = price - cost;
+    
+    // نسبة الربح المحققة على القطعة
+    let profitPercentage = cost > 0 ? ((profitPerItem / cost) * 100).toFixed(1) : 0;
+
+    // إجمالي تكلفة البضاعة الكلية
+    let totalCost = cost * (initialStock + incoming);
+
+    // الربح المحقق فعلياً = (ربح القطع المباعة) - (تكلفة القطع التالفة)
+    let realizedProfit = (profitPerItem * soldStock) - (cost * damagedStock);
+
+    // الربح المتوقع عند نفاد الكمية الباقية حالياً (295 قطعة)
+    let expectedProfit = profitPerItem * Math.max(0, remainingStock);
+
+    // --- تحديث عناصر الواجهة بالأسفل ---
+    if (document.getElementById('remaining-stock-val')) {
+        document.getElementById('remaining-stock-val').innerText = `${remainingStock} قطعة`;
+    }
+    if (document.getElementById('profit-percentage-val')) {
+        document.getElementById('profit-percentage-val').innerText = `${profitPercentage}%`;
+    }
+
+    if (document.getElementById('profit-per-item')) {
+        document.getElementById('profit-per-item').innerText = `$${profitPerItem.toFixed(2)}`;
+    }
+    if (document.getElementById('total-cost-val')) {
+        document.getElementById('total-cost-val').innerText = `$${totalCost.toFixed(2)}`;
+    }
+    if (document.getElementById('realized-profit-val')) {
+        document.getElementById('realized-profit-val').innerText = `$${realizedProfit.toFixed(2)}`;
+    }
+    if (document.getElementById('expected-profit-val')) {
+        document.getElementById('expected-profit-val').innerText = `$${expectedProfit.toFixed(2)}`;
+    }
+}
+
+// 1. الدالة الأساسية لحساب حركة المخزون، التالف، والمتبقي (محدثة لمنع الخصم المزدوج)
+function calculateInventoryDetails() {
+    let cost = parseFloat(document.getElementById('product-cost-input').value) || 0;
+    let price = parseFloat(document.getElementById('new-price').value) || 0;
+    
+    // المخزون الحالي المقروء من الحقل العلوي (يكون منقوصاً أساساً عند البيع بالكاشير)
+    let currentStock = parseFloat(document.getElementById('new-stock').value) || 0;
+    let incomingInput = document.getElementById('incoming-stock');
+    let incoming = incomingInput ? (parseFloat(incomingInput.value) || 0) : 0;
+    
+    let soldInput = document.getElementById('sold-stock');
+    let sold = soldInput ? (parseFloat(soldInput.value) || 0) : 0;
+
+    let damagedInput = document.getElementById('damaged-stock');
+    let damaged = damagedInput ? (parseFloat(damagedInput.value) || 0) : 0;
+
+    // المتبقي الفعلي = المخزون الحالي + الشحنة الجديدة - التالف فقط (المباع مخصوم مسبقاً من الحقل العلوي)
+    let remaining = (currentStock + incoming) - damaged;
+    if (remaining < 0) remaining = 0;
+
+    // إجمالي البضاعة الإبتدائية الكلية لتطوير حساب التكلفة الإجمالية
+    let effectiveTotal = currentStock + sold + damaged + incoming;
+
+    // حساب الأرباح
+    let profitPerItem = price - cost;
+    let profitPercentage = cost > 0 ? ((profitPerItem / cost) * 100).toFixed(1) : 0;
+    
+    let totalCost = cost * effectiveTotal;
+    
+    // الربح المحقق = (المباع × ربح القطعة) - (التالف × تكلفة القطعة)
+    let realizedProfit = (sold * profitPerItem) - (damaged * cost);
+    let expectedProfit = profitPerItem * remaining;
+
+    // تحديث الواجهة
+    if (document.getElementById('remaining-stock-val')) {
+        document.getElementById('remaining-stock-val').innerText = `${remaining} قطعة`;
+    }
+    if (document.getElementById('profit-percentage-val')) {
+        document.getElementById('profit-percentage-val').innerText = `${profitPercentage}%`;
+    }
+    if (document.getElementById('profit-per-item')) {
+        document.getElementById('profit-per-item').innerText = `$${profitPerItem.toFixed(2)}`;
+    }
+    if (document.getElementById('total-cost-val')) {
+        document.getElementById('total-cost-val').innerText = `$${totalCost.toFixed(2)}`;
+    }
+    if (document.getElementById('realized-profit-val')) {
+        document.getElementById('realized-profit-val').innerText = `$${realizedProfit.toFixed(2)}`;
+    }
+    if (document.getElementById('expected-profit-val')) {
+        document.getElementById('expected-profit-val').innerText = `$${expectedProfit.toFixed(2)}`;
+    }
+}
+
+// 2. تحديث دالة عند خصم الكاشير للمبيعات لتحديث خانة "إجمالي المباع"
+function updateProductSalesOnCheckout(productBarcode, qtySold) {
+    // عند إتمام الفاتورة من الكاشير:
+    let soldInput = document.getElementById('sold-stock');
+    if (soldInput) {
+        let currentSold = parseFloat(soldInput.value) || 0;
+        soldInput.value = currentSold + qtySold;
+        calculateInventoryDetails();
+    }
+}
+
+// 3. التقرير اليومي الشامل (المبيعات، المتبقي، التالف، صافي الأرباح)
+function generateDailyInventoryReport() {
+    let now = new Date();
+    let todayYMD = now.toISOString().split('T')[0];
+    let todayFormatted = now.toLocaleDateString('ar-LB', { year: 'numeric', month: 'numeric', day: 'numeric' });
+
+    let totalSalesUSD = 0;
+    let totalProfitUSD = 0;
+    let itemsSold = 0;
+
+    let itemsDamaged = 0;
+    let damagedLossUSD = 0;
+
+    let totalPurchasesUSD = 0; // إجمالي ما تم دفعه للمندوبين
+    let purchasesListHTML = "";
+
+    // 1. حساب المبيعات من localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+        let key = localStorage.key(i);
+        if (key.includes('damaged') || key.includes('purchases') || key.includes('theme') || key.includes('settings')) continue;
+
+        try {
+            let data = JSON.parse(localStorage.getItem(key));
+            if (!Array.isArray(data)) continue;
+
+            data.forEach(order => {
+                if (typeof order === 'object' && order !== null) {
+                    let isToday = false;
+                    let orderDateStr = order.date ? order.date.toString() : '';
+
+                    if (!order.date || orderDateStr.includes(todayYMD) || orderDateStr.includes('2026-10-01')) {
+                        isToday = true;
+                    } else {
+                        let parsedDate = new Date(order.date);
+                        if (!isNaN(parsedDate) && parsedDate.toDateString() === now.toDateString()) {
+                            isToday = true;
+                        }
+                    }
+
+                    if (isToday) {
+                        if (order.items && Array.isArray(order.items)) {
+                            order.items.forEach(item => {
+                                let qty = parseFloat(item.qty || item.quantity || item.count || 1);
+                                let price = parseFloat(item.price || item.unitPrice || 0);
+                                let cost = parseFloat(item.cost || item.buyPrice || 0);
+
+                                if (price > 0) {
+                                    totalSalesUSD += price * qty;
+                                    totalProfitUSD += (price - cost) * qty;
+                                    itemsSold += qty;
+                                }
+                            });
+                        } else if (order.price || order.total) {
+                            let qty = parseFloat(order.qty || order.quantity || order.count || 1);
+                            let price = parseFloat(order.price || order.total || 0);
+                            let cost = parseFloat(order.cost || order.buyPrice || 0);
+
+                            if (price > 0) {
+                                totalSalesUSD += price * qty;
+                                totalProfitUSD += (price - cost) * qty;
+                                itemsSold += qty;
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (e) {}
+    }
+
+    // 2. حساب الهالك والتالف لليوم
+    try {
+        let damagedData = JSON.parse(localStorage.getItem('daily_damaged') || '[]');
+        damagedData.forEach(item => {
+            let qty = parseFloat(item.qty || item.quantity || 1);
+            let cost = parseFloat(item.cost || item.buyPrice || 0);
+
+            itemsDamaged += qty;
+            damagedLossUSD += cost * qty;
+        });
+    } catch (e) {}
+
+    // 3. حساب الطلبيات المستلمة اليوم (المبالغ المدفوعة للمندوبين)
+    try {
+        let purchasesData = JSON.parse(localStorage.getItem('daily_purchases') || '[]');
+        purchasesData.forEach(p => {
+            if (p.date === todayYMD) {
+                let paid = parseFloat(p.totalPaidUSD || 0);
+                totalPurchasesUSD += paid;
+                purchasesListHTML += `• ${p.itemName} (${p.qty}): $${paid.toFixed(2)} [${p.supplierName}]\n`;
+            }
+        });
+    } catch (e) {}
+
+    let netProfit = totalProfitUSD - damagedLossUSD;
+
+    // نص التقرير المنسق (واتساب و Alert)
+    let reportText = `==============================\n` +
+        `📊 *التقرير اليومي للمخزون والأرباح* (${todayFormatted})\n` +
+        `🛒 *Stop & Shop*\n` +
+        `==============================\n` +
+        `• عدد القطع المباعة: ${itemsSold} قطعة\n` +
+        `• إجمالي المبيعات: $${totalSalesUSD.toFixed(2)}\n` +
+        `• أرباح المبيعات القائمة: $${totalProfitUSD.toFixed(2)}\n` +
+        `------------------------------\n` +
+        `🚚 *طلبيات المندوبين المستلمة اليوم:*\n` +
+        (purchasesListHTML ? purchasesListHTML : `• لا يوجد طلبيات مستلمة اليوم\n`) +
+        `💵 *إجمالي المدفوع للمندوبين:* $${totalPurchasesUSD.toFixed(2)}\n` +
+        `------------------------------\n` +
+        `• عدد القطع التالفة / الهالك: ${itemsDamaged} قطعة\n` +
+        `• خسائر التالف (بالتكلفة): $${damagedLossUSD.toFixed(2)}\n` +
+        `------------------------------\n` +
+        `✅ *صافي الربح الفعلي اليومي:* $${netProfit.toFixed(2)}\n` +
+        `==============================`;
+
+    // 1. عرض التقرير
+    alert(reportText);
+
+    // 2. خيار إرسال التقرير عبر واتساب
+    let sendWhatsApp = confirm("هل ترغب في إرسال هذا التقرير عبر واتساب؟");
+    if (sendWhatsApp) {
+        let encodedText = encodeURIComponent(reportText);
+        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    }
+
+    // 3. طباعة التقرير المنظم
+    let printWindow = window.open('', '_blank', 'width=600,height=750');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير اليوم - Stop&Shop</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; direction: rtl; text-align: right; color: #333; }
+                .report-card { border: 2px solid #333; border-radius: 8px; padding: 20px; max-width: 480px; margin: 0 auto; }
+                h2 { text-align: center; margin-bottom: 5px; color: #d32f2f; }
+                .date { text-align: center; font-weight: bold; color: #666; margin-bottom: 20px; }
+                .item-row { display: flex; justify-content: space-between; margin: 8px 0; border-bottom: 1px dashed #ccc; padding-bottom: 4px; }
+                .item-title { font-weight: bold; }
+                .section-title { font-weight: bold; margin-top: 15px; color: #1976d2; border-bottom: 1px solid #1976d2; padding-bottom: 3px; }
+                .total-box { background: #e8f5e9; border: 1px solid #a5d6a7; padding: 12px; margin-top: 15px; border-radius: 5px; text-align: center; }
+                .net-profit { font-size: 1.2em; font-weight: bold; color: #2e7d32; }
+                @media print { button { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="report-card">
+                <h2>🛒 Stop & Shop</h2>
+                <div class="date">تقرير المبيعات والطلبيات (${todayFormatted})</div>
+                
+                <div class="section-title">📊 المبيعات والأرباح</div>
+                <div class="item-row">
+                    <span class="item-title">• عدد القطع المباعة:</span>
+                    <span>${itemsSold} قطعة</span>
+                </div>
+                <div class="item-row">
+                    <span class="item-title">• إجمالي المبيعات:</span>
+                    <span>$${totalSalesUSD.toFixed(2)}</span>
+                </div>
+                <div class="item-row">
+                    <span class="item-title">• أرباح المبيعات:</span>
+                    <span>$${totalProfitUSD.toFixed(2)}</span>
+                </div>
+
+                <div class="section-title">🚚 طلبيات المندوبين (المشتريات)</div>
+                <div class="item-row">
+                    <span class="item-title">• مدفوعات المندوبين اليوم:</span>
+                    <span style="color:#d32f2f; font-weight:bold;">$${totalPurchasesUSD.toFixed(2)}</span>
+                </div>
+
+                <div class="section-title">⚠️ التالف والهالك</div>
+                <div class="item-row">
+                    <span class="item-title">• عدد القطع التالفة:</span>
+                    <span>${itemsDamaged} قطعة</span>
+                </div>
+                <div class="item-row">
+                    <span class="item-title">• خسائر التالف:</span>
+                    <span>$${damagedLossUSD.toFixed(2)}</span>
+                </div>
+                
+                <div class="total-box">
+                    <span>✅ صافي الربح الفعلي اليومي:</span><br>
+                    <span class="net-profit">$${netProfit.toFixed(2)}</span>
+                </div>
+                
+                <button onclick="window.print()" style="margin-top: 20px; width: 100%; padding: 10px; background: #1976d2; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">🖨️ طباعة التقرير</button>
+            </div>
+            <script>
+                window.onload = function() { window.print(); };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+// دالة تعبئة بيانات المنتج في نموذج التعديل
+
+
+// دالة تحسب كمية القطع المباعة من جدول/سجل الفواتير والمبيعات (الكاشير + الويب)
+function getProductTotalSold(barcode) {
+    let salesHistory = JSON.parse(localStorage.getItem('all_sales_history') || '[]');
+    let totalSold = 0;
+
+    salesHistory.forEach(order => {
+        if (order.items && Array.isArray(order.items)) {
+            order.items.forEach(item => {
+                if (item.barcode === barcode || item.id === barcode) {
+                    totalSold += parseFloat(item.qty || item.quantity || 0);
+                }
+            });
+        }
+    });
+
+    return totalSold;
+}
+
+// تُستدعى عند إتمام فاتورة من الكاشير أو الويب
+function recordSaleItem(barcode, qtySold) {
+    let products = JSON.parse(localStorage.getItem('products') || '[]');
+    let productIndex = products.findIndex(p => p.barcode === barcode || p.id === barcode);
+
+    if (productIndex !== -1) {
+        // تنقيص الكمية المتبقية في المخزن
+        products[productIndex].stock = (parseFloat(products[productIndex].stock) || 0) - qtySold;
+        
+        // زيادة إجمالي المباع للمنتج
+        products[productIndex].soldCount = (parseFloat(products[productIndex].soldCount) || 0) + qtySold;
+        
+        // حفظ التحديثات في اللوكال ستورج
+        localStorage.setItem('products', JSON.stringify(products));
+    }
+}
+// دالة إدخال طلبية جديدة مستلمة من المندوب
+function receiveSupplierOrder() {
+    let itemName = prompt("أدخل اسم المادة (مثال: خبز):", "خبز");
+    if (!itemName) return;
+
+    let qty = parseFloat(prompt("أدخل الكمية المستلمة (مثال: 50):", "50"));
+    if (isNaN(qty) || qty <= 0) {
+        alert("يرجى إدخال كمية صحيحة!");
+        return;
+    }
+
+    let totalPaidUSD = parseFloat(prompt("أدخل إجمالي المبلغ المدفوع للمندوب ($):", "0"));
+    if (isNaN(totalPaidUSD) || totalPaidUSD < 0) {
+        alert("يرجى إدخال مبلغ صحيح!");
+        return;
+    }
+
+    let supplierName = prompt("اسم المندوب / الشركة (اختياري):", "مندوب الخبز") || "مندوب عام";
+
+    let now = new Date();
+    let todayYMD = now.toISOString().split('T')[0];
+
+    let newOrder = {
+        id: Date.now(),
+        date: todayYMD,
+        time: now.toLocaleTimeString('ar-LB'),
+        itemName: itemName,
+        qty: qty,
+        totalPaidUSD: totalPaidUSD,
+        unitCostUSD: totalPaidUSD / qty,
+        supplierName: supplierName
+    };
+
+    // حفظ الطلبية في قائمة الطلبيات المستلمة
+    let purchasesHistory = JSON.parse(localStorage.getItem('daily_purchases') || '[]');
+    purchasesHistory.push(newOrder);
+    localStorage.setItem('daily_purchases', JSON.stringify(purchasesHistory));
+
+    alert(`✅ تم تسجيل استلام الطلبية بنجاح!\nالمادة: ${itemName}\nالكمية: ${qty}\nالمبلغ المدفوع للمندوب: $${totalPaidUSD.toFixed(2)}`);
+}
+function openSupplierModal() {
+    document.getElementById('supplier-modal').style.display = 'flex';
+    let tbody = document.getElementById('supplier-items-body');
+    if (tbody.rows.length === 0) {
+        addSupplierRow();
+    }
+}
+
+function closeSupplierModal() {
+    document.getElementById('supplier-modal').style.display = 'none';
+}
+
+function addSupplierRow(name = "", qty = 1, price = 0) {
+    let tbody = document.getElementById('supplier-items-body');
+    let tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td style="padding:5px; border:1px solid #ddd;">
+            <input type="text" class="item-name" value="${name}" placeholder="امسح الباركود أو اكتب اسم المنتج" onkeydown="handleRowEnter(event, this)" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;">
+        </td>
+        <td style="padding:5px; border:1px solid #ddd;">
+            <input type="number" class="item-qty" value="${qty}" min="1" oninput="calculateSupplierTotal()" onkeydown="handleRowEnter(event, this)" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center;">
+        </td>
+        <td style="padding:5px; border:1px solid #ddd;">
+            <input type="number" step="0.01" class="item-unit-price" value="${price}" oninput="calculateSupplierTotal()" onkeydown="handleRowEnter(event, this)" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center;">
+        </td>
+        <td style="padding:5px; border:1px solid #ddd; text-align:center; font-weight:bold; color:#2e7d32; background:#f9f9f9;">
+            <span class="item-row-total">$${(qty * price).toFixed(2)}</span>
+        </td>
+        <td style="padding:5px; border:1px solid #ddd; text-align:center;">
+            <button type="button" onclick="removeSupplierRow(this)" style="background:#d32f2f; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">✕</button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    
+    // التركيز الفوري على الخانة الجديدة لسرعة الإدخال
+    if (!name) tr.querySelector('.item-name').focus();
+    calculateSupplierTotal();
+}
+
+// التنقل بالإنتر لعدم استخدام الماوس
+function handleRowEnter(e, input) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        let td = input.closest('td');
+        let tr = input.closest('tr');
+        
+        if (input.classList.contains('item-name')) {
+            tr.querySelector('.item-qty').focus();
+        } else if (input.classList.contains('item-qty')) {
+            tr.querySelector('.item-unit-price').focus();
+        } else if (input.classList.contains('item-unit-price')) {
+            addSupplierRow();
+        }
+    }
+}
+
+function removeSupplierRow(btn) {
+    let tbody = document.getElementById('supplier-items-body');
+    if (tbody.rows.length > 1) {
+        btn.closest('tr').remove();
+        calculateSupplierTotal();
+    }
+}
+
+function calculateSupplierTotal() {
+    let rows = document.querySelectorAll('#supplier-items-body tr');
+    let grandTotal = 0;
+
+    rows.forEach(row => {
+        let qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+        let unitPrice = parseFloat(row.querySelector('.item-unit-price').value) || 0;
+        
+        let rowTotal = qty * unitPrice;
+        row.querySelector('.item-row-total').innerText = `$${rowTotal.toFixed(2)}`;
+        
+        grandTotal += rowTotal;
+    });
+
+    document.getElementById('modal-total-paid').innerText = `$${grandTotal.toFixed(2)}`;
+    return grandTotal;
+}
+
+// استيراد ملف CSV في حال كانت الفاتورة ملف إكسل من الشركة
+function importCSVInvoice(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        let lines = e.target.result.split('\n');
+        let tbody = document.getElementById('supplier-items-body');
+        tbody.innerHTML = ''; // تفريغ الجدول القديم
+
+        lines.forEach(line => {
+            let parts = line.split(',');
+            if (parts.length >= 3) {
+                let name = parts[0].trim();
+                let qty = parseFloat(parts[1]) || 1;
+                let price = parseFloat(parts[2]) || 0;
+                if (name) addSupplierRow(name, qty, price);
+            }
+        });
+        alert('✅ تم استيراد أصناف الفاتورة بنجاح!');
+    };
+    reader.readAsText(file);
+}
+
+function saveSupplierOrderFromModal() {
+    let supplierName = document.getElementById('supplier-name-input').value.trim() || "مندوب عام";
+    let invoiceNo = document.getElementById('supplier-invoice-input').value.trim();
+    let rows = document.querySelectorAll('#supplier-items-body tr');
+    let items = [];
+    let grandTotal = 0;
+
+    // جلب قائمة المنتجات الحالية من المخزن (يدعم عدة مسميات شائعة للمفتاح)
+    let productsKey = localStorage.getItem('products') ? 'products' : (localStorage.getItem('items') ? 'items' : 'products');
+    let products = JSON.parse(localStorage.getItem(productsKey) || '[]');
+
+    let updatedCount = 0;
+    let newItemsCount = 0;
+
+    rows.forEach(row => {
+        let nameOrBarcode = row.querySelector('.item-name').value.trim();
+        let qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+        let unitPrice = parseFloat(row.querySelector('.item-unit-price').value) || 0;
+        let rowTotal = qty * unitPrice;
+
+        if (nameOrBarcode && qty > 0) {
+            items.push({
+                itemName: nameOrBarcode,
+                qty: qty,
+                unitCostUSD: unitPrice,
+                totalPaidUSD: rowTotal
+            });
+            grandTotal += rowTotal;
+
+            // البحث عن المنتج في المخزن بالاسم أو الباركود (بدون التأثر بالحروف الكبيرة/الصغيرة أو الفراغات)
+            let searchKey = nameOrBarcode.toLowerCase().trim();
+            let product = products.find(p => 
+                (p.name && p.name.toString().toLowerCase().trim() === searchKey) ||
+                (p.barcode && p.barcode.toString().toLowerCase().trim() === searchKey) ||
+                (p.title && p.title.toString().toLowerCase().trim() === searchKey)
+            );
+
+            if (product) {
+                // إذا كان المنتج موجوداً: زيادة الكمية الحالية
+                let currentQty = parseFloat(product.qty || product.quantity || product.stock || 0);
+                let newQty = currentQty + qty;
+
+                if (product.qty !== undefined) product.qty = newQty;
+                else if (product.quantity !== undefined) product.quantity = newQty;
+                else if (product.stock !== undefined) product.stock = newQty;
+                else product.qty = newQty;
+
+                // تحديث سعر التكلفة
+                if (unitPrice > 0) {
+                    product.cost = unitPrice;
+                    product.costPrice = unitPrice;
+                    product.buyPrice = unitPrice;
+                }
+                updatedCount++;
+            } else {
+                // إذا لم يكن المنتج موجوداً بالمخزن: إنشاؤه كمنتج جديد تلقائياً
+                products.push({
+                    id: Date.now() + Math.random(),
+                    name: nameOrBarcode,
+                    barcode: nameOrBarcode,
+                    qty: qty,
+                    cost: unitPrice,
+                    price: unitPrice * 1.25, // سعر بيع مقترح بزيادة 25%
+                    category: "عام"
+                });
+                newItemsCount++;
+            }
+        }
+    });
+
+    if (items.length === 0) {
+        alert("يرجى إدخال صنف واحد على الأقل!");
+        return;
+    }
+
+    // 1. حفظ تحديثات المخزن
+    localStorage.setItem(productsKey, JSON.stringify(products));
+
+    // 2. حفظ الفاتورة في سجل المشتريات اليومية
+    let now = new Date();
+    let todayYMD = now.toISOString().split('T')[0];
+    let purchasesHistory = JSON.parse(localStorage.getItem('daily_purchases') || '[]');
+    
+    purchasesHistory.push({
+        id: Date.now(),
+        date: todayYMD,
+        time: now.toLocaleTimeString('ar-LB'),
+        supplierName: supplierName,
+        invoiceNo: invoiceNo,
+        items: items,
+        grandTotalUSD: grandTotal
+    });
+    localStorage.setItem('daily_purchases', JSON.stringify(purchasesHistory));
+
+    // 3. رسالة تأكيد وإعادة تحديث الواجهة
+    alert(`✅ تم حفظ الفاتورة بنجاح!\n• تم تحديث مخزون: ${updatedCount} صنف\n• أصناف جديدة مضافة: ${newItemsCount}\n• إجمالي المدفوع: $${grandTotal.toFixed(2)}`);
+    
+    closeSupplierModal();
+
+    // إعادة رسم المنتجات على الشاشة فوراً
+    if (typeof renderProducts === 'function') renderProducts();
+    else if (typeof displayProducts === 'function') displayProducts();
+    else if (typeof loadProducts === 'function') loadProducts();
+    else location.reload(); 
 }
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

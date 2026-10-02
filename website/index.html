@@ -626,6 +626,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <div id="add-product-form" class="admin-controls-panel" style="display: none;">
     <h3 id="form-title">إدارة المنتج</h3>
+    
     <div style="background: #e0f2f1; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #4db6ac;">
         <div id="admin-rate-control" style="background: #fff; padding: 20px; border-radius: 15px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-right: 5px solid #e74c3c;">
             <h3 style="margin-top: 0; color: #2c3e50;"><i class="fas fa-money-bill-wave"></i> إدارة سعر الصرف</h3>
@@ -648,35 +649,67 @@ document.addEventListener("DOMContentLoaded", function() {
     </div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; color: #d32f2f; display: block; margin-bottom: 4px;">سعر الشراء ($)</label>
-        <input type="number" id="product-cost-input" step="0.01" placeholder="0.00 $" oninput="calculateProfit(); convertCostToLBP();" style="width: 100%;">
-    </div>
-    
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; color: #cc6600; display: block; margin-bottom: 4px;">سعر الشراء (L.L)</label>
-        <input type="number" id="product-cost-lbp-input" placeholder="0 ل.ل" oninput="convertCostToUSD();" style="width: 100%;">
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #d32f2f; display: block; margin-bottom: 4px;">سعر الشراء ($)</label>
+            <input type="number" id="product-cost-input" step="0.01" placeholder="0.00 $" oninput="calculateProfit(); convertCostToLBP(); recalculateStockMetrics();" style="width: 100%;">
+        </div>
+        
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #cc6600; display: block; margin-bottom: 4px;">سعر الشراء (L.L)</label>
+            <input type="number" id="product-cost-lbp-input" placeholder="0 ل.ل" oninput="convertCostToUSD(); recalculateStockMetrics();" style="width: 100%;">
+        </div>
+
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #388e3c; display: block; margin-bottom: 4px;">نسبة الربح (%)</label>
+            <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32; width: 100%;">
+        </div>
     </div>
 
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; color: #388e3c; display: block; margin-bottom: 4px;">نسبة الربح (%)</label>
-        <input type="text" id="profit-margin" placeholder="0%" readonly style="background: #eee; font-weight: bold; color: #2e7d32; width: 100%;">
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالدولار ($)</label>
+            <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP(); recalculateStockMetrics();" onchange="convertToLBP(); recalculateStockMetrics();" style="width: 100%;">
+        </div>
+        <div style="flex: 1;">
+            <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالليرة (L.L)</label>
+            <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD(); recalculateStockMetrics();" onchange="convertToUSD(); recalculateStockMetrics();" style="width: 100%;">
+        </div>
     </div>
-</div>
-
-<div style="display: flex; gap: 10px; margin-bottom: 10px;">
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالدولار ($)</label>
-        <input type="number" id="new-price" step="0.01" placeholder="0.00 $" onkeyup="convertToLBP()" onchange="convertToLBP()" style="width: 100%;">
-    </div>
-    <div style="flex: 1;">
-        <label style="font-size: 0.75rem; display: block; margin-bottom: 4px;">السعر بالليرة (L.L)</label>
-        <input type="number" id="new-price-lbp" placeholder="0 L.L" onkeyup="convertToUSD()" onchange="convertToUSD()" style="width: 100%;">
-    </div>
-</div>
 
     <input type="text" id="new-barcode" placeholder="أدخل رقم الباركود الخاص بالمنتج">
-    <input type="number" id="new-stock" placeholder="الكمية المتوفرة في المخزن">
+    <input type="number" id="new-stock" placeholder="الكمية الإجمالية الحالية في المخزن" oninput="recalculateStockMetrics();">
+
+    <!-- 📦 ميزة توريد الشحنات الجديدة وحساب الأرباح الناتجة -->
+    <!-- 📦 بطاقة توريد وحركة المخزون الشاملة -->
+<div style="background: #eef2f7; padding: 15px; border-radius: 10px; border-right: 5px solid #2980b9; margin: 15px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #2c3e50;"><i class="fas fa-boxes"></i> حاسبة حركة المخزون والربح والتالف</h4>
+    
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+        <div>
+            <label style="font-size: 0.75rem; font-weight: bold; color: #27ae60;">كمية الشحنة الجديدة (+)</label>
+            <input type="number" id="incoming-stock" placeholder="+0" oninput="calculateInventoryDetails()" style="width: 100%; border: 1px solid #27ae60; font-weight: bold;">
+        </div>
+        <div>
+    <label style="font-size: 0.75rem; font-weight: bold; color: #2980b9;">إجمالي المباع (كاشير + ويب)</label>
+    <input type="number" id="sold-stock" value="0" readonly style="width: 100%; background: #e9ecef; color: #2980b9; font-weight: bold; cursor: not-allowed; border: 1px solid #ced4da;">
+</div>
+        <div>
+            <label style="font-size: 0.75rem; font-weight: bold; color: #c0392b;">التالف / الهالك ⚠️</label>
+            <input type="number" id="damaged-stock" placeholder="0" oninput="calculateInventoryDetails()" style="width: 100%; border: 1px solid #e74c3c; font-weight: bold; color: #c0392b;">
+        </div>
+    </div>
+
+    <!-- ملخص المتبقي والنسب المالي -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; background: white; padding: 12px; border-radius: 8px; font-size: 0.85rem; border: 1px solid #dcdde1;">
+        <div>المتبقي الفعلي في المخزن: <b id="remaining-stock-val" style="color: #2c3e50; font-size: 1rem;">0</b> قطعة</div>
+        <div>نسبة الربح المحققة: <b id="profit-percentage-val" style="color: #27ae60; font-size: 1rem;">0%</b></div>
+        <div>صافي الربح القطعة: <b id="profit-per-item" style="color: #27ae60;">$0.00</b></div>
+        <div>إجمالي تكلفة البضاعة: <b id="total-cost-val" style="color: #c0392b;">$0.00</b></div>
+        <div>الربح المحقق فعلياً (بعد خصم التالف): <b id="realized-profit-val" style="color: #2980b9;">$0.00</b></div>
+        <div>الربح المتوقع عند نفاد الكمية: <b id="expected-profit-val" style="color: #27ae60;">$0.00</b></div>
+    </div>
+</div>
+
     <input type="text" id="new-category" list="category-list" placeholder="اختر أو اكتب القسم">
 
     <datalist id="category-list">
@@ -722,6 +755,68 @@ document.addEventListener("DOMContentLoaded", function() {
     <div class="admin-btns">
         <button id="save-btn" onclick="saveProduct()">حفظ التعديلات</button>
         <button onclick="resetForm()" class="btn-cancel">إلغاء</button>
+        <button onclick="generateDailyInventoryReport()" style="background: #8e44ad; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;">
+            <i class="fas fa-chart-line"></i> استخراج التقرير اليومي للمبيعات والأرباح
+        </button>
+        <button onclick="openSupplierModal()" style="background:#1976d2; color:#fff; padding:10px 18px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:14px; margin:5px;">
+    🚚 تسجيل طلبية مندوب كبيرة
+</button>
+
+<!-- النافذة المنبثقة الذكية للطلبيات الكبيرة -->
+<div id="supplier-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#fff; width:95%; max-width:800px; padding:20px; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.3); direction:rtl; text-align:right; max-height:88vh; overflow-y:auto;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+            <h3 style="margin:0; color:#d32f2f;">🚚 تسجيل طلبية كبيرة من المندوب</h3>
+            
+            <!-- خيار رفع ملف إكسل للفواتير الضخمة -->
+            <label style="background:#2e7d32; color:#fff; padding:6px 12px; border-radius:5px; cursor:pointer; font-size:13px; font-weight:bold;">
+                📁 رفع فاتورة من Excel / CSV
+                <input type="file" id="excel-import-input" accept=".csv" onchange="importCSVInvoice(event)" style="display:none;">
+            </label>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <div style="flex:1;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">اسم المندوب / المورد:</label>
+                <input type="text" id="supplier-name-input" placeholder="مثال: شركة الخبز / المندوب علي" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">رقم الفاتورة (اختياري):</label>
+                <input type="text" id="supplier-invoice-input" placeholder="12345" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px;">
+            </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; margin-bottom:15px;" id="order-items-table">
+            <thead>
+                <tr style="background:#f4f4f4; text-align:center;">
+                    <th style="padding:8px; border:1px solid #ddd;">الباركود / اسم المنتج</th>
+                    <th style="padding:8px; border:1px solid #ddd; width:90px;">الكمية</th>
+                    <th style="padding:8px; border:1px solid #ddd; width:110px;">سعر الحبة ($)</th>
+                    <th style="padding:8px; border:1px solid #ddd; width:110px;">المجموع ($)</th>
+                    <th style="padding:8px; border:1px solid #ddd; width:40px;"></th>
+                </tr>
+            </thead>
+            <tbody id="supplier-items-body">
+                <!-- الأسطر المضافة تنزل هنا -->
+            </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button type="button" onclick="addSupplierRow()" style="background:#1976d2; color:#fff; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">+ إضافة صنف آخر (Enter ↵)</button>
+            <span style="font-size:12px; color:#666;">💡 يمكنك استخدام قارئ الباركود مباشرة في خانة اسم المنتج!</span>
+        </div>
+
+        <div style="background:#e8f5e9; border:1px solid #a5d6a7; padding:12px; margin-top:15px; border-radius:5px; text-align:left; font-size:1.15em; font-weight:bold; color:#1b5e20;">
+            إجمالي المبلغ المدفوع للمندوب: <span id="modal-total-paid">$0.00</span>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            <button type="button" onclick="closeSupplierModal()" style="background:#757575; color:#fff; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">إلغاء</button>
+            <button type="button" onclick="saveSupplierOrderFromModal()" style="background:#2e7d32; color:#fff; border:none; padding:10px 25px; border-radius:5px; cursor:pointer; font-weight:bold;">حفظ الفاتورة بالكامل</button>
+        </div>
+    </div>
+</div>
         <button onclick="printProductLabel()" style="background: #2c3e50; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px;">
             <i class="fas fa-print"></i> طباعة ملصق Xprinter
         </button>

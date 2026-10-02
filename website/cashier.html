@@ -532,11 +532,11 @@
         <i class="fas fa-desktop" style="font-size: 2.2rem; color: #cbd5e1;"></i>
     </div>
     
-    <button class="btn-action btn-save" onclick="saveInvoiceOnly()">
+    <button class="btn-action btn-save" onclick="openCalcModal('F9')">
     <i class="fas fa-check-circle fa-lg"></i> حفظ الفاتورة (F9)
 </button>
 
-<button class="btn-action btn-secondary" style="background: #2c3e50; color: white;" onclick="saveInvoice(true)">
+<button class="btn-action btn-secondary" style="background: #2c3e50; color: white;" onclick="openCalcModal('F10')">
     <i class="fas fa-print"></i> طباعة إيصال (F10)
 </button>
     
@@ -591,7 +591,6 @@
         <input type="text" id="barcode-input" class="search-input" 
                placeholder="أدخل اسم المنتج أو امسح الباركود..." 
                list="products-list" autocomplete="off" autofocus>
-        
     </div>
 
     <div class="glass-card" style="flex: 1; display: flex; flex-direction: column;">
@@ -610,6 +609,11 @@
     <div class="status-footer">
         <span><i class="fas fa-user-circle" style="color: #57606f;"></i> الموظف: <b id="employee-display">جاري التحميل...</b> <a href="#" onclick="logout()" style="color:var(--primary); text-decoration:none; margin-right:8px; font-weight:bold;">(خروج)</a></span>
         
+        <!-- زر قفل الشاشة بالحجم المصغر والأنيق -->
+        <button onclick="lockPOS()" class="btn-action" style="background: #e74c3c; color: white; padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; font-size: 0.8rem; flex: none; width: auto; display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fas fa-lock"></i> قفل الشاشة
+        </button>
+
         <div class="exchange-rate-container" onclick="changeExchangeRate()" style="cursor: pointer;">
             <div class="stat-card">
                 <div class="stat-label" style="color: #57606f;">سعر الصرف:</div>
@@ -641,11 +645,44 @@
                 <input type="number" id="discount-val" value="0" min="0" max="100" oninput="renderCart()" style="width: 75px; padding: 8px; border-radius: var(--radius-md); border: 2px solid #e4e7eb; text-align: center; font-weight: 900; font-size: 1.05rem;">
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; border-top: 1px dashed #e4e7eb; padding-top: 15px;">
+            <!-- قسم هاتف الزبون والخيارات المنسق -->
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; border-top: 1px dashed #e4e7eb; padding-top: 15px;">
                 <label style="font-weight: bold; color: var(--dark); font-size: 0.95rem;">
                     <i class="fas fa-phone-alt" style="margin-left: 6px; color: var(--primary);"></i> رقم هاتف الزبون والولاء:
                 </label>
-                <input type="tel" id="customer-phone" placeholder="أدخل رقم الزبون..." style="width: 100%; padding: 12px; border: 2px solid #e4e7eb; border-radius: var(--radius-md); font-family: 'Cairo'; font-size: 1.05rem; text-align: center; outline: none; transition: var(--transition);" onfocus="this.style.borderColor='var(--success)'" onblur="this.style.borderColor='#e4e7eb'">
+                
+                <input type="tel" id="customer-phone" placeholder="أدخل رقم الزبون..." style="width: 100%; padding: 10px; border: 2px solid #e4e7eb; border-radius: var(--radius-md); font-family: 'Cairo'; font-size: 1rem; text-align: center; outline: none; box-sizing: border-box; transition: var(--transition);" onfocus="this.style.borderColor='var(--success)'" onblur="this.style.borderColor='#e4e7eb'">
+                
+                <button type="button" onclick="handleSingleWhatsAppAction()" style="width: 100%; background: #25D366; color: white; border: none; padding: 10px; border-radius: var(--radius-md); cursor: pointer; font-family: 'Cairo'; font-size: 0.95rem; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 6px; transition: var(--transition);">
+                    📲 إرسال تنبيه عبر الواتساب
+                </button>
+
+                <div style="display: flex; gap: 8px; width: 100%;">
+                    <!-- زر Choice A -->
+                    <button type="button" onclick="sendDiscountAlert()" style="flex: 1; background: #e67e22; color: white; border: none; padding: 8px 4px; border-radius: var(--radius-md); font-family: 'Cairo'; font-size: 0.85rem; font-weight: bold; cursor: pointer;">
+                        🔥 تنبيه عرض خاص (Choice A)
+                    </button>
+
+                    <!-- زر Choice B -->
+                    <button type="button" onclick="showCustomerHistoryModal()" style="flex: 1; background: #3498db; color: white; border: none; padding: 8px 4px; border-radius: var(--radius-md); font-family: 'Cairo'; font-size: 0.85rem; font-weight: bold; cursor: pointer;">
+                        🔍 سجل الزبون (Choice B)
+                    </button>
+                </div>
+
+                <!-- النافذة المنبثقة الخاصة بـ Choice B -->
+                <div id="customerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
+                    <div style="background: white; width: 90%; max-width: 480px; padding: 20px; border-radius: 12px; font-family: 'Cairo'; direction: rtl;">
+                        <h3 style="margin-top: 0; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px;">📋 ملف الزبون والسجل</h3>
+                        
+                        <div id="customerModalContent" style="max-height: 320px; overflow-y: auto; margin-bottom: 15px;">
+                            <p style="text-align: center; color: #7f8c8d;">جاري التحميل...</p>
+                        </div>
+
+                        <button onclick="closeCustomerModal()" style="background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; font-family: 'Cairo'; font-weight: bold;">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div style="display: flex; justify-content: space-between; color: var(--success); font-weight: 700; margin-bottom: 15px;">
@@ -661,8 +698,8 @@
                 <div id="final-usd-text" style="font-size: 1.1rem; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 10px; padding-top: 8px; font-weight: 700;">صافي: 0.00 $</div>
             </div>
             
-            <!-- حاسبة الباقي للزبائن التلقائية الموزونة والمحمية من التكرار -->
-            <div class="change-calc-box">
+            <!-- حاسبة الباقي للزبائن التلقائية الموزونة والمحمية من التكرار (تم إخفاؤها بصرياً دون حذف للحفاظ على هيكلية الكود) -->
+            <div class="change-calc-box" style="display: none;">
                 <div class="calc-header">
                     <i class="fas fa-calculator"></i>
                     <span>حاسبة كاشير المتبقي الذكية</span>
@@ -728,7 +765,51 @@
         </div>
     </div>
 </div>
+<!-- 🧮 نافذة حاسبة المتبقي المنبثقة عند الحفظ -->
+<div id="calcModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #ffffff; width: 350px; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); font-family: inherit;">
+        
+        <h3 style="margin-top: 0; text-align: center; color: #2c3e50;">🧮 حاسبة كاشير المتبقي الذكية</h3>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; font-weight: bold; margin-bottom: 5px;">المستلم من الزبون ($):</label>
+            <input type="number" id="modalReceivedUSD" placeholder="0.00" step="0.01" style="width: 100%; padding: 10px; border: 2px solid #3498db; border-radius: 8px; font-size: 1.2rem; text-align: center; box-sizing: border-box;" oninput="calculateModalChange()" onkeydown="if(event.key === 'Enter') confirmCalcAndProceed()">
+        </div>
 
+        <div style="background: #e8f8f5; padding: 10px; border-left: 5px solid #2ecc71; border-radius: 6px; margin-bottom: 10px;">
+            <span style="font-weight: bold; color: #27ae60;">المتبقي بالدولار:</span> 
+            <span id="modalChangeUSD" style="font-weight: bold; color: #27ae60;">$0.00</span>
+        </div>
+
+        <div style="background: #fdf2e9; padding: 10px; border-left: 5px solid #e67e22; border-radius: 6px; margin-bottom: 15px;">
+            <span style="font-weight: bold; color: #d35400;">المتبقي باللبناني:</span> 
+            <span id="modalChangeLBP" style="font-weight: bold; color: #d35400;">0 ل.ل</span>
+        </div>
+
+        <p style="font-size: 0.8rem; color: #7f8c8d; text-align: center; margin-bottom: 15px;">💡 يتم تقريب المتبقي اللبناني لأقرب 500 ليرة تلقائياً.</p>
+
+        <button id="modalConfirmBtn" onclick="confirmCalcAndProceed()" style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer;">تأكيد وإتمام العملية</button>
+    </div>
+</div>
+<!-- 🔐 نافذة قفل الشاشة الأمني -->
+<div id="lock-screen-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center; font-family: 'Cairo', sans-serif; color: white;">
+    <div style="background: #1e293b; padding: 35px 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 380px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); border: 1px solid #334155;">
+        <div style="width: 70px; height: 70px; background: #0284c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; font-size: 1.8rem;">
+            <i class="fas fa-user-lock"></i>
+        </div>
+        <h3 style="margin: 0 0 5px 0; font-size: 1.3rem;">النظام مقفل مؤقتاً</h3>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px;">أدخل كلمة المرور لإلغاء القفل واستكمال العمل</p>
+        
+        <input type="password" id="lock-screen-pass" placeholder="****" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #475569; background: #0f172a; color: white; text-align: center; font-size: 1.4rem; letter-spacing: 5px; margin-bottom: 15px; outline: none;">
+        
+        <button onclick="unlockPOS()" style="width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s;">
+            <i class="fas fa-key"></i> فتح الشاشة
+        </button>
+    </div>
+</div>
+
+<!-- 🔔 حاوية التنبيهات المنبثقة الأنيقة (Toast Container) -->
+<div id="toast-container" style="position: fixed; bottom: 20px; left: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px;"></div>
 <script>
     // --- 1. الإعدادات والربط مع Firebase ---
     const firebaseConfig = {
@@ -816,6 +897,7 @@ let products = [];
     }
 
     // 1. تأكد من تعريف هذا المتغير في أعلى ملف الجافا سكريبت لديك (خارج الدوال) لتتبع المنتج الأخير
+// 1. تأكد من تعريف هذا المتغير في أعلى ملف الجافا سكريبت لديك (خارج الدوال) لتتبع المنتج الأخير
 let lastAddedIndex = -1;
 
 function addProduct(query) {
@@ -859,6 +941,12 @@ function addProduct(query) {
         renderCart();
         document.getElementById('barcode-input').value = ''; // مسح الخانة فوراً
     }
+}
+
+// دالة مساعدة لمسح خانة الإدخال
+function clearBarcodeInput() {
+    const input = document.getElementById('barcode-input');
+    if (input) input.value = '';
 }
 function renderCart() {
     const container = document.getElementById('cart-container');
@@ -1029,20 +1117,26 @@ function handleQtyShortcuts(event, index) {
         renderCart();
     }
 
-    // --- 4. الحفظ والأرشفة ---
- // 🟢 1. دالة جديدة لحفظ الفاتورة فقط (بدون طباعة)
-async function saveInvoiceOnly() {
-    return await saveInvoice(false); // نمرر false لعدم فتح نافذة الطباعة
+ // --- 4. الحفظ والأرشفة ---
+// 🟢 1. دالة جديدة لحفظ الفاتورة فقط (بدون طباعة)
+async function saveInvoiceOnly(isFromModal = false) {
+    return await saveInvoice(false, isFromModal); // نمرر false لعدم فتح نافذة الطباعة
 }
 
-// 🖨️ 2. الدالة الرئيسية لحفظ الفاتورة (محدثة لدعم الخيارين بدون حذف أي سطر)
-async function saveInvoice(shouldPrint = true) {
-    if (cart.length === 0) return alert("السلة فارغة!");
-    
-    // إذا ضغط الكاشير على Cancel (إلغاء) في نافذة التأكيد، ستتوقف الدالة فوراً وبمنتهى الهدوء دون أي مشاكل
+// 🖨️ 2. الدالة الرئيسية لحفظ الفاتورة (محدثة لتفتح الحاسبة تلقائياً)
+async function saveInvoice(shouldPrint = true, isFromModal = false) {
+    if (typeof cart === 'undefined' || cart.length === 0) return alert("السلة فارغة!");
+
+    // تحقق مما إذا كانت الحاسبة المنبثقة مفتوحة حالياً، إن لم تكن مفتوحة افتحها أولاً
+    const modal = document.getElementById('calcModal');
+    if (!isFromModal && (!modal || modal.style.display !== 'flex')) {
+        pendingShortcutAction = shouldPrint ? 'F10' : 'F9';
+        openCalcModal();
+        return; // توقف هنا وانتظر حتى يضغط المستخدم على "تأكيد وإتمام العملية" داخل الحاسبة
+    }
+
     if (!confirm("تأكيد حفظ الفاتورة؟")) return;
 
-    // --- تعديل لضمان الطباعة: فتح النافذة قبل العمليات غير المتزامنة لمنع حظرها (فقط إذا كان الخيار مع طباعة) ---
     let printWindow = null;
     if (shouldPrint) {
         printWindow = window.open('', '_blank', 'width=800,height=900');
@@ -1052,12 +1146,13 @@ async function saveInvoice(shouldPrint = true) {
         }
     }
 
-    const usd = parseFloat(document.getElementById('subtotal-usd').innerText);
-    const lbp = parseInt(document.getElementById('total-lbp').innerText.replace(/,/g, ''));
+    const usdElem = document.getElementById('subtotal-usd');
+    const lbpElem = document.getElementById('total-lbp');
+    const usd = usdElem ? parseFloat(usdElem.innerText) || 0 : 0;
+    const lbp = lbpElem ? parseInt(lbpElem.innerText.replace(/,/g, '')) || 0 : 0;
     
-    // قراءة النقاط الحالية المعروضة في الشاشة لترحيلها وحفظها في السيرفر
     const pointsEarnedElem = document.getElementById('points-earned');
-    const pointsToSave = pointsEarnedElem ? parseInt(pointsEarnedElem.innerText) : 0;
+    const pointsToSave = pointsEarnedElem ? parseInt(pointsEarnedElem.innerText) || 0 : 0;
 
     try {
         const batch = db.batch();
@@ -1065,15 +1160,13 @@ async function saveInvoice(shouldPrint = true) {
         
         batch.set(saleRef, {
             items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
-            employee: currentEmployee, 
+            employee: typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير', 
             totalUSD: usd,
             totalLBP: lbp,
-            pointsEarned: pointsToSave, // حفظ النقاط بداخل الفاتورة في قاعدة البيانات
+            pointsEarned: pointsToSave,
             time: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // تم نقل تحديث المخزون ليعمل بشكل منفصل وذكي لحماية الفاتورة من الانهيار
-        // سيتم معالجة تحديث المخزون عبر وعود متوازية (Promises) تضمن عدم توقف الحفظ
         const stockUpdates = cart.map(async (item) => {
             const targetDocId = item.barcode ? item.barcode : item.id;
             const ref = db.collection("products").doc(targetDocId);
@@ -1081,189 +1174,526 @@ async function saveInvoice(shouldPrint = true) {
             try {
                 const doc = await ref.get();
                 if (doc.exists) {
-                    // إذا كان المنتج موجوداً، نقوم بتحديث مخزونه بأمان
-                    await ref.update({ stock: firebase.firestore.FieldValue.increment(-item.qty) });
+                    // --- الإضافة المحدثة: زيادة عدد القطع المباعة (soldCount) مع تنقيص المخزون (stock) ---
+                    await ref.update({ 
+                        stock: firebase.firestore.FieldValue.increment(-item.qty),
+                        soldCount: firebase.firestore.FieldValue.increment(item.qty)
+                    });
                 } else {
-                    // إذا كان المنتج ممسوحاً بالباركود وغير معرف في السيستم، ننشئه بـ set لمنع الخطأ
                     console.warn(`المنتج بالباركود ${targetDocId} غير موجود في المستودع، تم إنشاؤه تلقائياً.`);
                     await ref.set({
                         name: item.name || "منتج جديد غير معرف",
                         barcode: targetDocId,
                         price: item.price || 0,
-                        stock: 0 - item.qty, // تسجيل كمية سالبة مؤقتة للحسابات
+                        stock: 0 - item.qty,
+                        soldCount: item.qty,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 }
+
+                // --- تحديث المصفوفة المحلية المحلية فورياً كي يظهر الحساب مباشرة في واجهة المستخدم ---
+                if (typeof products !== 'undefined' && Array.isArray(products)) {
+                    let localProd = products.find(p => p.id === targetDocId || p.barcode === targetDocId);
+                    if (localProd) {
+                        localProd.stock = (parseFloat(localProd.stock) || 0) - item.qty;
+                        localProd.soldCount = (parseFloat(localProd.soldCount) || 0) + item.qty;
+                    }
+                }
             } catch (err) {
                 console.error(`فشل تحديث مخزون المنتج ${targetDocId}:`, err);
-                // لا نرفع الخطأ (throw) هنا لكي لا تنهار عملية حفظ الفاتورة الأساسية والطباعة
             }
         });
 
-        // متغيرات مخصصة لبناء رسالة التنبيه النهائية للزبون
         let customerMessage = ""; 
         const customerInput = document.getElementById('customer-phone');
         
         if (customerInput && customerInput.value.trim() !== "" && pointsToSave > 0) {
             const customerPhone = customerInput.value.trim();
-            // 🛠️ تم تعديل اسم الكولكشن هنا ليصبح "users" بناءً على طلبك بدلاً من customers
             const customerRef = db.collection("users").doc(customerPhone);
             
-            // جلب بيانات الزبون الحالية لمعرفة رصيد نقاطه القديم قبل الإضافة لتظهر في الـ alert
             let currentPoints = 0;
             const customerDoc = await customerRef.get();
             if (customerDoc.exists) {
-                currentPoints = customerDoc.data().totalPoints || 0;
+                currentPoints = customerDoc.data().totalPoints || customerDoc.data().points || 0;
             }
             
-            // مجموع النقاط الكلي للزبون بعد إضافة نقاط الفاتورة الحالية
             const finalTotalPoints = currentPoints + pointsToSave;
 
-            // استخدام increment لزيادة النقاط بشكل تراكمي فوق النقاط السابقة للرقم دون مسح القديم
+            let updatedPurchasedProducts = {};
+            cart.forEach(item => {
+                const itemKey = item.barcode || item.id || item.name;
+                updatedPurchasedProducts[`purchasedProducts.${itemKey}`] = {
+                    name: item.name,
+                    lastPriceUSD: item.price
+                };
+            });
+
             batch.set(customerRef, {
                 totalPoints: firebase.firestore.FieldValue.increment(pointsToSave),
-                lastPurchase: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }); // merge تضمن الحفاظ على اسم الزبون أو أي بيانات محفوظة سابقاً للرقم
+                points: firebase.firestore.FieldValue.increment(pointsToSave),
+                lastPurchase: firebase.firestore.FieldValue.serverTimestamp(),
+                ...updatedPurchasedProducts
+            }, { merge: true });
             
-            // صياغة رسالة الـ alert للزبون بشكل احترافي ومميز
             customerMessage = `\n\n🎯 زبون الولاء: ${customerPhone}\n➕ النقاط المضافة: ${pointsToSave} نقطة\n⭐ مجموع نقاط الزبون الحالي: ${finalTotalPoints} نقطة`;
         }
 
-        // حفظ الفاتورة وتحديث نقاط الرقم المستهدف دفعة واحدة وبأعلى سرعة وسلاسة
         await batch.commit();
-
-        // تنفيذ تحديثات المخزون في الخلفية بأمان تام
         await Promise.all(stockUpdates);
-
-        // استدعاء دالة الأرشيف الخاصة بك
         saveToInvoices(usd, lbp);
 
-        // --- استدعاء دالة الطباعة وتمرير نافذة الطباعة المفتوحة إذا طُلب ذلك ---
         if (shouldPrint && printWindow) {
-            printInvoice(printWindow); 
+            if (typeof printInvoice === "function") {
+                printInvoice(printWindow);
+            }
         }
 
-        // 🌟 عرض الـ alert المطلوب والمحدث بالكامل 🌟
-        alert(`تم حفظ العملية بنجاح بواسطة: ${currentEmployee}${customerMessage}`);
+        alert(`تم حفظ العملية بنجاح بواسطة: ${typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير'}${customerMessage}`);
         
-        // تفريغ حقل رقم هاتف الزبون بعد انتهاء الحفظ بنجاح استعداداً للعملية التالية
         if (customerInput) customerInput.value = '';
         
         cart = []; 
-        renderCart();
+        if (typeof renderCart === "function") renderCart();
     } catch (e) { 
-        if (printWindow) printWindow.close(); // إغلاق النافذة في حال فشل الحفظ
+        if (printWindow) printWindow.close();
         alert("خطأ في الحفظ: " + e.message); 
     }
 }
 
 function saveToInvoices(u, l) {
     const mid = new Date().toISOString().slice(0, 7);
+    const customerInput = document.getElementById('customer-phone');
+    const customerPhone = customerInput ? customerInput.value.trim() : '';
+
     db.collection("invoices").add({
         invoice_date: firebase.firestore.FieldValue.serverTimestamp(),
         month_id: mid,
         total_usd: u,
         total_lbp: l,
-        employee: currentEmployee
+        employee: typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير',
+        customerPhone: customerPhone,
+        items: cart.map(i => ({ name: i.name, priceUSD: i.price, qty: i.qty, barcode: i.barcode || '' }))
     });
 }
-
-// --- 5. التشغيل والتحكم ---
-window.onload = () => { 
-    startRateListener(); // تأكد أن هذا السطر موجود في البداية
-    fetchProducts(); 
-    updateUI(); 
-    if(!localStorage.getItem('emp_name')) loginSystem(); 
-};
-let barcodeTimeout; // مؤقت ذكي وموحد لمنع الاستعجال التلقائي أثناء الكتابة باليد
-
-// 🎯 الحدث الموحد والذكي الموزون على ثانيتين ليعطيك الوقت الكامل للكتابة براحتك
-document.getElementById('barcode-input').addEventListener('input', (e) => {
-    const val = e.target.value.trim();
-    if (!val) return;
-
-    // 1. تصفير العداد فوراً عند ضغط أي زر لإعادة منح يدك مهلة ثانيتين كاملتين من جديد
-    clearTimeout(barcodeTimeout);
-
-    // 2. الانتظار لمدة 2000 ملي ثانية (ثانيتين) بعد التوقف التام عن الكتابة قبل الإدخال التلقائي
-    barcodeTimeout = setTimeout(() => {
-        
-        // فحص ما إذا كان المدخل عبارة عن أرقام فقط (باركود)
-        const isNumber = /^\d+$/.test(val);
-
-        const match = products.find(p => {
-            const productBarcode = p.barcode ? String(p.barcode).trim() : '';
-            const productName = p.name ? p.name.toLowerCase().trim() : '';
-
-            if (isNumber) {
-                // 🛡️ مطابقة تامة وصارمة للباركود لمنع التداخل (رقم 105 يعطي 105 فقط حصراً)
-                return productBarcode === val;
-            } else {
-                // 📝 إذا كتبت حروفاً، يبحث بالاسم الجزئي المرن
-                return productName.includes(val.toLowerCase());
-            }
-        });
-        
-        if (match) {
-            addProduct(match.barcode || match.name); 
-            e.target.value = ''; // مسح الخانة تلقائياً بعد الإضافة
-        }
-    }, 1200); // ⏱️ ثانيتين: المهلة الموزونة والمثالية للكاشير واليد معاً
-});
-
-// 🎯 زر Enter يظل يعمل كإجراء فوري إذا انتهيت من الكتابة ولا تريد انتظار الثانيتين
-document.getElementById('barcode-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        clearTimeout(barcodeTimeout); // إيقاف المؤقت التلقائي فوراً لمنع التكرار والإضافة المزدوجة
-        const val = e.target.value.trim();
-        if (!val) return;
-
-        const isNumber = /^\d+$/.test(val);
-
-        const match = products.find(p => {
-            const productBarcode = p.barcode ? String(p.barcode).trim() : '';
-            const productName = p.name ? p.name.toLowerCase().trim() : '';
-
-            if (isNumber) {
-                return productBarcode === val;
-            } else {
-                return productName.includes(val.toLowerCase());
-            }
-        });
-        
-        if (match) {
-            addProduct(match.barcode || match.name);
-            e.target.value = ''; 
-        } else {
-            alert("⚠️ لم يتم العثور على هذا المنتج في النظام!");
-        }
-    }
-});
-// 🛠️ متغير للتحكم بوضع الطباعة
+// =========================================================
+// 🧮 نظام النافذة المنبثقة الذكي للآلة الحاسبة 
+// =========================================================
 window.isPrintDisabled = false;
+let pendingShortcutAction = null;
 
+// إنشاء عنصر النافذة المنبثقة تلقائياً إذا لم يكن موجوداً
+// إنشاء أو تحديث عنصر النافذة المنبثقة لضمان ظهور الأزرار دائماً
+function ensureCalcModalHTML() {
+    let modal = document.getElementById('calcModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'calcModal';
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 99999; justify-content: center; align-items: center;';
+    modal.innerHTML = `
+        <div style="background: #ffffff; width: 360px; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); font-family: 'Cairo', sans-serif; direction: rtl;">
+            <h3 style="margin-top: 0; text-align: center; color: #2c3e50;">🧮 حاسبة كاشير المتبقي الذكية</h3>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px;">المستلم من الزبون ($):</label>
+                <input type="number" id="modalReceivedUSD" placeholder="0.00" step="0.01" style="width: 100%; padding: 10px; border: 2px solid #3498db; border-radius: 8px; font-size: 1.2rem; text-align: center; box-sizing: border-box;" oninput="calculateModalChange()" onkeydown="if(event.key === 'Enter') confirmCalcAndProceed()">
+            </div>
+
+            <!-- 💵 أزرار السداد السريع -->
+            <div style="display: flex; gap: 5px; margin-bottom: 15px; justify-content: center;">
+                <button type="button" onclick="setQuickCash(5)" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 8px 4px; border-radius: 6px; font-weight: bold; cursor: pointer;">$5</button>
+                <button type="button" onclick="setQuickCash(10)" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 8px 4px; border-radius: 6px; font-weight: bold; cursor: pointer;">$10</button>
+                <button type="button" onclick="setQuickCash(20)" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 8px 4px; border-radius: 6px; font-weight: bold; cursor: pointer;">$20</button>
+                <button type="button" onclick="setQuickCash(50)" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 8px 4px; border-radius: 6px; font-weight: bold; cursor: pointer;">$50</button>
+                <button type="button" onclick="setQuickCash(100)" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 8px 4px; border-radius: 6px; font-weight: bold; cursor: pointer;">$100</button>
+            </div>
+
+            <div style="background: #e8f8f5; padding: 10px; border-left: 5px solid #2ecc71; border-radius: 6px; margin-bottom: 10px;">
+                <span style="font-weight: bold; color: #27ae60;">المتبقي بالدولار:</span> 
+                <span id="modalChangeUSD" style="font-weight: bold; color: #27ae60;">$0.00</span>
+            </div>
+
+            <div style="background: #fdf2e9; padding: 10px; border-left: 5px solid #e67e22; border-radius: 6px; margin-bottom: 15px;">
+                <span style="font-weight: bold; color: #d35400;">المتبقي باللبناني:</span> 
+                <span id="modalChangeLBP" style="font-weight: bold; color: #d35400;">0 ل.ل</span>
+            </div>
+
+            <p style="font-size: 0.8rem; color: #7f8c8d; text-align: center; margin-bottom: 15px;">💡 يتم تقريب المتبقي اللبناني لأقرب 500 ليرة تلقائياً.</p>
+            
+            <button id="modalConfirmBtn" onclick="confirmCalcAndProceed()" style="width: 100%; background: #27ae60; color: white; border: none; padding: 12px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer;">تأكيد وإتمام العملية</button>
+        </div>
+    `;
+    return modal;
+}
+
+// دالة لتعبئة المبالغ السريعة تلقائياً
+function setQuickCash(amount) {
+    const input = document.getElementById('modalReceivedUSD');
+    if (input) {
+        input.value = amount;
+        calculateModalChange(); // إعادة حساب المتبقي فوراً
+    }
+}
+// دالة حساب المتبقي
+// دالة حساب المتبقي المحدثة
+function calculateModalChange() {
+    try {
+        // 1. جلب الإجمالي بالدولار (يبحث في عناصر الصفحة المتعددة)
+        let totalUSD = 0;
+        const netElement = document.getElementById('final-usd-text') || 
+                           document.getElementById('subtotal-usd') || 
+                           document.querySelector('.cart-total-usd');
+
+        if (netElement) {
+            totalUSD = parseFloat(netElement.innerText.replace(/[^0-9.]/g, '')) || 0;
+        } else if (typeof cart !== 'undefined' && cart.length > 0) {
+            // حساب الإجمالي مباشرة من السلة إذا لم يجد العنصر
+            totalUSD = cart.reduce((sum, item) => sum + ((item.price || 0) * (item.qty || 1)), 0);
+        }
+
+        // 2. جلب سعر الصرف
+        let rateText = document.getElementById('exchange-rate')?.innerText || "90000";
+        let exchangeRate = parseFloat(rateText.replace(/[^0-9.]/g, '')) || 90000;
+
+        // 3. جلب المبلغ المستلم
+        let received = parseFloat(document.getElementById('modalReceivedUSD')?.value) || 0;
+        
+        // 4. حساب الفارق
+        let changeUSD = received - totalUSD;
+
+        const usdElem = document.getElementById('modalChangeUSD');
+        const lbpElem = document.getElementById('modalChangeLBP');
+
+        if (received > 0) {
+            if (changeUSD >= 0) {
+                // باقي للزبون
+                let changeLBP = Math.round((changeUSD * exchangeRate) / 500) * 500;
+                if (usdElem) {
+                    usdElem.innerText = `$${changeUSD.toFixed(2)}`;
+                    usdElem.style.color = '#27ae60';
+                }
+                if (lbpElem) {
+                    lbpElem.innerText = `${changeLBP.toLocaleString()} ل.ل`;
+                    lbpElem.style.color = '#d35400';
+                }
+            } else {
+                // المبلغ المتبقي على الزبون دفعه (مبلغ ناقص)
+                let remainingUSD = Math.abs(changeUSD);
+                let remainingLBP = Math.round((remainingUSD * exchangeRate) / 500) * 500;
+                if (usdElem) {
+                    usdElem.innerText = `متبقي للدفعة: $${remainingUSD.toFixed(2)}`;
+                    usdElem.style.color = '#e74c3c';
+                }
+                if (lbpElem) {
+                    lbpElem.innerText = `متبقي: ${remainingLBP.toLocaleString()} ل.ل`;
+                    lbpElem.style.color = '#e74c3c';
+                }
+            }
+        } else {
+            if (usdElem) {
+                usdElem.innerText = '$0.00';
+                usdElem.style.color = '#27ae60';
+            }
+            if (lbpElem) {
+                lbpElem.innerText = '0 ل.ل';
+                lbpElem.style.color = '#d35400';
+            }
+        }
+    } catch (err) {
+        console.error("خطأ بحساب الحاسبة:", err);
+    }
+}
+
+// دالة فتح النافذة المنبثقة
+// 2. دالة فتح الحاسبة (مع تحديد نوع العملية افتراضياً إذا لم تُحدد)
+function openCalcModal(actionType = null) {
+    if (actionType) {
+        pendingShortcutAction = actionType;
+    } else if (!pendingShortcutAction) {
+        pendingShortcutAction = 'F10'; // افتراضياً طباعة وحفظ عند الضغط المباشر
+    }
+
+    const modal = ensureCalcModalHTML();
+    const input = document.getElementById('modalReceivedUSD');
+    if (modal) {
+        if (input) input.value = '';
+        calculateModalChange();
+        modal.style.display = 'flex';
+        if (input) setTimeout(() => input.focus(), 100);
+    }
+}
+
+// 3. دالة زر التأكيد المحسّنة داخل الحاسبة
+async function confirmCalcAndProceed() {
+    const modal = document.getElementById('calcModal');
+    
+    // 1. إغلاق النافذة المنبثقة أولاً فوراً
+    if (modal) modal.style.display = 'none';
+
+    // 2. الاحتفاظ بنوع العملية واستعادتها
+    const actionToExecute = pendingShortcutAction || 'F10';
+    pendingShortcutAction = null; // إعادة تعيين لعدم التكرار
+
+    // 3. تنفيذ الحفظ أو الحفظ والطباعة وتمرير true كإشارة بأن العملية قادمة من الحاسبة المنبثقة
+    if (actionToExecute === 'F9') {
+        await saveInvoiceOnly(true);
+    } else {
+        await saveInvoice(true, true);
+    }
+}
+
+// اختصارات لوحة المفاتيح الاختيارية (F9 / F10 / Home / Escape)
 document.addEventListener('keydown', async (e) => {
-    // 1. F9: حفظ الفاتورة فقط (بدون طباعة) - مع دعم أزرار الكيبورد المخصصة لمنع الاختفاء
     if (e.key === 'F9' || e.code === 'F9' || e.key === 'BrowserHome' || e.key === 'Home') { 
         e.preventDefault(); 
         e.stopPropagation();
         window.isPrintDisabled = true; 
-        await handleInvoiceCheckout(); 
+        pendingShortcutAction = 'F9';
+        openCalcModal();
     }
 
-    // 2. F10: حفظ الفاتورة وطباعتها
     if (e.key === 'F10' || e.code === 'F10') { 
         e.preventDefault(); 
         e.stopPropagation();
         window.isPrintDisabled = false; 
-        await handleInvoiceCheckout(); 
+        pendingShortcutAction = 'F10';
+        openCalcModal();
     }
 
-    // 3. Escape: مسح السلة
     if (e.key === 'Escape' || e.code === 'Escape') { 
-        if(confirm('مسح السلة؟')){ cart = []; if(typeof renderCart === "function") renderCart(); } 
+        if(confirm('مسح السلة؟')){ 
+            cart = []; 
+            if(typeof renderCart === "function") renderCart(); 
+        } 
     }
 });
+// 📋 دالة عرض سجل الزبون المحدثة والمحمية من التعليق
+// 📋 دالة عرض سجل الزبون الموحدة (احذف أي نسخ أخرى مكررة للدالة)
+async function showCustomerHistoryModal() {
+    const phoneInput = document.getElementById('customer-phone') || document.getElementById('phone-input');
+    const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+
+    if (!rawPhone || rawPhone === '' || rawPhone === 'زائر') {
+        alert("يرجى إدخال رقم هاتف الزبون أولاً!");
+        return;
+    }
+
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+
+    if (cleanPhone.length < 7) {
+        alert("يرجى إدخال رقم هاتف مكتمل للبحث!");
+        return;
+    }
+
+    const modal = document.getElementById('customerModal');
+    const content = document.getElementById('customerModalContent');
+    
+    if (modal) modal.style.display = 'flex';
+    if (content) content.innerHTML = `<p style="text-align: center; color: #7f8c8d;">🔍 جاري جلب ملف الزبون (${rawPhone})...</p>`;
+
+    try {
+        // احتمالات صيغ الرقم (محلي، دولي)
+        let phoneVariants = [rawPhone, cleanPhone];
+        if (cleanPhone.startsWith('81') || cleanPhone.startsWith('70') || cleanPhone.startsWith('71') || cleanPhone.startsWith('76') || cleanPhone.startsWith('03')) {
+            phoneVariants.push('961' + cleanPhone);
+            phoneVariants.push('+961' + cleanPhone);
+        } else if (cleanPhone.startsWith('961')) {
+            phoneVariants.push(cleanPhone.replace(/^961/, ''));
+        }
+        phoneVariants = [...new Set(phoneVariants)];
+
+        // حماية الاستعلام بمهلة 5 ثوانٍ
+        const fetchPromise = (async () => {
+            let customerDoc = null;
+            let foundPhoneKey = rawPhone;
+
+            // 1. البحث في مجموعة users أولاً
+            for (let phoneOption of phoneVariants) {
+                const docSnap = await db.collection("users").doc(phoneOption).get();
+                if (docSnap.exists) {
+                    customerDoc = docSnap;
+                    foundPhoneKey = phoneOption;
+                    break;
+                }
+            }
+
+            // 2. البحث في مجموعة customers الاحتياطية
+            if (!customerDoc) {
+                for (let phoneOption of phoneVariants) {
+                    const docSnap = await db.collection("customers").doc(phoneOption).get();
+                    if (docSnap.exists) {
+                        customerDoc = docSnap;
+                        foundPhoneKey = phoneOption;
+                        break;
+                    }
+                }
+            }
+
+            let data = customerDoc && customerDoc.exists ? customerDoc.data() : null;
+            let products = data && data.purchasedProducts ? data.purchasedProducts : {};
+            let points = data ? (data.totalPoints || data.points || 0) : 0;
+
+            // 3. البحث في الفواتير إذا لم توجد أصناف في مستند الزبون
+            if (Object.keys(products).length === 0) {
+                const invoiceSnap = await db.collection("invoices")
+                    .where("customerPhone", "in", phoneVariants)
+                    .limit(20)
+                    .get();
+
+                if (!invoiceSnap.empty) {
+                    invoiceSnap.forEach(doc => {
+                        const inv = doc.data();
+                        if (inv.items) {
+                            inv.items.forEach(item => {
+                                const key = item.barcode || item.name;
+                                products[key] = {
+                                    name: item.name,
+                                    lastPriceUSD: item.priceUSD || item.price || 0
+                                };
+                            });
+                        }
+                    });
+                }
+            }
+            return { customerDoc, products, points, foundPhoneKey };
+        })();
+
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("انتهت مهلة الاتصال")), 5000)
+        );
+
+        const { customerDoc, products, points, foundPhoneKey } = await Promise.race([fetchPromise, timeoutPromise]);
+
+        if (!customerDoc && Object.keys(products).length === 0) {
+            if (content) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <p style="color: #e67e22; font-weight: bold;">⚠️ زبون جديد</p>
+                        <p>لا توجد مشتريات مسجلة سابقاً لهذا الرقم.</p>
+                    </div>`;
+            }
+            return;
+        }
+
+        let productsListHTML = '';
+        let totalItemsCount = 0;
+
+        for (let code in products) {
+            totalItemsCount++;
+            const item = products[code];
+            productsListHTML += `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px; text-align: right;">${item.name || code}</td>
+                    <td style="padding: 8px; text-align: center; color: #27ae60; font-weight: bold;">$${parseFloat(item.lastPriceUSD || 0).toFixed(2)}</td>
+                </tr>
+            `;
+        }
+
+        if (content) {
+            content.innerHTML = `
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 4px 0;"><strong>📱 الرقم:</strong> ${foundPhoneKey}</p>
+                    <p style="margin: 4px 0; color: #2980b9;"><strong>⭐ نقاط الولاء:</strong> ${points} نقطة</p>
+                </div>
+
+                <h4 style="margin: 10px 0 5px 0; color: #34495e;">آخر الأسعار المسجلة للزبون:</h4>
+                ${totalItemsCount > 0 ? `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background: #f1f2f6; color: #2c3e50;">
+                                <th style="padding: 6px; text-align: right;">المنتج</th>
+                                <th style="padding: 6px; text-align: center;">السعر المسجل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${productsListHTML}
+                        </tbody>
+                    </table>
+                ` : '<p style="color: #7f8c8d;">لا توجد أصناف مسجلة لهذا الرقم.</p>'}
+            `;
+        }
+
+    } catch (error) {
+        console.error("خطأ في جلب بيانات الزبون:", error);
+        if (content) content.innerHTML = `<p style="color: #c0392b; text-align: center;">حدث خطأ في الاتصال أو لم يتم العثور على بيانات.</p>`;
+    }
+}
+
+// --- التشغيل واختصارات لوحة المفاتيح ---
+window.onload = () => { 
+    if (typeof startRateListener === "function") startRateListener();
+    if (typeof fetchProducts === "function") fetchProducts(); 
+    if (typeof updateUI === "function") updateUI(); 
+    if (!localStorage.getItem('emp_name') && typeof loginSystem === "function") loginSystem(); 
+};
+
+let barcodeTimeout;
+
+const barcodeElem = document.getElementById('barcode-input');
+if (barcodeElem) {
+    barcodeElem.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (!val) return;
+
+        clearTimeout(barcodeTimeout);
+
+        barcodeTimeout = setTimeout(() => {
+            const isNumber = /^\d+$/.test(val);
+
+            if (typeof products !== 'undefined') {
+                const match = products.find(p => {
+                    const productBarcode = p.barcode ? String(p.barcode).trim() : '';
+                    const productName = p.name ? p.name.toLowerCase().trim() : '';
+
+                    if (isNumber) {
+                        return productBarcode === val;
+                    } else {
+                        return productName.includes(val.toLowerCase());
+                    }
+                });
+                
+                if (match && typeof addProduct === "function") {
+                    addProduct(match.barcode || match.name); 
+                    e.target.value = '';
+                }
+            }
+        }, 1200);
+    });
+
+    barcodeElem.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            clearTimeout(barcodeTimeout);
+            const val = e.target.value.trim();
+            if (!val) return;
+
+            const isNumber = /^\d+$/.test(val);
+
+            if (typeof products !== 'undefined') {
+                const match = products.find(p => {
+                    const productBarcode = p.barcode ? String(p.barcode).trim() : '';
+                    const productName = p.name ? p.name.toLowerCase().trim() : '';
+
+                    if (isNumber) {
+                        return productBarcode === val;
+                    } else {
+                        return productName.includes(val.toLowerCase());
+                    }
+                });
+                
+                if (match && typeof addProduct === "function") {
+                    addProduct(match.barcode || match.name);
+                    e.target.value = ''; 
+                } else {
+                    alert("⚠️ لم يتم العثور على هذا المنتج في النظام!");
+                }
+            }
+        }
+    });
+}
+
+
 /* ================================================================= */
 /* 🔥 كود حماية مكمّل: تأمين عمليات الـ Batch والمخزون لمنع خطأ No document to update 🔥 */
 /* ================================================================= */
@@ -1785,57 +2215,74 @@ function calculateFinalTotal() {
     if(document.getElementById('total-lbp-val')) document.getElementById('total-lbp-val').innerText = roundedLBP.toLocaleString() + " L.L";
 }
 async function showDailyReview() {
-    // طلب كلمة المرور من المستخدم
+    // 1. طلب كلمة المرور من المستخدم
     const password = prompt("🔐 منطقة محمية - أدخل كلمة مرور أرشيف مبيعات اليوم:");
     if (!password) return;
 
-    // التحقق الآمن والمباشر من كلمة المرور (2004) بدون تعقيد التشفير الرقمي المتغير
     if (password !== "20" + "04") {
         alert("❌ عذراً! كلمة المرور خاطئة، لا تملك صلاحية الوصول للأرشيف اليومي.");
         return;
     }
 
-    // بناء واجهة أرشيف اليوم
+    // 2. بناء واجهة أرشيف اليوم النافذة المنبثقة
     let modalHtml = `
         <div id="daily-archive-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:2000; font-family:'Cairo';">
-            <div style="background:white; width:90%; max-width:800px; height:85vh; border-radius:20px; display:flex; flex-direction:column; overflow:hidden; position:relative; animation: fadeIn 0.3s;">
+            <div style="background:white; width:90%; max-width:850px; height:85vh; border-radius:20px; display:flex; flex-direction:column; overflow:hidden; position:relative; animation: fadeIn 0.3s;">
                 
-                <div style="background:#27ae60; color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
-                    <h2 style="margin:0;"><i class="fas fa-calendar-check"></i> أرشيف مبيعات اليوم (${new Date().toLocaleDateString('ar-LB')})</h2>
-                    <button onclick="document.getElementById('daily-archive-modal').remove()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+                <div style="background:#27ae60; color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="margin:0; font-size:1.3rem;"><i class="fas fa-calendar-check"></i> أرشيف وتقارير مبيعات اليوم (${new Date().toLocaleDateString('ar-LB')})</h2>
+                    <button onclick="document.getElementById('daily-archive-modal').remove()" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer;">&times;</button>
                 </div>
 
-                <div id="daily-archive-stats" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; padding:20px; background:#f8f9fa;">
-                    <div style="background:white; padding:15px; border-radius:12px; border-right:5px solid var(--success); box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                        <small style="color:#666;">إجمالي مبيعات اليوم ($)</small>
-                        <div id="day-total-usd" style="font-size:1.5rem; font-weight:900; color:var(--success);">0.00 $</div>
+                <div id="daily-archive-stats" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; padding:15px; background:#f8f9fa;">
+                    <div style="background:white; padding:12px; border-radius:12px; border-right:5px solid #27ae60; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <small style="color:#666; font-weight:bold;">إجمالي اليوم ($)</small>
+                        <div id="day-total-usd" style="font-size:1.3rem; font-weight:900; color:#27ae60;">0.00 $</div>
                     </div>
-                    <div style="background:white; padding:15px; border-radius:12px; border-right:5px solid var(--primary); box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                        <small style="color:#666;">إجمالي مبيعات اليوم (L.L)</small>
-                        <div id="day-total-lbp" style="font-size:1.5rem; font-weight:900; color:var(--primary);">0 L.L</div>
+                    <div style="background:white; padding:12px; border-radius:12px; border-right:5px solid #2980b9; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <small style="color:#666; font-weight:bold;">إجمالي اليوم (L.L)</small>
+                        <div id="day-total-lbp" style="font-size:1.3rem; font-weight:900; color:#2980b9;">0 L.L</div>
+                    </div>
+                    <div style="background:white; padding:12px; border-radius:12px; border-right:5px solid #8e44ad; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                        <small style="color:#666; font-weight:bold;">عدد الفواتير اليوم</small>
+                        <div id="day-invoice-count" style="font-size:1.3rem; font-weight:900; color:#8e44ad;">0 فاتورة</div>
                     </div>
                 </div>
 
-                <div style="flex:1; overflow-y:auto; padding:20px;">
-                    <table style="width:100%; border-collapse:collapse; text-align:right;">
+                <div style="flex:1; overflow-y:auto; padding:15px 20px;">
+                    <h3 style="margin:5px 0 10px 0; font-size:1rem; color:#2c3e50;"><i class="fas fa-list-alt"></i> سجل الفواتير اليومية</h3>
+                    <table style="width:100%; border-collapse:collapse; text-align:right; margin-bottom:20px;">
                         <thead>
                             <tr style="background:#eee; position:sticky; top:0;">
-                                <th style="padding:12px; border-bottom:2px solid #ddd;">الوقت</th>
-                                <th style="padding:12px; border-bottom:2px solid #ddd;">الموظف</th>
-                                <th style="padding:12px; border-bottom:2px solid #ddd;">المبلغ ($)</th>
-                                <th style="padding:12px; border-bottom:2px solid #ddd;">المبلغ (L.L)</th>
+                                <th style="padding:10px; border-bottom:2px solid #ddd;">الوقت</th>
+                                <th style="padding:10px; border-bottom:2px solid #ddd;">الموظف</th>
+                                <th style="padding:10px; border-bottom:2px solid #ddd;">المبلغ ($)</th>
+                                <th style="padding:10px; border-bottom:2px solid #ddd;">المبلغ (L.L)</th>
                             </tr>
                         </thead>
                         <tbody id="daily-archive-table-body">
                             <tr><td colspan="4" style="text-align:center; padding:30px;">جاري تحميل بيانات اليوم...</td></tr>
                         </tbody>
                     </table>
+
+                    <div id="top-products-container" style="background:#fff border:1px solid #eee; padding:15px; border-radius:10px; margin-top:10px;">
+                        <h4 style="margin:0 0 10px 0; color:#d35400;"><i class="fas fa-fire"></i> الأكثر مبيعاً اليوم:</h4>
+                        <ul id="top-products-list" style="list-style:none; padding:0; margin:0; font-size:0.9rem;">
+                            <li style="color:#7f8c8d;">جاري التحليل...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="padding:12px 20px; background:#f1f2f6; display:flex; justify-content:flex-end; gap:10px;">
+                    <button onclick="window.print()" style="background:#3498db; color:white; border:none; padding:8px 18px; border-radius:6px; font-weight:bold; cursor:pointer;"><i class="fas fa-print"></i> طباعة النافذة</button>
+                    <button onclick="document.getElementById('daily-archive-modal').remove()" style="background:#7f8c8d; color:white; border:none; padding:8px 18px; border-radius:6px; font-weight:bold; cursor:pointer;">إغلاق</button>
                 </div>
             </div>
         </div>`;
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+    // 3. جلب المبيعات المباشرة من Firestore لليوم الحالي
     try {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
@@ -1850,33 +2297,75 @@ async function showDailyReview() {
         
         let totalUSD = 0;
         let totalLBP = 0;
+        let productStats = {};
 
         if (snapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">لم يتم تسجيل أي مبيعات اليوم حتى الآن.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:#e74c3c; font-weight:bold;">⚠️ لم يتم تسجيل أي مبيعات اليوم حتى الآن.</td></tr>';
+            document.getElementById('top-products-list').innerHTML = '<li style="color:#7f8c8d;">لا توجد مبيعات لحساب الأكثر مبيعاً.</li>';
             return;
         }
 
         snapshot.forEach(doc => {
             const data = doc.data();
             const timeString = data.time ? data.time.toDate().toLocaleTimeString('ar-LB', {hour: '2-digit', minute:'2-digit'}) : '---';
-            totalUSD += data.totalUSD || 0;
-            totalLBP += data.totalLBP || 0;
+            
+            const saleUSD = parseFloat(data.totalUSD || data.total || 0);
+            const saleLBP = parseFloat(data.totalLBP || data.finalLBP || 0);
+            
+            totalUSD += saleUSD;
+            totalLBP += saleLBP;
+
+            // إحصاء المنتجات الأكثر مبيعاً
+            const items = data.items || data.products || [];
+            if (Array.isArray(items)) {
+                items.forEach(item => {
+                    const name = item.name || "منتج غير معرف";
+                    const qty = parseFloat(item.qty || item.quantity || 1);
+                    const price = parseFloat(item.price || 0);
+
+                    if (!productStats[name]) {
+                        productStats[name] = { qty: 0, totalUSD: 0 };
+                    }
+                    productStats[name].qty += qty;
+                    productStats[name].totalUSD += (price * qty);
+                });
+            }
 
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #f0f0f0;">
-                    <td style="padding:12px; font-size:0.9rem; font-weight:bold;">${timeString}</td>
-                    <td style="padding:12px;">${data.employee || 'غير معروف'}</td>
-                    <td style="padding:12px; font-weight:bold; color:var(--success);">${(data.totalUSD || 0).toFixed(2)} $</td>
-                    <td style="padding:12px;">${(data.totalLBP || 0).toLocaleString()} L.L</td>
+                    <td style="padding:10px; font-size:0.9rem; font-weight:bold;">${timeString}</td>
+                    <td style="padding:10px;">${data.employee || 'الكاشير'}</td>
+                    <td style="padding:10px; font-weight:bold; color:#27ae60;">${saleUSD.toFixed(2)} $</td>
+                    <td style="padding:10px; color:#2980b9;">${saleLBP.toLocaleString()} L.L</td>
                 </tr>`;
         });
 
+        // تحديث إجمالي الواجهة
         document.getElementById('day-total-usd').innerText = totalUSD.toFixed(2) + " $";
         document.getElementById('day-total-lbp').innerText = totalLBP.toLocaleString() + " L.L";
+        document.getElementById('day-invoice-count').innerText = snapshot.size + " فاتورة";
+
+        // عرض أعلى 5 منتجات مبيعاً
+        const topProducts = Object.entries(productStats)
+            .map(([name, stat]) => ({ name, ...stat }))
+            .sort((a, b) => b.qty - a.qty)
+            .slice(0, 5);
+
+        const topList = document.getElementById('top-products-list');
+        if (topProducts.length > 0) {
+            topList.innerHTML = topProducts.map((p, i) => `
+                <li style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #eee;">
+                    <span><b>#${i + 1}</b> ${p.name}</span>
+                    <span style="color:#27ae60; font-weight:bold;">${p.qty} قطعة ($${p.totalUSD.toFixed(2)})</span>
+                </li>
+            `).join('');
+        } else {
+            topList.innerHTML = '<li style="color:#7f8c8d;">لا توجد أصناف تفصيلية مسجلة في الفواتير.</li>';
+        }
 
     } catch (error) {
         console.error("خطأ في جلب أرشيف اليوم:", error);
-        alert("فشل في تحميل أرشيف اليوم.");
+        alert("فشل في تحميل بيانات مبيعات اليوم من قاعدة البيانات.");
     }
 }
 // دالة لفتح نافذة مراجعة الفواتير وجلب البيانات من Firebase
@@ -2362,6 +2851,7 @@ document.getElementById('barcode-input').addEventListener('keydown', function(ev
     }
 });
 // 🚀 دالة حفظ الفواتير وحساب الزبائن (تستجيب للإنترنت ولأوفلاين)
+// 🚀 دالة حفظ الفواتير وحساب الزبائن (تستجيب للإنترنت ولأوفلاين)
 async function handleInvoiceCheckout() {
     if (!cart || cart.length === 0) {
         alert("السلة فارغة!");
@@ -2389,6 +2879,11 @@ async function handleInvoiceCheckout() {
         try {
             await db.collection("orders").add(invoiceData);
             console.log("تم حفظ الفاتورة أونلاين بنجاح ✅");
+
+            // ➕ الإضافة الجديدة: تحديث سجل الزبون والأصناف المباعة له دون المساس بالكود الأصلي
+            if (typeof updateCustomerPurchases === "function" && customerPhone && customerPhone.trim() !== "" && customerPhone !== "زائر") {
+                await updateCustomerPurchases(customerPhone, cart);
+            }
         } catch (error) {
             console.error("فشل الحفظ أونلاين، سيتم الحفظ أوفلاين:", error);
             saveInvoiceOffline(invoiceData);
@@ -2451,6 +2946,431 @@ window.addEventListener('online', async () => {
         if (typeof loadSalesHistory === "function") loadSalesHistory();
     }
 });
+// ==========================================
+// 1. تسجيل / جلب بيانات الزبون
+// ==========================================
+async function getOrCreateCustomer(phone) {
+    if (!phone || phone.trim() === '' || phone === 'زائر') return null;
+
+    const cleanPhone = phone.trim();
+    const customerRef = db.collection("customers").doc(cleanPhone);
+    const doc = await customerRef.get();
+
+    if (!doc.exists) {
+        // إنشاء حساب جديد للزبون
+        const newCustomer = {
+            phone: cleanPhone,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            purchasedProducts: {} // لتخزين كود المنتج والسعر الذي اشتراه به
+        };
+        await customerRef.set(newCustomer);
+        return newCustomer;
+    }
+
+    return doc.data();
+}
+
+// ==========================================
+// 2. تحديث قائمة أصناف الزبون وأسعارها
+// ==========================================
+async function updateCustomerPurchases(phone, cartItems) {
+    if (!phone || phone.trim() === '' || phone === 'زائر') return;
+
+    const cleanPhone = phone.trim();
+    const customerRef = db.collection("customers").doc(cleanPhone);
+    const doc = await customerRef.get();
+
+    let purchasedProducts = doc.exists && doc.data().purchasedProducts ? doc.data().purchasedProducts : {};
+
+    cartItems.forEach(item => {
+        const itemCode = item.id || item.barcode || item.name;
+        // حفظ أحدث سعر تم الشراء به وتاريخ الشراء
+        purchasedProducts[itemCode] = {
+            name: item.name || item.title,
+            lastPriceUSD: parseFloat(item.price),
+            updatedAt: new Date().toISOString()
+        };
+    });
+
+    await customerRef.set({
+        phone: cleanPhone,
+        purchasedProducts: purchasedProducts,
+        lastVisit: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+}
+
+// ==========================================
+// 3. فحص ارتفاع الأسعار وإرسال التنبيه
+// ==========================================
+async function handleSingleWhatsAppAction() {
+    // 1. التحقق من رقم الهاتف
+    const phoneInput = document.getElementById('customer-phone') || document.getElementById('phone-input');
+    const phoneValue = phoneInput ? phoneInput.value.trim() : '';
+
+    if (!phoneValue || phoneValue === '' || phoneValue === 'زائر') {
+        alert("يرجى إدخال رقم هاتف الزبون أولاً!");
+        return;
+    }
+
+    // تنظيف رقم الهاتف وتنسيقه مع مفتاح الدولة (لبنان 961)
+    let formattedPhone = phoneValue.replace(/\D/g, '');
+    if (formattedPhone.startsWith('0')) {
+        formattedPhone = '961' + formattedPhone.substring(1);
+    } else if (!formattedPhone.startsWith('961')) {
+        formattedPhone = '961' + formattedPhone;
+    }
+
+    // 2. إذا كانت السلة فارغة -> إرسال رسالة ترحيب مباشرة
+    if (!cart || cart.length === 0) {
+        const welcomeMessage = "أهلاً بك في Stop & Shop! 🛒 شكراً لزيارتك لمتجرنا.";
+        window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(welcomeMessage)}`, '_blank');
+        return;
+    }
+
+    // 3. جلب المنتج الحالي الموجود في السلة
+    const item = cart[0];
+    const itemCode = item.id || item.barcode || item.name;
+    const productName = item.name || item.title || "المنتج";
+    const newPriceUSD = parseFloat(item.price || 0);
+
+    let message = "";
+
+    try {
+        // فحص سجل الزبون في قاعدة البيانات لمعرفة السعر القديم تلقائياً
+        const customerRef = db.collection("customers").doc(phoneValue);
+        const doc = await customerRef.get();
+
+        if (doc.exists && doc.data().purchasedProducts && doc.data().purchasedProducts[itemCode]) {
+            const oldPriceUSD = doc.data().purchasedProducts[itemCode].lastPriceUSD;
+
+            // إذا كان السعر الجديد مختلفاً عن السعر المسجل سابقاً
+            if (oldPriceUSD && newPriceUSD !== oldPriceUSD) {
+                message = `مرحباً بك من Stop & Shop 🛒\n\nنود إعلامك بتغير سعر المنتج الذي تهتم به:\n📦 *${productName}*\n💵 السعر السابق: $${parseFloat(oldPriceUSD).toFixed(2)}\n🏷️ السعر الجديد: $${newPriceUSD.toFixed(2)}\n\nنتشرف بزيارتك دائماً!`;
+            }
+        }
+    } catch (err) {
+        console.error("خطأ في جلب بيانات الزبون:", err);
+    }
+
+    // إذا لم تكن هناك زيادة/تغيير في السعر سابقاً، يتم استخدام الرسالة الترحيبية الافتراضية
+    if (!message) {
+        message = `أهلاً بك في Stop & Shop! 🛒\nشكراً لاهتمامك بـ *${productName}* بسعر $${newPriceUSD.toFixed(2)}. نتشرف بزيارتك دائماً!`;
+    }
+
+    // 4. فتح الواتساب بالرسالة المجهزة
+    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+}
+function sendDiscountAlert() {
+    const phoneInput = document.getElementById('customer-phone') || document.getElementById('phone-input');
+    const phoneValue = phoneInput ? phoneInput.value.trim() : '';
+
+    if (!phoneValue || phoneValue === '' || phoneValue === 'زائر') {
+        alert("يرجى إدخال رقم هاتف الزبون أولاً!");
+        return;
+    }
+
+    if (!cart || cart.length === 0) {
+        alert("السلة فارغة! أضف المنتج المعروض إلى السلة أولاً.");
+        return;
+    }
+
+    const item = cart[0];
+    const productName = item.name || item.title || "المنتج";
+    const newPriceUSD = parseFloat(item.price || 0);
+
+    let oldPriceUSD = prompt(`أدخل السعر الاصلي قبل العرض لـ (${productName}):`, (newPriceUSD * 1.2).toFixed(2));
+    if (oldPriceUSD === null) return;
+
+    oldPriceUSD = parseFloat(oldPriceUSD) || 0;
+    const savings = (oldPriceUSD - newPriceUSD).toFixed(2);
+
+    let formattedPhone = phoneValue.replace(/\D/g, '');
+    if (formattedPhone.startsWith('0')) formattedPhone = '961' + formattedPhone.substring(1);
+    else if (!formattedPhone.startsWith('961')) formattedPhone = '961' + formattedPhone;
+
+    const message = `🔥 *عرض خاص من Stop & Shop!* 🔥\n\nتم تخفيض سعر: *${productName}*\n🔻 السعر السابق: ~$${oldPriceUSD.toFixed(2)}~\n✅ السعر الحالي: *$${newPriceUSD.toFixed(2)}*\n🎉 توفير: *$${savings}*\n\nسارع بالزيارة للاستفادة من العرض! 🛒`;
+
+    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+}
+
+
+function closeCustomerModal() {
+    document.getElementById('customerModal').style.display = 'none';
+}
+// 📊 1. دالة حساب وإنشاء تقرير اليوم (Z-Report)
+function generateDailyReport() {
+    // جلب الفواتير المحفوظة لليوم (من المبيعات اليومية)
+    const sales = JSON.parse(localStorage.getItem('dailySales') || '[]');
+    
+    if (sales.length === 0) {
+        alert("⚠️ لا توجد مبيعات مسجلة لهذا اليوم حتى الآن.");
+        return;
+    }
+
+    let totalUSD = 0;
+    let totalLBP = 0;
+    let invoiceCount = sales.length;
+    let productStats = {};
+
+    // حساب المجاميع والإحصائيات
+    sales.forEach(sale => {
+        totalUSD += sale.totalUSD || 0;
+        totalLBP += sale.totalLBP || 0;
+
+        // إحصاء العناصر الأكثر مبيعاً
+        if (sale.items && Array.isArray(sale.items)) {
+            sale.items.forEach(item => {
+                if (!productStats[item.name]) {
+                    productStats[item.name] = { qty: 0, totalUSD: 0 };
+                }
+                productStats[item.name].qty += item.qty;
+                productStats[item.name].totalUSD += (item.price * item.qty);
+            });
+        }
+    });
+
+    // ترتيب المنتجات الأكثر مبيعاً (أعلى 5 منتجات)
+    const topProducts = Object.entries(productStats)
+        .map(([name, stat]) => ({ name, ...stat }))
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 5);
+
+    // عرض النافذة المنبثقة للتقرير
+    showReportModal(totalUSD, totalLBP, invoiceCount, topProducts);
+}
+
+// 📊 دالة التقرير اليومي المحدثة لتتوافق مع نظام الفواتير لديك
+function generateDailyReport() {
+    // 1. جلب الفواتير من المصادر المتاحة في النظام
+    let sales = [];
+    
+    if (typeof invoices !== 'undefined' && Array.isArray(invoices) && invoices.length > 0) {
+        sales = invoices;
+    } else {
+        const storedInvoices = localStorage.getItem('invoices') || localStorage.getItem('dailySales') || localStorage.getItem('sales');
+        if (storedInvoices) {
+            try {
+                sales = JSON.parse(storedInvoices);
+            } catch (e) {
+                sales = [];
+            }
+        }
+    }
+
+    // فلترة مبيعات اليوم الحالي فقط (تاريخ اليوم)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todaySales = sales.filter(s => {
+        if (!s.date) return true; // إذا لم يوجد تاريخ تعتبر ضمن مبيعات اليوم
+        return s.date.includes(todayStr);
+    });
+
+    if (todaySales.length === 0) {
+        alert("⚠️ لا توجد مبيعات مسجلة لهذا اليوم حتى الآن.");
+        return;
+    }
+
+    let totalUSD = 0;
+    let totalLBP = 0;
+    let invoiceCount = todaySales.length;
+    let productStats = {};
+
+    todaySales.forEach(sale => {
+        totalUSD += parseFloat(sale.totalUSD || sale.total || 0);
+        totalLBP += parseFloat(sale.totalLBP || sale.finalLBP || 0);
+
+        const items = sale.items || sale.products || [];
+        if (Array.isArray(items)) {
+            items.forEach(item => {
+                const name = item.name || "منتج غير معرف";
+                const qty = parseFloat(item.qty || item.quantity || 1);
+                const price = parseFloat(item.price || 0);
+
+                if (!productStats[name]) {
+                    productStats[name] = { qty: 0, totalUSD: 0 };
+                }
+                productStats[name].qty += qty;
+                productStats[name].totalUSD += (price * qty);
+            });
+        }
+    });
+
+    const topProducts = Object.entries(productStats)
+        .map(([name, stat]) => ({ name, ...stat }))
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 5);
+
+    showReportModal(totalUSD, totalLBP, invoiceCount, topProducts);
+}
+// 🔑 1. دالة قفل الشاشة المباشر
+function lockPOS() {
+    const lockModal = document.getElementById('lock-screen-modal');
+    if (lockModal) {
+        lockModal.style.display = 'flex';
+        const passInput = document.getElementById('lock-screen-pass');
+        if (passInput) {
+            passInput.value = '';
+            passInput.focus();
+        }
+    }
+}
+
+// 🔓 2. دالة إلغاء قفل الشاشة (كلمة المرور الافتراضية: 2004)
+function unlockPOS() {
+    const passInput = document.getElementById('lock-screen-pass');
+    if (passInput && passInput.value === "2004") {
+        document.getElementById('lock-screen-modal').style.display = 'none';
+        showToast("تم فتح الشاشة بنجاح", "success");
+    } else {
+        showToast("كلمة المرور غير صحيحة!", "error");
+        if (passInput) passInput.value = '';
+    }
+}
+
+// 🔔 3. دالة التنبيهات المنبثقة الأنيقة (Toast Notifications) بديل الـ alert التقليدي
+function showToast(message, type = "info") {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const bgColor = type === "success" ? "#10b981" : (type === "error" ? "#ef4444" : "#0284c7");
+    const icon = type === "success" ? "fa-check-circle" : (type === "error" ? "fa-exclamation-triangle" : "fa-info-circle");
+
+    toast.style.cssText = `background: ${bgColor}; color: white; padding: 12px 20px; border-radius: 10px; font-family: 'Cairo'; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease;`;
+    toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = '0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ⏱️ 4. مؤقت القفل التلقائي عند الخمول (بعد 5 دقائق)
+let inactivityTimer;
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+        lockPOS();
+    }, 5 * 60 * 1000); // 5 دقائق
+}
+
+// الاستماع لنشاط المستخدم
+['mousemove', 'keydown', 'click', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer);
+});
+
+// السماح بفتح الشاشة عند الضغط على Enter في خانة السر
+document.getElementById('lock-screen-pass')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') unlockPOS();
+});
+// 1. دالة حفظ الفاتورة الذكية (أونلاين / أوفلاين)
+async function saveInvoiceSmart(invoiceData) {
+    if (navigator.onLine) {
+        try {
+            await saveInvoiceToFirestore(invoiceData);
+            showToast("تم حفظ الفاتورة بنجاح على السحابة ☁️", "success");
+        } catch (error) {
+            console.error("خطأ في الاتصال، جارٍ الحفظ محلياً:", error);
+            saveInvoiceOffline(invoiceData);
+        }
+    } else {
+        saveInvoiceOffline(invoiceData);
+    }
+}
+
+// 2. حفظ الفاتورة في localStorage
+function saveInvoiceOffline(invoiceData) {
+    let offlineInvoices = JSON.parse(localStorage.getItem('offline_invoices') || '[]');
+    // إضافة طابع زمني لمعرفة وقت البيع الحقيقي أوفلاين
+    invoiceData.offlineCreatedAt = new Date().toISOString(); 
+    offlineInvoices.push(invoiceData);
+    
+    localStorage.setItem('offline_invoices', JSON.stringify(offlineInvoices));
+    showToast("تم حفظ الفاتورة مؤقتاً (بدون إنترنت) 📦", "warning");
+}
+
+// 3. دالة المزامنة التلقائية فور عودة الإنترنت
+async function syncOfflineInvoices() {
+    let offlineInvoices = JSON.parse(localStorage.getItem('offline_invoices') || '[]');
+    
+    if (offlineInvoices.length === 0) return;
+
+    showToast(`جارٍ رفع ${offlineInvoices.length} فواتير محليّة إلى السحابة... 🔄`, "info");
+
+    let remainingInvoices = [];
+
+    for (let invoice of offlineInvoices) {
+        try {
+            await saveInvoiceToFirestore(invoice); // الدالة الأساسية لحفظك في Firestore
+        } catch (error) {
+            console.error("فشل رفع الفاتورة، ستتم المحاولة لاحقاً:", error);
+            remainingInvoices.push(invoice);
+        }
+    }
+
+    // تحديث الذاكرة المحلية بالفواتير التي لم ترفع بعد (إن وجدت)
+    localStorage.setItem('offline_invoices', JSON.stringify(remainingInvoices));
+
+    if (remainingInvoices.length === 0) {
+        showToast("تمت مزامنة جميع الفواتير المحفوظة أوفلاين بنجاح! ✅", "success");
+    }
+}
+
+// 4. الاستماع لحدث عودة الاتصال بالإنترنت
+window.addEventListener('online', () => {
+    showToast("عادت شبكة الإنترنت! جارٍ المزامنة...", "success");
+    syncOfflineInvoices();
+});
+
+// إجراء مزامنة عند فتح التطبيق مباشرة في حال وجود فواتير معلقة
+document.addEventListener('DOMContentLoaded', () => {
+    if (navigator.onLine) {
+        syncOfflineInvoices();
+    }
+});
+// كلمة سر المشرف (يمكن استدعاؤها من Firebase أو إعدادات النظام)
+const ADMIN_PIN = "1234"; 
+
+// أ) دالة حذف عنصر من السلة مع التحقق من كلمة السر
+function removeItemFromCart(productIndex) {
+    // نافذة منبثقة بسيطة (أو يمكنك استخدام Modal مخصص من تصميمك)
+    let userPin = prompt("🔒 هذا الإجراء يتطلب صلاحية المشرف. أدخل كلمة السر لإلغاء المادة:");
+
+    if (userPin === null) return; // إلغاء الأمر
+
+    if (userPin === ADMIN_PIN) {
+        // تنفيذ الحذف
+        cart.splice(productIndex, 1);
+        updateCartUI(); // إعادة رسم السلة
+        showToast("تم حذف العنصر بنجاح", "success");
+    } else {
+        alert("❌ كلمة السر غير صحيحة! لا يمكنك حذف المادة.");
+    }
+}
+
+// ب) دالة تطبيق الخصم مع التحقق من الحدود
+function applyDiscount(discountValue) {
+    const MAX_FREE_DISCOUNT = 10; // الحد الأقصى المسموح للكاشير بدونه مشرف (مثلاً 10%)
+
+    if (discountValue > MAX_FREE_DISCOUNT) {
+        let userPin = prompt(`🔒 الخصم يتجاوز ${MAX_FREE_DISCOUNT}%. يرجى إدخال كلمة سر المشرف للموافقة:`);
+
+        if (userPin === ADMIN_PIN) {
+            currentDiscount = discountValue;
+            calculateTotals();
+            showToast("تم تطبيق الخصم بنجاح عبر المشرف", "success");
+        } else {
+            alert("❌ كلمة السر غير صحيحة! تم إلغاء الخصم.");
+            document.getElementById('discount-input').value = 0; // إعادة التصفير
+        }
+    } else {
+        // خصم عادي مسموح للكاشير
+        currentDiscount = discountValue;
+        calculateTotals();
+    }
+}
 </script>
 
 </body>

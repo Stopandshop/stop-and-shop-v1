@@ -4693,5 +4693,21 @@ function saveSupplierOrderFromModal() {
     else if (typeof loadProducts === 'function') loadProducts();
     else location.reload(); 
 }
+function openPriceChecker() {
+    // حدد كلمة المرور المطلوبة هنا (مثلاً: 1234)
+    const SECRET_PASSWORD = "1632004"; 
+
+    // إظهار نافذة إدخال كلمة المرور
+    const userPassword = prompt("🔒 يرجى إدخال كلمة المرور لفتح كاشف الأسعار:");
+
+    // التحقق من صحة كلمة المرور
+    if (userPassword === SECRET_PASSWORD) {
+        // فتح الصفحة في نافذة/تبويب جديد
+        window.open('price_checker.html', '_blank');
+    } else if (userPassword !== null) {
+        // في حال كانت كلمة المرور خاطئة ولم يضغط المستخدم على Cancel
+        alert("❌ كلمة المرور غير صحيحة!");
+    }
+}
 // أضف هذا السطر في نهاية دالة checkMyPoints مثلاً
 document.getElementById('points-result').scrollIntoView({ behavior: 'smooth', block: 'center' });

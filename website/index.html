@@ -2,24 +2,36 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 1. ضبط الـ Viewport ليتكيف مع كامل عرض شاشات الآيباد والأجهزة الذكية -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- 2. دعم الشاشة الكاملة على أجهزة آبل والآيباد (iOS/iPadOS) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Stop&Shop">
+    
+    <!-- 3. دعم الشاشة الكاملة على الأندرويد ومتصفحات أخرى -->
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#e74c3c">
+    
     <title>ميني ماركت Stop&Shop | مؤسسة نصور التجارية</title>
+    
+    <!-- الخطوط والأيقونات والتنسيقات -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="index.css">
     <link rel="icon" type="image/jpeg" href="logo.jpg">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <link rel="manifest" href="./manifest.json">
+
+    <!-- المكتبات والأكواد البرمجية الخاصة بك كما هي تماماً -->
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-    
-    <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <script src="./index.js"></script>
-    <meta name="theme-color" content="#e74c3c">
-    <link rel="apple-touch-icon" href="logo.jpg">
+    
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -29,6 +41,7 @@
         });
       }
     </script>
+</head>
     
     <style>
         /* إضافة تحسينات CSS بسيطة لضمان التنسيق دون تغيير الهيكل */
@@ -920,5 +933,5 @@ document.addEventListener("DOMContentLoaded", function() {
     </div>
 </div>
 
-<script src="index.js?v=3.7"></script>
+<script src="index.js?v=3.9"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>

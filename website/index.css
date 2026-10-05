@@ -1267,4 +1267,19 @@ thead th:last-child {
     background: #ccc;
     border-radius: 10px;
 }
+/* إلغاء أي تقييد للعرض على الشاشات الكبيرة والآيباد */
+html, body {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* إذا كان هناك Container رئيسي يحدد حجم التطبيق */
+.app-container, .main-wrapper, .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 auto;
+}
 footer { background: var(--bg-black); color: white; text-align: center; padding: 40px 20px; margin-top: 50px; }

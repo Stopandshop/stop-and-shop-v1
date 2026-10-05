@@ -1120,28 +1120,37 @@ function handleQtyShortcuts(event, index) {
  // --- 4. الحفظ والأرشفة ---
 // 🟢 1. دالة جديدة لحفظ الفاتورة فقط (بدون طباعة)
 async function saveInvoiceOnly(isFromModal = false) {
-    return await saveInvoice(false, isFromModal); // نمرر false لعدم فتح نافذة الطباعة
+    return await saveInvoice(false, isFromModal);
 }
 
-// 🖨️ 2. الدالة الرئيسية لحفظ الفاتورة (محدثة لتفتح الحاسبة تلقائياً)
 async function saveInvoice(shouldPrint = true, isFromModal = false) {
-    if (typeof cart === 'undefined' || cart.length === 0) return alert("السلة فارغة!");
+    if (typeof cart === 'undefined' || cart.length === 0) {
+        alert("السلة فارغة!");
+        return;
+    }
 
-    // تحقق مما إذا كانت الحاسبة المنبثقة مفتوحة حالياً، إن لم تكن مفتوحة افتحها أولاً
+    // 1. فتح مودال الحاسبة إن لم يكن مفتوحاً
     const modal = document.getElementById('calcModal');
-    if (!isFromModal && (!modal || modal.style.display !== 'flex')) {
-        pendingShortcutAction = shouldPrint ? 'F10' : 'F9';
-        openCalcModal();
-        return; // توقف هنا وانتظر حتى يضغط المستخدم على "تأكيد وإتمام العملية" داخل الحاسبة
+    if (!isFromModal && modal && window.getComputedStyle(modal).display === 'none') {
+        if (typeof openCalcModal === 'function') {
+            pendingShortcutAction = shouldPrint ? 'F10' : 'F9';
+            openCalcModal();
+        } else {
+            console.error("دالة openCalcModal غير معرفة!");
+        }
+        return;
     }
 
     if (!confirm("تأكيد حفظ الفاتورة؟")) return;
 
+    // 2. تجهيز نافذة الطباعة مسبقاً لمنع حظر Pop-up على الأجهزة الأخرى
     let printWindow = null;
     if (shouldPrint) {
-        // 🛠️ فتح النافذة فوراً قبل انتظار عمليات Firestore لمنع حظر Pop-up على الأجهزة الأخرى
         try {
-            printWindow = window.open('about:blank', '_blank', 'width=800,height=900');
+            printWindow = window.open('', '_blank', 'width=800,height=900');
+            if (printWindow) {
+                printWindow.document.write('<html><head><title>جاري تجهيز الطباعة...</title></head><body style="text-align:center;font-family:sans-serif;padding-top:50px;"><h2>جاري إعداد الفاتورة للطباعة...</h2></body></html>');
+            }
         } catch (e) {
             console.warn("تعذر فتح النافذة المنبثقة للطباعة:", e);
         }
@@ -1155,33 +1164,49 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
     const pointsEarnedElem = document.getElementById('points-earned');
     const pointsToSave = pointsEarnedElem ? parseInt(pointsEarnedElem.innerText) || 0 : 0;
 
+    // تجهيز بيانت الفاتورة لاستخدامها أوفلاين أو أونلاين
+    const currentEmpName = typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير';
+    const invoicePayload = {
+        items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price, barcode: i.barcode || i.id || '' })),
+        employee: currentEmpName,
+        totalUSD: usd,
+        totalLBP: lbp,
+        pointsEarned: pointsToSave,
+        date: new Date().toISOString()
+    };
+
+    // 3. التحقق من وجود الاتصال بالإنترنت قبل محاولة حفظ Firestore
+    if (!navigator.onLine) {
+        if (printWindow && !printWindow.closed) printWindow.close();
+        saveInvoiceOffline(invoicePayload);
+        cart = [];
+        if (typeof renderCart === "function") renderCart();
+        return;
+    }
+
     try {
         const batch = db.batch();
         const saleRef = db.collection("sales").doc();
         
         batch.set(saleRef, {
-            items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
-            employee: typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير', 
-            totalUSD: usd,
-            totalLBP: lbp,
-            pointsEarned: pointsToSave,
+            ...invoicePayload,
             time: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        const stockUpdates = cart.map(async (item) => {
+        // تحديث المخزون
+        for (const item of cart) {
             const targetDocId = item.barcode ? item.barcode : item.id;
+            if (!targetDocId) continue;
             const ref = db.collection("products").doc(targetDocId);
             
             try {
                 const doc = await ref.get();
                 if (doc.exists) {
-                    // --- الإضافة المحدثة: زيادة عدد القطع المباعة (soldCount) مع تنقيص المخزون (stock) ---
                     await ref.update({ 
                         stock: firebase.firestore.FieldValue.increment(-item.qty),
                         soldCount: firebase.firestore.FieldValue.increment(item.qty)
                     });
                 } else {
-                    console.warn(`المنتج بالباركود ${targetDocId} غير موجود في المستودع، تم إنشاؤه تلقائياً.`);
                     await ref.set({
                         name: item.name || "منتج جديد غير معرف",
                         barcode: targetDocId,
@@ -1192,7 +1217,6 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
                     }, { merge: true });
                 }
 
-                // --- تحديث المصفوفة المحلية فورياً كي يظهر الحساب مباشرة في واجهة المستخدم ---
                 if (typeof products !== 'undefined' && Array.isArray(products)) {
                     let localProd = products.find(p => p.id === targetDocId || p.barcode === targetDocId);
                     if (localProd) {
@@ -1203,8 +1227,9 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
             } catch (err) {
                 console.error(`فشل تحديث مخزون المنتج ${targetDocId}:`, err);
             }
-        });
+        }
 
+        // نقاط الزبون
         let customerMessage = ""; 
         const customerInput = document.getElementById('customer-phone');
         
@@ -1240,24 +1265,23 @@ async function saveInvoice(shouldPrint = true, isFromModal = false) {
         }
 
         await batch.commit();
-        await Promise.all(stockUpdates);
         saveToInvoices(usd, lbp);
 
-        if (shouldPrint) {
-            if (typeof printInvoice === "function") {
-                printInvoice(printWindow);
-            }
+        if (shouldPrint && typeof printInvoice === "function") {
+            printInvoice(printWindow);
         }
 
-        alert(`تم حفظ العملية بنجاح بواسطة: ${typeof currentEmployee !== 'undefined' ? currentEmployee : 'الكاشير'}${customerMessage}`);
+        alert(`تم حفظ العملية بنجاح بواسطة: ${currentEmpName}${customerMessage}`);
         
         if (customerInput) customerInput.value = '';
-        
         cart = []; 
         if (typeof renderCart === "function") renderCart();
+
     } catch (e) { 
         if (printWindow && !printWindow.closed) printWindow.close();
-        alert("خطأ في الحفظ: " + e.message); 
+        console.error("خطأ أثناء الحفظ على السحابة، تم تحويل الفاتورة للـ Offline:", e);
+        // في حال فشل الاتصال مع Firebase، نحفظها محلياً كي لا يضيع الطلب
+        saveInvoiceOffline(invoicePayload);
     }
 }
 

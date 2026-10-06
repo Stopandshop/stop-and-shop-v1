@@ -290,7 +290,7 @@
 
         <div id="search-box-container" class="search-box-container">
             <div class="search-input-wrapper">
-                <input type="text" id="manual-barcode-input" placeholder="اكتب رقم الباركود هنا...">
+                <input type="text" id="manual-barcode-input" placeholder="اكتب رقم الباركود هنا..." onkeypress="handleManualKey(event)">
                 <button onclick="submitManualSearch()">بحث</button>
             </div>
         </div>
@@ -336,14 +336,14 @@
 
     <script>
         // ⚠️ يرجى إعادة وضع الـ firebaseConfig الخاصة بمشروعك هنا ليعود الاتصال فوراً:
-       const firebaseConfig = {
-        apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",
-        authDomain: "stopandshop-157ff.firebaseapp.com",
-        projectId: "stopandshop-157ff",
-        storageBucket: "stopandshop-157ff.firebasestorage.app",
-        messagingSenderId: "622958508953",
-        appId: "1:622958508953:web:8f2b8f60f1d4e323353108"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyCLBuU3lpqpNKiQvH5hDoQAYtdzePUsxp8",
+            authDomain: "stopandshop-157ff.firebaseapp.com",
+            projectId: "stopandshop-157ff",
+            storageBucket: "stopandshop-157ff.firebasestorage.app",
+            messagingSenderId: "622958508953",
+            appId: "1:622958508953:web:8f2b8f60f1d4e323353108"
+        };
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -355,14 +355,26 @@
         window.onload = function() {
             keepFocusOnScanner();
         };
+
         document.addEventListener('click', (e) => {
-            if(e.target.id !== 'manual-barcode-input') {
-                keepFocusOnScanner();
+            const manualContainer = document.getElementById('search-box-container');
+            const isManualOpen = manualContainer && manualContainer.style.display === 'block';
+            
+            // إلغاء تحويل التركيز إذا كان مربع البحث اليدوي مفتوحاً أو يتم الضغط داخله
+            if (isManualOpen || e.target.id === 'manual-barcode-input' || e.target.closest('#search-box-container')) {
+                return;
             }
+            keepFocusOnScanner();
         });
 
         function keepFocusOnScanner() {
-            document.getElementById('barcode-input').focus();
+            const barcodeInput = document.getElementById('barcode-input');
+            const manualContainer = document.getElementById('search-box-container');
+            
+            // التركيز على القارئ فقط إذا لم يفتح المستخدم البحث اليدوي
+            if (barcodeInput && (!manualContainer || manualContainer.style.display !== 'block')) {
+                barcodeInput.focus();
+            }
         }
 
         function toggleManualSearch() {
@@ -372,7 +384,15 @@
                 keepFocusOnScanner();
             } else {
                 container.style.display = 'block';
-                document.getElementById('manual-barcode-input').focus();
+                setTimeout(() => {
+                    document.getElementById('manual-barcode-input').focus();
+                }, 50);
+            }
+        }
+
+        function handleManualKey(event) {
+            if (event.key === 'Enter') {
+                submitManualSearch();
             }
         }
 
@@ -433,6 +453,8 @@
                     document.getElementById('prod-price-lbp').innerText = "0 ل.ل";
                     document.getElementById('prod-img').src = defaultImg;
                 }
+            }).catch((error) => {
+                document.getElementById('prod-name').innerText = "⚠️ حدث خطأ في الاتصال";
             });
         }
 
